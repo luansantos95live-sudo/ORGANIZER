@@ -10,6 +10,8 @@ fictícios salvos em `localStorage`.
 |---|---|
 | `docs/01-ANALISE-E-PLANO.md` | Diagnóstico do sistema atual, benchmarks, princípios e especificação da nova versão |
 | `docs/02-DESIGN-SYSTEM.md` | Paleta pastel, tipografia, componentes e regras de cor por status/prazo |
+| `docs/03-COWORK-CAPTURA.md` | Roteiro para capturar o sistema original sem alterar dados |
+| `docs/04-MOLDE-DE-REPLICACAO.md` | Como replicar cada aba do sistema original usando este molde |
 | `docs/screenshots/` | Capturas de todas as telas (claro, escuro e celular) |
 | `app/` | O clone: React 19 + Vite + TypeScript + Tailwind 4 + Zustand |
 
