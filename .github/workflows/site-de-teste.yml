@@ -1,0 +1,52 @@
+name: Site de teste
+
+# A cada envio de código, roda os testes, gera o sistema em um único HTML e o publica na branch gh-pages.
+# Para ter o endereço na internet, ative uma vez em Settings > Pages: Source "Deploy from a branch",
+# Branch "gh-pages", pasta "/ (root)".
+on:
+  push:
+    branches: [claude/fluxogestor-dashboard-redesign-cxdnxz, main]
+    paths: ['app/**', '.github/workflows/site-de-teste.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: site-de-teste
+  cancel-in-progress: true
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: Instalar
+        run: npm ci
+        working-directory: app
+      - name: Testes
+        run: npm test
+        working-directory: app
+      - name: Gerar o site
+        run: npm run build:single
+        working-directory: app
+      - name: Publicar na branch gh-pages
+        working-directory: app
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir ../site-publicado
+          cp dist-single/index.html ../site-publicado/index.html
+          touch ../site-publicado/.nojekyll
+          cd ../site-publicado
+          git init -q -b gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Site de teste ${GITHUB_SHA::7}"
+          git push -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gh-pages

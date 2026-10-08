@@ -13,13 +13,35 @@ const cssTxt = ler(css)
 // </script e <!-- dentro do JS quebrariam a tag embutida; as barras invertidas mantêm o sentido em strings e regex.
 const jsTxt = ler(js).replace(/<\/script/gi, '<\\/script').replace(/<!--/g, '<\\!--')
 
-const saida = `<title>FluxoGestor Lab</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+const fontes = `<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">`
+
+// 1) Versão para publicar como Artifact: a plataforma já envolve a página com html, head e body.
+const artefato = `<title>FluxoGestor Lab</title>
+${fontes}
 <style>${cssTxt}</style>
 <div id="root"></div>
 <script type="module">${jsTxt}</script>
 `
+
+// 2) Versão independente: abre direto no Chrome (arquivo ou site), com a codificação declarada.
+const independente = `<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FluxoGestor Lab</title>
+${fontes}
+<style>${cssTxt}</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="module">${jsTxt}</script>
+</body>
+</html>
+`
 fs.mkdirSync('dist-single', { recursive: true })
-fs.writeFileSync('dist-single/fluxogestor-lab.html', saida)
-console.log(`dist-single/fluxogestor-lab.html · ${(saida.length / 1024).toFixed(0)} kB`)
+fs.writeFileSync('dist-single/fluxogestor-lab.html', artefato)
+fs.writeFileSync('dist-single/index.html', independente)
+console.log(`dist-single/fluxogestor-lab.html (Artifact) · ${(artefato.length / 1024).toFixed(0)} kB`)
+console.log(`dist-single/index.html (independente) · ${(independente.length / 1024).toFixed(0)} kB`)

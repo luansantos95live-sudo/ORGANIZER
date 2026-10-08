@@ -44,6 +44,12 @@ npm test                  # testes automáticos das regras (leitor do SIOPI, rot
 Os dados ficam no navegador de quem abre. Para levar os dados a outro computador use
 Configurações → Copiar backup e, no outro, Colar backup (ou Exportar e Importar o arquivo).
 
+### Endereço na internet (GitHub Pages)
+
+O fluxo `.github/workflows/site-de-teste.yml` publica o sistema na branch `gh-pages` a cada envio.
+Ative uma vez em **Settings → Pages**: Source "Deploy from a branch", branch `gh-pages`, pasta `/ (root)`.
+O endereço fica `https://<usuário>.github.io/<repositório>/`. O site é público e traz só dados de exemplo.
+
 ## Telas
 
 - **Painel** — prioridades dos próximos 3 dias, farol de prazo, rota de hoje, carteira por etapa.
