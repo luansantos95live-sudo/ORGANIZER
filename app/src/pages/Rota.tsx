@@ -118,7 +118,7 @@ export function RotaPage() {
         }
       />
 
-      <div className="grid lg:grid-cols-[320px_1fr] gap-4 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4 items-start">
         {/* Disponíveis */}
         <Card title="Disponíveis" actions={<span className="text-[12px] text-muted">{disponiveis.length}</span>} pad={false} className="lg:sticky lg:top-[72px]">
           <div className="px-3 pb-2 flex gap-2">
@@ -160,7 +160,7 @@ export function RotaPage() {
         <div className="flex flex-col gap-3 min-w-0">
           <Card pad={false}>
             <div className="flex flex-wrap items-center gap-2 px-3 py-2.5">
-              <span className="text-[12.5px] text-muted capitalize mr-1">{dataLonga(data)}</span>
+              <span className="text-[12.5px] text-muted first-cap mr-1">{dataLonga(data)}</span>
               <label className="flex items-center gap-1.5 text-[12px] text-muted">
                 <Clock size={13} /> partida
                 <input type="time" className="input input-sm tnum w-[112px]" value={rota.partida} step={300} onChange={(e) => e.target.value && salvarRota({ ...rota, partida: e.target.value })} />

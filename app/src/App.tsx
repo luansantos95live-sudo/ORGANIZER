@@ -6,6 +6,7 @@ import { OsDetail } from './pages/OsDetail'
 import { RotaPage } from './pages/Rota'
 import { Agenda } from './pages/Agenda'
 import { Fechamento } from './pages/Fechamento'
+import { Faturamento } from './pages/Faturamento'
 import { ConfigPage } from './pages/Config'
 
 export default function App() {
@@ -18,6 +19,7 @@ export default function App() {
           <Route path="os/:id" element={<OsDetail />} />
           <Route path="rota" element={<RotaPage />} />
           <Route path="agenda" element={<Agenda />} />
+          <Route path="faturamento" element={<Faturamento />} />
           <Route path="fechamento" element={<Fechamento />} />
           <Route path="config" element={<ConfigPage />} />
         </Route>

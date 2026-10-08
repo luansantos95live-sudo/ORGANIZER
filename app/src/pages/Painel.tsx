@@ -52,7 +52,7 @@ export function Painel() {
     <>
       <PageHeader
         title={`Bom dia${escopo === 'luan' ? `, ${config.responsaveis.luan.curto}` : ''}`}
-        subtitle={<span className="capitalize">{dataLonga(hoje)}</span>}
+        subtitle={<span className="first-cap">{dataLonga(hoje)}</span>}
         actions={<Link to="/rota" className="btn btn-primary"><RouteIcon size={15} /> Montar rota de hoje</Link>}
       />
 
@@ -66,7 +66,7 @@ export function Painel() {
         <Kpi label="Em diligência" value={kpis.diligencia} tone="status-diligencia" onClick={() => irFiltrado('diligencia')} />
       </div>
 
-      <div className="grid lg:grid-cols-[1.4fr_1fr] gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-4">
         <Card title="Prioridades — próximos 3 dias" actions={<Link to="/os" className="btn btn-ghost btn-sm">Ver carteira <ArrowRight size={14} /></Link>} pad={false}>
           {prioridades.length === 0 ? (
             <Empty title="Nada urgente" text="Nenhuma O.S. aberta vence nos próximos 3 dias." />

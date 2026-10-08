@@ -59,6 +59,7 @@ export const useStore = create<State>()(
         }
         const patch: Partial<OS> = { status }
         if (status === 'laudo_enviado') patch.enviadoEm = new Date().toISOString().slice(0, 10)
+        if (status === 'finalizada') patch.concluidaEm = new Date().toISOString().slice(0, 10)
         if (status === 'conferida') patch.conferida = true
         get().atualizarOS(id, patch, evento ?? nomes[status])
       },
@@ -147,7 +148,14 @@ export const useStore = create<State>()(
         set({ os: novo.os, rotas: novo.rotas, config: CONFIG_PADRAO, escopo: 'luan' })
       },
     }),
-    { name: 'fluxogestor-lab-v1' },
+    {
+      name: 'fluxogestor-lab-v2',
+      // garante campos novos de configuração em dados salvos antes deles existirem
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<State>
+        return { ...current, ...p, config: { ...current.config, ...(p.config ?? {}) } }
+      },
+    },
   ),
 )
 

@@ -42,7 +42,7 @@ export function Agenda() {
           <div className="border-b border-border bg-surface-2 sticky top-0 z-10" />
           {dias.map((d) => (
             <div key={d.toISOString()} className={clsx('border-b border-l border-border bg-surface-2 px-3 py-2 sticky top-0 z-10', isSameDay(d, hoje) && 'text-brand-strong')}>
-              <div className="text-[11px] uppercase font-semibold tracking-wide capitalize">{format(d, 'EEE', { locale: ptBR })}</div>
+              <div className="text-[11px] uppercase font-semibold tracking-wide first-cap">{format(d, 'EEE', { locale: ptBR })}</div>
               <div className={clsx('text-lg font-semibold tnum leading-none', isSameDay(d, hoje) && 'inline-block bg-brand text-white rounded-md px-1.5 py-0.5')}>{format(d, 'd')}</div>
             </div>
           ))}

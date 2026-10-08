@@ -15,7 +15,7 @@ export function ConfigPage() {
   return (
     <>
       <PageHeader title="Configurações" subtitle="Tudo aqui fica salvo no seu navegador." />
-      <div className="grid md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card title="Aparência">
           <Field label="Tema">
             <Segmented value={config.tema} onChange={(t) => setConfig({ tema: t })} options={[{ value: 'claro', label: 'Claro' }, { value: 'escuro', label: 'Escuro' }]} />
@@ -34,13 +34,20 @@ export function ConfigPage() {
         <Card title="Responsáveis">
           <div className="flex flex-col gap-4">
             {(['luan', 'rt'] as Responsavel[]).map((r) => (
-              <div key={r} className="grid grid-cols-[1fr_90px_130px] gap-2">
+              <div key={r} className="grid grid-cols-1 sm:grid-cols-[1fr_90px_130px] gap-2">
                 <Field label={r === 'luan' ? 'Você' : 'Responsável técnico parceiro'}><input className="input" value={config.responsaveis[r].nome} onChange={(e) => setResp(r, 'nome', e.target.value)} /></Field>
                 <Field label="Apelido"><input className="input" value={config.responsaveis[r].curto} onChange={(e) => setResp(r, 'curto', e.target.value)} /></Field>
                 <Field label="Registro"><input className="input" value={config.responsaveis[r].registro} onChange={(e) => setResp(r, 'registro', e.target.value)} /></Field>
               </div>
             ))}
           </div>
+        </Card>
+
+        <Card title="Faturamento">
+          <Field label="Repasse do RT para você (%)">
+            <input id="cfg-repasse" type="number" min={0} max={100} step={1} className="input tnum w-[120px]" value={Math.round(config.repasseRT * 100)} onChange={(e) => setConfig({ repasseRT: Math.min(100, Math.max(0, Number(e.target.value) || 0)) / 100 })} />
+          </Field>
+          <p className="text-[12px] text-muted mt-2">Aplicado sobre o valor das O.S. do RT na tela Faturamento (hoje {Math.round(config.repasseRT * 100)}%).</p>
         </Card>
 
         <Card title="Duração padrão por tipo de serviço">

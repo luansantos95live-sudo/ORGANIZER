@@ -46,9 +46,9 @@ export function Fechamento() {
         title="Fechamento mensal"
         subtitle="Conferência das O.S. contra o extrato da Caixa e controle do RRT Múltiplo Mensal."
         actions={
-          <div className="flex items-center gap-1">
+          <div className="flex flex-wrap items-center gap-1">
             <button className="btn btn-secondary btn-icon" onClick={() => setMes(addMonths(mes, -1))} aria-label="Mês anterior"><ChevronLeft size={16} /></button>
-            <span className="btn btn-secondary btn-sm capitalize min-w-[150px] justify-center">{format(mes, 'MMMM yyyy', { locale: ptBR })}</span>
+            <span className="btn btn-secondary btn-sm first-cap min-w-[150px] justify-center">{format(mes, 'MMMM yyyy', { locale: ptBR })}</span>
             <button className="btn btn-secondary btn-icon" onClick={() => setMes(addMonths(mes, 1))} aria-label="Próximo mês"><ChevronRight size={16} /></button>
             <button className="btn btn-primary btn-sm ml-2" onClick={exportarCSV} disabled={!lista.length}><Download size={14} /> Exportar tracker RRT</button>
           </div>

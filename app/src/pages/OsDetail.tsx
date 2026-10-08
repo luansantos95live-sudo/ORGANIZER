@@ -98,7 +98,7 @@ export function OsDetail() {
       </div>
 
       {aba === 'resumo' && (
-        <div className="grid md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card title="Imóvel">
             <dl className="grid grid-cols-[110px_1fr] gap-y-2 text-[13px]">
               <dt className="text-muted">Endereço</dt><dd>{os.endereco.logradouro}, {os.endereco.numero}</dd>
@@ -131,7 +131,7 @@ export function OsDetail() {
       )}
 
       {aba === 'documentos' && (
-        <div className="grid md:grid-cols-[1.3fr_1fr] gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-[1.3fr_1fr] gap-4">
           <Card title="Checklist documental (SIOPI)" actions={<span className="text-[12px] text-muted">{11 - faltando.length}/11</span>}>
             <ul className="flex flex-col">
               {(Object.keys(DOC_META) as DocKey[]).map((k) => (

@@ -1,4 +1,4 @@
-import { CalendarDays, ClipboardList, LayoutDashboard, Moon, Route, Search, Settings, Sun, Wallet } from 'lucide-react'
+import { CalendarDays, ChartColumn, ClipboardList, LayoutDashboard, Moon, Route, Search, Settings, Sun, Wallet } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
@@ -14,6 +14,7 @@ const NAV = [
   { to: '/os', label: 'Ordens de serviço', icon: ClipboardList },
   { to: '/rota', label: 'Rota do dia', icon: Route },
   { to: '/agenda', label: 'Agenda', icon: CalendarDays },
+  { to: '/faturamento', label: 'Faturamento', icon: ChartColumn },
   { to: '/fechamento', label: 'Fechamento mensal', icon: Wallet },
   { to: '/config', label: 'Configurações', icon: Settings },
 ]
@@ -77,14 +78,14 @@ export function Layout() {
             <button className="btn btn-ghost btn-icon" title="Tema" onClick={() => setConfig({ tema: config.tema === 'claro' ? 'escuro' : 'claro' })}>
               {config.tema === 'claro' ? <Moon size={16} /> : <Sun size={16} />}
             </button>
-            <span className="hidden sm:inline text-[12px] text-muted capitalize">{format(new Date(), "EEE, d 'de' MMM", { locale: ptBR })}</span>
+            <span className="hidden sm:inline text-[12px] text-muted first-cap">{format(new Date(), "EEE, d 'de' MMM", { locale: ptBR })}</span>
           </div>
         </header>
         <main className="flex-1 px-4 md:px-6 py-5 max-w-[1280px] w-full mx-auto pb-24 md:pb-8">
           <Outlet />
         </main>
         <nav className="md:hidden fixed bottom-0 inset-x-0 h-16 bg-surface border-t border-border flex items-stretch z-20">
-          {NAV.slice(0, 5).map((n) => (
+          {NAV.filter((n) => n.to !== '/fechamento' && n.to !== '/config').map((n) => (
             <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => `flex-1 flex flex-col items-center justify-center gap-1 text-[10px] ${isActive ? 'text-brand-strong' : 'text-muted'}`}>
               <n.icon size={20} strokeWidth={1.8} />
               {n.label.split(' ')[0]}

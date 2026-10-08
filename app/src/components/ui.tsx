@@ -55,9 +55,9 @@ export function Card({ children, className, title, actions, pad = true }: { chil
   return (
     <section className={clsx('card', className)}>
       {(title || actions) && (
-        <header className="flex items-center justify-between gap-3 px-4 pt-3.5 pb-2.5">
+        <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 pt-3.5 pb-2.5">
           <h3 className="font-semibold text-[13px] tracking-tight">{title}</h3>
-          <div className="flex items-center gap-2">{actions}</div>
+          <div className="flex flex-wrap items-center gap-2 min-w-0 max-w-full">{actions}</div>
         </header>
       )}
       <div className={clsx(pad && 'px-4 pb-4', (title || actions) && !pad && '', !title && !actions && pad && 'pt-4')}>{children}</div>

@@ -1,6 +1,8 @@
 export type Responsavel = 'luan' | 'rt'
 export type Escopo = Responsavel | 'todas'
 
+export type Tipologia = 'A413' | 'E004' | 'C021' | 'M112' | 'R017'
+
 export type TipoServico = 'AVALIACAO' | 'VISTORIA_RAE' | 'PCI_PLS' | 'REAVALIACAO'
 
 export type Status =
@@ -65,6 +67,8 @@ export interface OS {
   prazo: string // yyyy-mm-dd
   vistoria?: Vistoria
   enviadoEm?: string
+  concluidaEm?: string // yyyy-mm-dd — laudo aceito (entra no faturamento)
+  tipologia: Tipologia
   docs: Record<DocKey, boolean>
   fotos: number
   observacoes: string
@@ -96,4 +100,6 @@ export interface Config {
   deslocamentoOutroBairro: number
   deslocamentoOutraCidade: number
   partidaPadrao: string
+  repasseRT: number // fração do RT que vem para você (0.4 = 40%)
 }
+

@@ -40,9 +40,14 @@ npm run preview
   *Preencher horários* em cascata, detecção de sobreposição, exportar para Google Maps e
   WhatsApp, *Salvar nas O.S.*
 - **Agenda** — semana com blocos por responsável.
+- **Faturamento** — refeita a partir dos três modelos do FluxoGestor: *Só minhas* (meu faturado + 40% do RT), *Equipe* (RT e repasse) e *Geral*. Filtros por tipologia, polo, período e carteira, barras de composição (cor = de quem é o valor, claro = a faturar), histórico de 6 meses, tabela com linha expansível, colunas à escolha, paginação e CSV. O percentual de repasse é configurável.
 - **Fechamento mensal** — conferência contra o extrato, marcação de RRT e exportação do CSV no
   formato do tracker do RRT Múltiplo Mensal.
 - **Configurações** — responsáveis, durações padrão, deslocamentos, tema.
+
+## Figma
+
+Arquivo com o design system (36 variáveis de cor) e as três visões do Faturamento: https://www.figma.com/design/PjnAVzeTQMhPY4ylCJQTxL
 
 ## Próximos passos
 
