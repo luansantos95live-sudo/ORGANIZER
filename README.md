@@ -15,7 +15,15 @@ fictícios salvos em `localStorage`.
 | `docs/screenshots/` | Capturas de todas as telas (claro, escuro e celular) |
 | `app/` | O clone: React 19 + Vite + TypeScript + Tailwind 4 + Zustand |
 
-## Rodar localmente
+## Rodar no seu computador
+
+**Windows:** dê dois cliques em `INICIAR-FLUXO-CAIXA.bat`. Na primeira vez ele instala o sistema
+(precisa do [Node.js LTS](https://nodejs.org)); depois abre sozinho em `http://localhost:5173`.
+Deixe a janela preta aberta enquanto usa. Para parar, feche a janela.
+
+**macOS ou Linux:** rode `./iniciar.sh` na pasta do projeto.
+
+## Rodar localmente (desenvolvimento)
 
 ```bash
 cd app
