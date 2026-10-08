@@ -9,10 +9,11 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { Avatar, Card, Empty, PageHeader } from '../components/ui'
 import {
-  POLOS, TIPOLOGIAS, brlCompacto, dataReferencia, entraNoFaturamento, estaFinalizada, intervalo, moverPeriodo, noIntervalo, pct, poloDe,
+  POLOS, TIPOLOGIAS, brlCompacto, projecaoPorRitmo, repasseDaOS, repasseDe, type BaseRepasse, dataReferencia, entraNoFaturamento, estaFinalizada, intervalo, moverPeriodo, noIntervalo, pct, poloDe,
   resumir, rotuloPeriodo, situacaoDe, ticksBonitos, valorTotal, type Periodo, type Resumo, type Situacao,
 } from '../lib/faturamento'
-import { brl, dataCurta as dataCurtaPrazo, dataMedia, enderecoLinha, refCurta } from '../lib/os'
+import { copiar } from '../lib/clipboard'
+import { brl, cap, dataCurta as dataCurtaPrazo, dataMedia, enderecoLinha, refCurta } from '../lib/os'
 import { useStore } from '../store/useStore'
 import type { Escopo, OS, Tipologia } from '../types'
 
@@ -53,7 +54,7 @@ export function Faturamento() {
 
   const { ini, fim } = intervalo(periodo, ref)
 
-  const base = useMemo(() => {
+  const baseOS = useMemo(() => {
     const t = busca.trim().toLowerCase()
     return todas
       .filter(entraNoFaturamento)
@@ -62,14 +63,15 @@ export function Faturamento() {
       .filter((o) => !t || [o.referencia, refCurta(o.referencia), o.proponente, o.endereco.bairro, o.endereco.cidade].join(' ').toLowerCase().includes(t))
   }, [todas, busca, tipologia, polo])
 
-  const doPeriodo = useMemo(() => base.filter((o) => noIntervalo(o, ini, fim)), [base, ini, fim])
+  const doPeriodo = useMemo(() => baseOS.filter((o) => noIntervalo(o, ini, fim)), [baseOS, ini, fim])
   const meus = doPeriodo.filter((o) => o.responsavel === 'luan')
   const doRT = doPeriodo.filter((o) => o.responsavel === 'rt')
   const rMe = resumir(meus)
   const rRt = resumir(doRT)
   const rAll = resumir(doPeriodo)
 
-  const visao = montarVisao(escopo, rMe, rRt, rAll, rep, repTxt, nomeRT)
+  const base = config.repasseBase
+  const visao = montarVisao(escopo, rMe, rRt, rAll, rep, repTxt, nomeRT, base)
 
   const linhas = escopo === 'luan' ? doPeriodo : escopo === 'rt' ? doRT : doPeriodo
   const linhasFiltradas = situacao ? linhas.filter((o) => situacaoDe(o) === situacao) : linhas
@@ -111,7 +113,7 @@ export function Faturamento() {
               <option value="ano">Ano</option>
             </select>
             <button className="btn btn-secondary btn-icon !h-[30px] !w-[30px]" aria-label="Período anterior" onClick={() => setRef(moverPeriodo(periodo, ref, -1))}><ChevronLeft size={15} /></button>
-            <span className="input input-sm inline-flex items-center justify-center min-w-[150px] first-cap whitespace-nowrap font-medium">{rotuloPeriodo(periodo, ref)}</span>
+            <span className="input input-sm inline-flex items-center justify-center min-w-[150px] whitespace-nowrap font-medium">{cap(rotuloPeriodo(periodo, ref))}</span>
             <button className="btn btn-secondary btn-icon !h-[30px] !w-[30px]" aria-label="Próximo período" onClick={() => setRef(moverPeriodo(periodo, ref, 1))}><ChevronRight size={15} /></button>
           </div>
         </Filtro>
@@ -124,7 +126,9 @@ export function Faturamento() {
         </Filtro>
       </div>
 
-      <Insight escopo={escopo} rMe={rMe} rRt={rRt} rAll={rAll} rep={rep} nomeRT={nomeRT} />
+      <Insight escopo={escopo} rMe={rMe} rRt={rRt} rAll={rAll} rep={rep} nomeRT={nomeRT} base={base} />
+
+      {escopo === 'luan' && periodo === 'mes' && <MetaCard meta={config.metaMensal} consolidado={rMe.finalizado + repasseDe(rRt, rep, base).finalizado} potencial={rMe.previsto + repasseDe(rRt, rep, base).previsto} refMes={ref} />}
 
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 mb-4">
@@ -160,18 +164,19 @@ export function Faturamento() {
         </Card>
       </div>
 
-      <Historico base={base} escopo={escopo} rep={rep} refMes={periodo === 'mes' ? ref : startOfMonth(fim)} nomeRT={nomeRT} repTxt={repTxt} />
+      <Historico base={baseOS} baseRepasse={base} escopo={escopo} rep={rep} refMes={periodo === 'mes' ? ref : startOfMonth(fim)} nomeRT={nomeRT} repTxt={repTxt} />
 
-      <Tabela linhas={linhasFiltradas} escopo={escopo} rep={rep} repTxt={repTxt} periodoLabel={rotuloPeriodo(periodo, ref)} situacao={situacao} onSituacao={setSituacao} />
+      <Tabela linhas={linhasFiltradas} escopo={escopo} rep={rep} repTxt={repTxt} periodoLabel={rotuloPeriodo(periodo, ref)} situacao={situacao} onSituacao={setSituacao} base={base} />
     </>
   )
 }
 
 // ---------------------------------------------------------------- regras por visão
-function montarVisao(escopo: Escopo, rMe: Resumo, rRt: Resumo, rAll: Resumo, rep: number, repTxt: string, nomeRT: string) {
+function montarVisao(escopo: Escopo, rMe: Resumo, rRt: Resumo, rAll: Resumo, rep: number, repTxt: string, nomeRT: string, base: BaseRepasse) {
+  const rr = repasseDe(rRt, rep, base)
   if (escopo === 'luan') {
-    const partFinal = rRt.finalizado * rep
-    const partPrev = rRt.previsto * rep
+    const partFinal = rr.finalizado
+    const partPrev = rr.previsto
     const consolidado = rMe.finalizado + partFinal
     const potencial = rMe.previsto + partPrev
     const aFaturar = potencial - consolidado
@@ -188,7 +193,7 @@ function montarVisao(escopo: Escopo, rMe: Resumo, rRt: Resumo, rAll: Resumo, rep
         { key: 'mf', label: 'Meu finalizado', valor: rMe.finalizado, kind: 'me' },
         { key: 'rf', label: `${repTxt} do RT finalizado`, valor: partFinal, kind: 'rt' },
         { key: 'mp', label: 'Meu a faturar', valor: rMe.aFaturar, kind: 'me', pend: true },
-        { key: 'rp', label: `${repTxt} do RT a faturar`, valor: rRt.aFaturar * rep, kind: 'rt', pend: true },
+        { key: 'rp', label: `${repTxt} do RT a faturar`, valor: rr.aFaturar, kind: 'rt', pend: true },
       ],
     }]
     const trio: Trio[] = [
@@ -201,15 +206,15 @@ function montarVisao(escopo: Escopo, rMe: Resumo, rRt: Resumo, rAll: Resumo, rep
       { tone: 'kpi-sky', icon: <Clock size={16} />, label: 'Minhas O.S. a faturar', sub: rMe.qtdVencidas ? `${rMe.qtdVencidas} com prazo vencido` : 'nenhuma vencida', valor: String(rMe.qtdAFaturar) },
       { tone: 'kpi-stone', icon: <ChartColumn size={16} />, label: 'Ticket médio das minhas O.S.', sub: 'previsto ÷ quantidade', valor: brl(rMe.ticketMedio) },
       { tone: 'kpi-lav', icon: <Users size={16} />, label: `O.S. de ${nomeRT} no período`, sub: `${rRt.qtdFinalizadas} finalizadas · ${rRt.qtdAFaturar} a faturar`, valor: String(rRt.qtd) },
-      { tone: 'kpi-mint', icon: <TrendingUp size={16} />, label: 'Projeção de fechamento', sub: 'consolidado previsto sem as O.S. vencidas', valor: brl(rMe.projecao + rRt.projecao * rep) },
+      { tone: 'kpi-mint', icon: <TrendingUp size={16} />, label: 'Projeção de fechamento', sub: 'consolidado previsto sem as O.S. vencidas', valor: brl(rMe.projecao + rr.projecao) },
       { tone: 'kpi-sage', icon: <Trophy size={16} />, label: 'Minha maior O.S.', sub: rMe.maior ? `#${refCurta(rMe.maior.referencia)} · ${rMe.maior.proponente}` : '—', valor: rMe.maior ? brl(valorTotal(rMe.maior)) : '—' },
     ]
     return { kpis, barras, trio, indicadores, tituloComposicao: 'Composição do meu faturamento', tituloIndicadores: 'Resumo estratégico' }
   }
 
   if (escopo === 'rt') {
-    const repPrev = rRt.previsto * rep
-    const repFinal = rRt.finalizado * rep
+    const repPrev = rr.previsto
+    const repFinal = rr.finalizado
     const kpis: KpiDef[] = [
       { tone: 'kpi-sky', icon: <ChartColumn size={19} />, label: 'RT previsto', valor: brl(rRt.previsto), sub: `${rRt.qtd} O.S. de ${nomeRT} no período`, info: `Serviço + deslocamento de todas as O.S. aceitas de ${nomeRT} no período.` },
       { tone: 'kpi-sage', icon: <CircleCheck size={19} />, label: 'RT finalizado', valor: brl(rRt.finalizado), sub: `${pct(rRt.conversao)} do previsto`, info: 'O.S. do RT com laudo aceito no período.' },
@@ -238,7 +243,7 @@ function montarVisao(escopo: Escopo, rMe: Resumo, rRt: Resumo, rAll: Resumo, rep
       { tone: 'kpi-peach', icon: <Clock size={16} />, label: 'O.S. a faturar', sub: rRt.qtdVencidas ? `${rRt.qtdVencidas} com prazo vencido` : 'nenhuma vencida', valor: String(rRt.qtdAFaturar) },
       { tone: 'kpi-mint', icon: <Layers size={16} />, label: `Repasse finalizado (${repTxt})`, sub: 'sua parte já garantida', valor: brl(repFinal) },
       { tone: 'kpi-lav', icon: <Users size={16} />, label: `Repasse previsto (${repTxt})`, sub: 'sua parte sobre o previsto', valor: brl(repPrev) },
-      { tone: 'kpi-mint', icon: <TrendingUp size={16} />, label: 'Projeção do repasse', sub: 'sem as O.S. vencidas', valor: brl(rRt.projecao * rep) },
+      { tone: 'kpi-mint', icon: <TrendingUp size={16} />, label: 'Projeção do repasse', sub: 'sem as O.S. vencidas', valor: brl(rr.projecao) },
     ]
     return { kpis, barras, trio, indicadores, tituloComposicao: 'Desempenho financeiro da equipe', tituloIndicadores: 'Indicadores da equipe' }
   }
@@ -276,14 +281,15 @@ function montarVisao(escopo: Escopo, rMe: Resumo, rRt: Resumo, rAll: Resumo, rep
 }
 
 // ---------------------------------------------------------------- frase-resumo
-function Insight({ escopo, rMe, rRt, rAll, rep, nomeRT }: { escopo: Escopo; rMe: Resumo; rRt: Resumo; rAll: Resumo; rep: number; nomeRT: string }) {
+function Insight({ escopo, rMe, rRt, rAll, rep, nomeRT, base }: { escopo: Escopo; rMe: Resumo; rRt: Resumo; rAll: Resumo; rep: number; nomeRT: string; base: BaseRepasse }) {
+  const rr = repasseDe(rRt, rep, base)
   let texto: ReactNode
   if (escopo === 'luan') {
-    const cons = rMe.finalizado + rRt.finalizado * rep
-    const pot = rMe.previsto + rRt.previsto * rep
+    const cons = rMe.finalizado + rr.finalizado
+    const pot = rMe.previsto + rr.previsto
     texto = <>Você já consolidou <b>{brl(cons)}</b> de <b>{brl(pot)}</b> possíveis ({pct(pot ? cons / pot : 0, 0)}). Faltam <b>{rMe.qtdAFaturar}</b> O.S. suas e <b>{rRt.qtdAFaturar}</b> de {nomeRT} para fechar o período{rMe.qtdVencidas + rRt.qtdVencidas ? <>, sendo <b className="text-[var(--f-urgent-fg)]">{rMe.qtdVencidas + rRt.qtdVencidas} {rMe.qtdVencidas + rRt.qtdVencidas === 1 ? 'já vencida' : 'já vencidas'}</b></> : null}.</>
   } else if (escopo === 'rt') {
-    texto = <>{nomeRT} finalizou <b>{pct(rRt.conversao, 0)}</b> do previsto. Seu repasse garantido é <b>{brl(rRt.finalizado * rep)}</b> e ainda podem entrar <b>{brl(rRt.aFaturar * rep)}</b>.</>
+    texto = <>{nomeRT} finalizou <b>{pct(rRt.conversao, 0)}</b> do previsto. Seu repasse garantido é <b>{brl(rr.finalizado)}</b> e ainda podem entrar <b>{brl(rr.aFaturar)}</b>.</>
   } else {
     texto = <>As duas carteiras somam <b>{brl(rAll.previsto)}</b> no período, com <b>{pct(rAll.conversao, 0)}</b> já finalizado. Você responde por <b>{pct(rAll.previsto ? rMe.previsto / rAll.previsto : 0, 0)}</b> do previsto.</>
   }
@@ -394,7 +400,7 @@ function TrioCard({ item }: { item: Trio }) {
 }
 
 // ---------------------------------------------------------------- histórico 6 meses
-function Historico({ base, escopo, rep, refMes, nomeRT, repTxt }: { base: OS[]; escopo: Escopo; rep: number; refMes: Date; nomeRT: string; repTxt: string }) {
+function Historico({ base, baseRepasse, escopo, rep, refMes, nomeRT, repTxt }: { base: OS[]; baseRepasse: BaseRepasse; escopo: Escopo; rep: number; refMes: Date; nomeRT: string; repTxt: string }) {
   const [hover, setHover] = useState<number | null>(null)
   const meses = useMemo(() => {
     return Array.from({ length: 6 }, (_, i) => {
@@ -403,7 +409,9 @@ function Historico({ base, escopo, rep, refMes, nomeRT, repTxt }: { base: OS[]; 
       const doMes = base.filter((o) => noIntervalo(o, ini, fim))
       const me = resumir(doMes.filter((o) => o.responsavel === 'luan'))
       const rt = resumir(doMes.filter((o) => o.responsavel === 'rt'))
-      const f = escopo === 'luan' ? rep : 1
+      const rtParte = escopo === 'luan' ? repasseDe(rt, rep, baseRepasse) : null
+      const rtFin = rtParte ? rtParte.finalizado : rt.finalizado
+      const rtAFat = rtParte ? rtParte.aFaturar : rt.aFaturar
       const segs: Seg[] =
         escopo === 'rt'
           ? [
@@ -412,13 +420,13 @@ function Historico({ base, escopo, rep, refMes, nomeRT, repTxt }: { base: OS[]; 
           ]
           : [
             { key: 'mf', label: 'Você · finalizado', valor: me.finalizado, kind: 'me' },
-            { key: 'rf', label: escopo === 'luan' ? `RT ${repTxt} · finalizado` : `${nomeRT} · finalizado`, valor: rt.finalizado * f, kind: 'rt' },
+            { key: 'rf', label: escopo === 'luan' ? `RT ${repTxt} · finalizado` : `${nomeRT} · finalizado`, valor: rtFin, kind: 'rt' },
             { key: 'mp', label: 'Você · a faturar', valor: me.aFaturar, kind: 'me', pend: true },
-            { key: 'rp', label: escopo === 'luan' ? `RT ${repTxt} · a faturar` : `${nomeRT} · a faturar`, valor: rt.aFaturar * f, kind: 'rt', pend: true },
+            { key: 'rp', label: escopo === 'luan' ? `RT ${repTxt} · a faturar` : `${nomeRT} · a faturar`, valor: rtAFat, kind: 'rt', pend: true },
           ]
       return { mes: m, segs, total: segs.reduce((s, x) => s + x.valor, 0), finalizado: segs.filter((s) => !s.pend).reduce((s, x) => s + x.valor, 0) }
     })
-  }, [base, escopo, rep, refMes, nomeRT, repTxt])
+  }, [base, baseRepasse, escopo, rep, refMes, nomeRT, repTxt])
 
   const { topo, ticks } = ticksBonitos(Math.max(...meses.map((m) => m.total)))
   const H = 170
@@ -449,7 +457,7 @@ function Historico({ base, escopo, rep, refMes, nomeRT, repTxt }: { base: OS[]; 
                 </div>
                 {hover === i && (
                   <div className="tooltip" style={{ top: 4, left: i >= 3 ? 'auto' : 'calc(50% + 30px)', right: i >= 3 ? 'calc(50% + 30px)' : 'auto' }}>
-                    <div className="font-semibold first-cap mb-1">{format(m.mes, "MMMM 'de' yyyy", { locale: ptBR })}</div>
+                    <div className="font-semibold mb-1">{cap(format(m.mes, "MMMM 'de' yyyy", { locale: ptBR }))}</div>
                     {m.segs.filter((s) => s.valor > 0.005).map((s) => (
                       <div key={s.key} className="flex items-center gap-2 py-0.5 whitespace-nowrap">
                         <span className={clsx('w-2.5 h-2.5 rounded-[3px]', s.kind === 'me' ? 'seg-me' : 'seg-rt', s.pend && 'pend')} />
@@ -465,7 +473,7 @@ function Historico({ base, escopo, rep, refMes, nomeRT, repTxt }: { base: OS[]; 
           </div>
           <div className="absolute left-14 right-2 bottom-0 flex justify-around gap-3">
             {meses.map((m, i) => (
-              <span key={i} className={clsx('flex-1 text-center text-[11.5px] first-cap', i === 5 ? 'font-semibold text-text' : 'text-muted')}>{format(m.mes, 'MMM/yy', { locale: ptBR })}</span>
+              <span key={i} className={clsx('flex-1 text-center text-[11.5px]', i === 5 ? 'font-semibold text-text' : 'text-muted')}>{cap(format(m.mes, 'MMM/yy', { locale: ptBR }))}</span>
             ))}
           </div>
         </div>
@@ -477,16 +485,17 @@ function Historico({ base, escopo, rep, refMes, nomeRT, repTxt }: { base: OS[]; 
 // ---------------------------------------------------------------- tabela
 type SortKey = 'ref' | 'cliente' | 'conclusao' | 'total'
 
-function Tabela({ linhas, escopo, rep, repTxt, periodoLabel, situacao, onSituacao }: { linhas: OS[]; escopo: Escopo; rep: number; repTxt: string; periodoLabel: string; situacao: Situacao | ''; onSituacao: (s: Situacao | '') => void }) {
+function Tabela({ linhas, escopo, rep, repTxt, periodoLabel, situacao, onSituacao, base }: { linhas: OS[]; escopo: Escopo; rep: number; repTxt: string; periodoLabel: string; situacao: Situacao | ''; onSituacao: (s: Situacao | '') => void; base: BaseRepasse }) {
   const config = useStore((s) => s.config)
   const [sort, setSort] = useState<{ k: SortKey; dir: 1 | -1 }>({ k: 'conclusao', dir: -1 })
   const [aberto, setAberto] = useState<string | null>(null)
   const [pagina, setPagina] = useState(0)
   const [cols, setCols] = useState<Set<ColOpc>>(() => new Set<ColOpc>(['tipologia', 'responsavel', 'conclusao', 'deslocamento']))
   const [menuCols, setMenuCols] = useState(false)
+  const [csvCopiado, setCsvCopiado] = useState(false)
   const POR_PAG = 10
 
-  const parte = (o: OS) => (escopo === 'luan' && o.responsavel === 'rt') || escopo === 'rt' ? valorTotal(o) * rep : valorTotal(o)
+  const parte = (o: OS) => (escopo === 'luan' && o.responsavel === 'rt') || escopo === 'rt' ? repasseDaOS(o, rep, base) : valorTotal(o)
   const mostrarParte = escopo !== 'todas'
 
   const ordenadas = useMemo(() => {
@@ -509,13 +518,15 @@ function Tabela({ linhas, escopo, rep, repTxt, periodoLabel, situacao, onSituaca
     </th>
   )
 
-  const exportar = () => {
+  const montarCSV = () => {
     const cab = ['OS', 'Cliente', 'Tipologia', 'Origem', 'Responsavel', 'Polo', 'Conclusao', 'Prazo', 'Valor_OS', 'Deslocamento', 'Total', mostrarParte ? 'Sua_parte' : '', 'Situacao'].filter(Boolean)
     const rows = ordenadas.map((o) => [o.referencia, o.proponente, o.tipologia, o.responsavel === 'luan' ? 'Meu' : `RT ${repTxt}`, config.responsaveis[o.responsavel].nome, poloDe(o.endereco.cidade), o.concluidaEm ?? '', o.prazo,
       o.valorServico.toFixed(2).replace('.', ','), o.valorDeslocamento.toFixed(2).replace('.', ','), valorTotal(o).toFixed(2).replace('.', ','), ...(mostrarParte ? [parte(o).toFixed(2).replace('.', ',')] : []), SITUACAO_META[situacaoDe(o)].label])
-    const csv = [cab, ...rows].map((l) => l.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\n')
+    return [cab, ...rows].map((l) => l.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\n')
+  }
+  const exportar = () => {
     const a = document.createElement('a')
-    a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }))
+    a.href = URL.createObjectURL(new Blob(['\ufeff' + montarCSV()], { type: 'text/csv;charset=utf-8' }))
     a.download = `faturamento_${periodoLabel.replace(/\s+/g, '_')}.csv`
     a.click()
   }
@@ -548,6 +559,7 @@ function Tabela({ linhas, escopo, rep, repTxt, periodoLabel, situacao, onSituaca
               </div>
             )}
           </div>
+          <button className="btn btn-secondary btn-sm" onClick={async () => { if (await copiar(montarCSV())) { setCsvCopiado(true); setTimeout(() => setCsvCopiado(false), 1400) } }} disabled={!linhas.length}>{csvCopiado ? 'Copiado' : 'Copiar CSV'}</button>
           <button className="btn btn-secondary btn-sm" onClick={exportar} disabled={!linhas.length}><Download size={14} /> CSV</button>
         </>
       }
@@ -654,6 +666,35 @@ function Det({ l, v }: { l: string; v: string }) {
     <div className="min-w-0">
       <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">{l}</div>
       <div className="truncate" title={v}>{v}</div>
+    </div>
+  )
+}
+
+function MetaCard({ meta, consolidado, potencial, refMes }: { meta: number; consolidado: number; potencial: number; refMes: Date }) {
+  const hoje = new Date()
+  const mesAtual = refMes.getFullYear() === hoje.getFullYear() && refMes.getMonth() === hoje.getMonth()
+  const ritmo = mesAtual ? projecaoPorRitmo(consolidado, hoje) : null
+  const max = Math.max(meta, potencial, consolidado, 1)
+  const pctMeta = meta ? consolidado / meta : 0
+  const falta = Math.max(0, meta - consolidado)
+  return (
+    <div className="card px-4 py-3 mb-4" id="meta-mensal">
+      <div className="flex flex-wrap items-baseline justify-between gap-2 mb-2">
+        <span className="font-semibold text-[13px]">Meta do mês · {brl(meta)}</span>
+        <span className="text-[12.5px] text-muted">
+          {pctMeta >= 1 ? <b className="text-brand-strong">Meta batida</b> : <>faltam <b className="tnum text-text">{brl(falta)}</b> ({pct(1 - pctMeta, 0)})</>}
+        </span>
+      </div>
+      <div className="relative h-4 rounded-[5px] track overflow-hidden" role="img" aria-label={`Consolidado ${brl(consolidado)} de uma meta de ${brl(meta)}`}>
+        <div className="absolute inset-y-0 left-0 seg-me pend" style={{ width: `${Math.min(100, (potencial / max) * 100)}%` }} />
+        <div className="absolute inset-y-0 left-0 seg-me" style={{ width: `${Math.min(100, (consolidado / max) * 100)}%` }} />
+        <div className="absolute inset-y-[-3px] w-[2px] bg-[var(--text)]" style={{ left: `${Math.min(100, (meta / max) * 100)}%` }} title="Meta" />
+      </div>
+      <div className="flex flex-wrap gap-x-5 gap-y-1 mt-2 text-[12.5px] text-muted">
+        <span>Consolidado <b className="tnum text-text">{brl(consolidado)}</b> ({pct(pctMeta, 0)} da meta)</span>
+        <span>Potencial do mês <b className="tnum text-text">{brl(potencial)}</b></span>
+        {ritmo && <span>No ritmo atual (dia {ritmo.diaAtual} de {ritmo.diasNoMes}) fecha em <b className={clsx('tnum', ritmo.projecao >= meta ? 'text-brand-strong' : 'text-[var(--f-warn-fg)]')}>{brl(ritmo.projecao)}</b></span>}
+      </div>
     </div>
   )
 }

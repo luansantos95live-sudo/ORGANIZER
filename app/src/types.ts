@@ -101,5 +101,10 @@ export interface Config {
   deslocamentoOutraCidade: number
   partidaPadrao: string
   repasseRT: number // fração do RT que vem para você (0.4 = 40%)
+  repasseBase: 'total' | 'servico' // o repasse incide sobre serviço + deslocamento ou só sobre o serviço
+  metaMensal: number // meta de faturamento consolidado por mês (R$)
+  prazoPadraoDias: number // prazo padrão de uma O.S. nova, em dias corridos
+  contrato: { numero: string; edital: string; processo: string; rrt: string } // contrato de credenciamento com a Caixa
+  empresa: { razao: string; cnpj: string; municipio: string } // quem emite a nota
 }
 

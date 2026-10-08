@@ -3,7 +3,7 @@ import { ArrowRight, Route as RouteIcon } from 'lucide-react'
 import { useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Avatar, Card, Empty, FarolChip, Kpi, PageHeader, StatusChip } from '../components/ui'
-import { STATUS_ABERTOS, STATUS_META, dataLonga, enderecoLinha, farolDe, refCurta } from '../lib/os'
+import { STATUS_ABERTOS, STATUS_META, cap, dataLonga, enderecoLinha, farolDe, refCurta } from '../lib/os'
 import { fmtMin, resumoRota } from '../lib/rota'
 import { filtrarEscopo, useStore } from '../store/useStore'
 import type { Status } from '../types'
@@ -52,7 +52,7 @@ export function Painel() {
     <>
       <PageHeader
         title={`Bom dia${escopo === 'luan' ? `, ${config.responsaveis.luan.curto}` : ''}`}
-        subtitle={<span className="first-cap">{dataLonga(hoje)}</span>}
+        subtitle={cap(dataLonga(hoje))}
         actions={<Link to="/rota" className="btn btn-primary"><RouteIcon size={15} /> Montar rota de hoje</Link>}
       />
 

@@ -3,14 +3,21 @@ import { persist } from 'zustand/middleware'
 import type { Config, Escopo, OS, Parada, Responsavel, Rota, Status } from '../types'
 import { CONFIG_PADRAO, gerarSeed } from '../data/seed'
 import { recalcularDeslocamentos } from '../lib/rota'
+import { montarOS, type NovaOSInput } from '../lib/os'
+
+export interface Fechamento { extratoTotal?: number; extratoQtd?: number; dataRelatorio?: string; valorNF?: number }
 
 interface State {
   os: OS[]
   rotas: Rota[]
   config: Config
   escopo: Escopo
+  fechamentos: Record<string, Fechamento>
   usuario: Responsavel
   // ações O.S.
+  criarOS: (input: NovaOSInput, evento?: string) => string
+  importarOS: (inputs: NovaOSInput[]) => { criadas: number; ignoradas: number }
+  removerOS: (id: string) => void
   setEscopo: (e: Escopo) => void
   atualizarOS: (id: string, patch: Partial<OS>, evento?: string) => void
   mudarStatus: (id: string, status: Status, evento?: string) => void
@@ -24,9 +31,12 @@ interface State {
   removerParada: (data: string, resp: Responsavel, osId: string) => void
   setParadas: (data: string, resp: Responsavel, paradas: Parada[]) => void
   aplicarRotaNasOS: (data: string, resp: Responsavel) => void
+  // fechamento mensal
+  setFechamento: (mes: string, patch: Partial<Fechamento>) => void
   // config
   setConfig: (patch: Partial<Config>) => void
   resetarDados: () => void
+  restaurarDados: (d: { os: OS[]; rotas: Rota[]; config: Partial<Config>; fechamentos: Record<string, Fechamento> }) => void
 }
 
 const seed = gerarSeed()
@@ -39,8 +49,39 @@ export const useStore = create<State>()(
       config: CONFIG_PADRAO,
       escopo: 'luan',
       usuario: 'luan',
+      fechamentos: {},
 
       setEscopo: (escopo) => set({ escopo }),
+
+      criarOS: (input, evento = 'O.S. cadastrada manualmente') => {
+        const s = get()
+        const id = `os-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
+        const numero = s.os.reduce((m, o) => Math.max(m, o.numero), 0) + 1
+        set({ os: [montarOS(input, id, numero, evento), ...s.os] })
+        return id
+      },
+
+      importarOS: (inputs) => {
+        const s = get()
+        const existentes = new Set(s.os.map((o) => o.referencia))
+        let numero = s.os.reduce((m, o) => Math.max(m, o.numero), 0)
+        const novas = []
+        let ignoradas = 0
+        for (const inp of inputs) {
+          if (!inp.referencia || existentes.has(inp.referencia)) { ignoradas++; continue }
+          existentes.add(inp.referencia)
+          numero++
+          novas.push(montarOS(inp, `os-${Date.now().toString(36)}-${numero}`, numero, 'Importada do arquivo .txt do SIOPI'))
+        }
+        if (novas.length) set({ os: [...novas, ...s.os] })
+        return { criadas: novas.length, ignoradas }
+      },
+
+      removerOS: (id) =>
+        set((s) => ({
+          os: s.os.filter((o) => o.id !== id),
+          rotas: s.rotas.map((r) => ({ ...r, paradas: r.paradas.filter((p) => p.osId !== id) })),
+        })),
 
       atualizarOS: (id, patch, evento) =>
         set((s) => ({
@@ -141,11 +182,22 @@ export const useStore = create<State>()(
         }
       },
 
+      setFechamento: (mes, patch) => set((s) => ({ fechamentos: { ...s.fechamentos, [mes]: { ...s.fechamentos[mes], ...patch } } })),
+
       setConfig: (patch) => set((s) => ({ config: { ...s.config, ...patch } })),
+
+      restaurarDados: (d) =>
+        set((s) => ({
+          os: d.os,
+          rotas: d.rotas,
+          fechamentos: d.fechamentos,
+          config: { ...CONFIG_PADRAO, ...d.config, responsaveis: { ...CONFIG_PADRAO.responsaveis, ...(d.config.responsaveis ?? {}) }, contrato: { ...CONFIG_PADRAO.contrato, ...(d.config.contrato ?? {}) }, empresa: { ...CONFIG_PADRAO.empresa, ...(d.config.empresa ?? {}) } },
+          escopo: s.escopo,
+        })),
 
       resetarDados: () => {
         const novo = gerarSeed()
-        set({ os: novo.os, rotas: novo.rotas, config: CONFIG_PADRAO, escopo: 'luan' })
+        set({ os: novo.os, rotas: novo.rotas, config: CONFIG_PADRAO, escopo: 'luan', fechamentos: {} })
       },
     }),
     {

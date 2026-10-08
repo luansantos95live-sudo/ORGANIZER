@@ -1,7 +1,9 @@
 import clsx from 'clsx'
-import { LayoutGrid, List, X } from 'lucide-react'
+import { FileUp, LayoutGrid, List, Plus, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { ImportarOS } from '../components/ImportarOS'
+import { OsForm } from '../components/OsForm'
 import { Avatar, Empty, FarolChip, PageHeader, Segmented, StatusChip } from '../components/ui'
 import { STATUS_ABERTOS, STATUS_META, STATUS_ORDER, TIPO_META, dataCurta, farolDe, refCurta } from '../lib/os'
 import { filtrarEscopo, useStore } from '../store/useStore'
@@ -15,6 +17,8 @@ export function OsList() {
   const [sp, setSp] = useSearchParams()
   const nav = useNavigate()
   const [visao, setVisao] = useState<Visao>('tabela')
+  const [novaOpen, setNovaOpen] = useState(false)
+  const [importarOpen, setImportarOpen] = useState(false)
 
   const status = (sp.get('status') ?? '') as Status | ''
   const farol = sp.get('farol') ?? ''
@@ -62,6 +66,9 @@ export function OsList() {
         title="Ordens de serviço"
         subtitle={`${lista.length} de ${base.length} O.S. no escopo · ordenadas por prazo`}
         actions={
+          <>
+          <button id="btn-importar" className="btn btn-secondary" onClick={() => setImportarOpen(true)}><FileUp size={15} /> Importar .txt</button>
+          <button id="btn-nova-os" className="btn btn-primary" onClick={() => setNovaOpen(true)}><Plus size={15} /> Nova O.S.</button>
           <Segmented<Visao>
             value={visao}
             onChange={setVisao}
@@ -70,8 +77,11 @@ export function OsList() {
               { value: 'quadro', label: <span className="flex items-center gap-1.5"><LayoutGrid size={14} />Quadro</span> },
             ]}
           />
+          </>
         }
       />
+      <OsForm open={novaOpen} modo={{ tipo: 'criar' }} onClose={() => setNovaOpen(false)} onSalvo={(id) => nav(`/os/${id}`)} />
+      <ImportarOS open={importarOpen} onClose={() => setImportarOpen(false)} />
 
       <div className="card px-3 py-2.5 mb-4 flex flex-wrap items-center gap-2">
         <input className="input input-sm w-[220px]" placeholder="Buscar referência, nome, rua…" value={q} onChange={(e) => set('q', e.target.value)} />

@@ -28,6 +28,20 @@ npm run build
 npm run preview
 ```
 
+## Testar sem instalar nada
+
+Gere a versão de arquivo único e abra o `.html` em qualquer navegador, ou publique-o como página:
+
+```bash
+cd app
+npm install
+npm run build:single      # cria app/dist-single/fluxogestor-lab.html
+npm test                  # testes automáticos das regras (leitor do SIOPI, rota, faturamento, fechamento, backup)
+```
+
+Os dados ficam no navegador de quem abre. Para levar os dados a outro computador use
+Configurações → Copiar backup e, no outro, Colar backup (ou Exportar e Importar o arquivo).
+
 ## Telas
 
 - **Painel** — prioridades dos próximos 3 dias, farol de prazo, rota de hoje, carteira por etapa.
@@ -43,7 +57,12 @@ npm run preview
 - **Faturamento** — refeita a partir dos três modelos do FluxoGestor: *Só minhas* (meu faturado + 40% do RT), *Equipe* (RT e repasse) e *Geral*. Filtros por tipologia, polo, período e carteira, barras de composição (cor = de quem é o valor, claro = a faturar), histórico de 6 meses, tabela com linha expansível, colunas à escolha, paginação e CSV. O percentual de repasse é configurável.
 - **Fechamento mensal** — conferência contra o extrato, marcação de RRT e exportação do CSV no
   formato do tracker do RRT Múltiplo Mensal.
-- **Configurações** — responsáveis, durações padrão, deslocamentos, tema.
+- **Nova O.S. e Importar .txt** — cadastro com validação, importação em lote dos arquivos do SIOPI
+  com pré-visualização editável e bloqueio de referência repetida.
+- **Fechamento mensal** — também compara o total do Relatório de Conferência com o do sistema,
+  gera o texto do RRT por O.S. e o rascunho da descrição da nota fiscal (nada é emitido).
+- **Configurações** — responsáveis, repasse do RT e sua base, meta mensal, prazo padrão, contrato
+  com a Caixa e dados da empresa (ficam só no navegador, não no código), backup.
 
 ## Figma
 

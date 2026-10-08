@@ -76,6 +76,9 @@ export interface Resumo {
   finalizado: number
   aFaturar: number
   vencido: number
+  previstoServico: number // sem deslocamento
+  finalizadoServico: number
+  vencidoServico: number
   deslocamento: number
   ticketMedio: number
   maior?: OS
@@ -86,14 +89,16 @@ export interface Resumo {
 
 export function resumir(lista: OS[], hoje = new Date()): Resumo {
   let previsto = 0, finalizado = 0, vencido = 0, deslocamento = 0, qtdFinalizadas = 0, qtdVencidas = 0
+  let previstoServico = 0, finalizadoServico = 0, vencidoServico = 0
   let maior: OS | undefined, menor: OS | undefined
   for (const o of lista) {
     const v = valorTotal(o)
     previsto += v
+    previstoServico += o.valorServico
     deslocamento += o.valorDeslocamento
     const s = situacaoDe(o, hoje)
-    if (s === 'finalizada') { finalizado += v; qtdFinalizadas++ }
-    if (s === 'vencida') { vencido += v; qtdVencidas++ }
+    if (s === 'finalizada') { finalizado += v; finalizadoServico += o.valorServico; qtdFinalizadas++ }
+    if (s === 'vencida') { vencido += v; vencidoServico += o.valorServico; qtdVencidas++ }
     if (!maior || v > valorTotal(maior)) maior = o
     if (!menor || v < valorTotal(menor)) menor = o
   }
@@ -107,6 +112,9 @@ export function resumir(lista: OS[], hoje = new Date()): Resumo {
     finalizado,
     aFaturar,
     vencido,
+    previstoServico,
+    finalizadoServico,
+    vencidoServico,
     deslocamento,
     ticketMedio: lista.length ? previsto / lista.length : 0,
     maior,
@@ -134,4 +142,30 @@ export function ticksBonitos(max: number, alvo = 4) {
   const ticks: number[] = []
   for (let t = 0; t <= topo + 1e-6; t += passo) ticks.push(t)
   return { topo, ticks }
+}
+
+export type BaseRepasse = 'total' | 'servico'
+
+export interface Repasse { previsto: number; finalizado: number; aFaturar: number; vencido: number; projecao: number }
+
+/** Sua parte sobre as O.S. do RT. A base é serviço + deslocamento ("total") ou só o serviço. */
+export function repasseDe(r: Resumo, fracao: number, base: BaseRepasse): Repasse {
+  const prev = base === 'total' ? r.previsto : r.previstoServico
+  const fin = base === 'total' ? r.finalizado : r.finalizadoServico
+  const venc = base === 'total' ? r.vencido : r.vencidoServico
+  return { previsto: prev * fracao, finalizado: fin * fracao, aFaturar: (prev - fin) * fracao, vencido: venc * fracao, projecao: (prev - venc) * fracao }
+}
+
+/** Valor de uma O.S. do RT que volta para você, segundo a base escolhida. */
+export function repasseDaOS(o: OS, fracao: number, base: BaseRepasse) {
+  return (base === 'total' ? valorTotal(o) : o.valorServico) * fracao
+}
+
+export interface Ritmo { diaAtual: number; diasNoMes: number; projecao: number }
+
+/** No ritmo dos dias já corridos do mês, quanto fecharia. Só faz sentido para o mês em andamento. */
+export function projecaoPorRitmo(consolidado: number, hoje: Date): Ritmo {
+  const diasNoMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate()
+  const diaAtual = Math.min(hoje.getDate(), diasNoMes)
+  return { diaAtual, diasNoMes, projecao: diaAtual > 0 ? (consolidado / diaAtual) * diasNoMes : consolidado }
 }

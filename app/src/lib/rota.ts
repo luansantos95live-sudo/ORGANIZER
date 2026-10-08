@@ -16,25 +16,26 @@ export function deslocamentoEntre(a: OS | undefined, b: OS | undefined, cfg: Con
   return cfg.deslocamentoMesmoBairro
 }
 
-/** Agrupa as paradas por bairro (mantendo a ordem interna e a ordem de primeira aparição do bairro). */
+/**
+ * Agrupa as paradas por cidade e, dentro da cidade, por bairro.
+ * A ordem respeita as horas que o usuário definiu: a cidade com a parada mais cedo vem primeiro,
+ * e o mesmo vale para os bairros dentro de cada cidade. A ordem interna de cada bairro é mantida.
+ */
 export function agruparPorBairro(paradas: Parada[], byId: (id: string) => OS | undefined): Parada[] {
-  const grupos = new Map<string, Parada[]>()
+  const cidades = new Map<string, Map<string, Parada[]>>()
   for (const p of paradas) {
     const os = byId(p.osId)
-    const chave = os ? `${os.endereco.cidade}|${os.endereco.bairro}` : '~'
-    if (!grupos.has(chave)) grupos.set(chave, [])
-    grupos.get(chave)!.push(p)
+    const cidade = os?.endereco.cidade ?? '~'
+    const bairro = os?.endereco.bairro ?? '~'
+    if (!cidades.has(cidade)) cidades.set(cidade, new Map())
+    const bairros = cidades.get(cidade)!
+    if (!bairros.has(bairro)) bairros.set(bairro, [])
+    bairros.get(bairro)!.push(p)
   }
-  // ordena grupos por cidade e depois pela menor hora dentro do grupo
-  const ordenados = [...grupos.entries()].sort((a, b) => {
-    const [ca] = a[0].split('|')
-    const [cb] = b[0].split('|')
-    if (ca !== cb) return ca.localeCompare(cb)
-    const ma = Math.min(...a[1].map((p) => toMin(p.inicio)))
-    const mb = Math.min(...b[1].map((p) => toMin(p.inicio)))
-    return ma - mb
-  })
-  return ordenados.flatMap(([, ps]) => ps)
+  const cedo = (ps: Parada[]) => Math.min(...ps.map((p) => toMin(p.inicio)))
+  const porCidade = [...cidades.values()].map((bairros) => [...bairros.values()].sort((x, y) => cedo(x) - cedo(y)))
+  porCidade.sort((x, y) => cedo(x.flat()) - cedo(y.flat()))
+  return porCidade.flat(2)
 }
 
 export function ordenarPorHora(paradas: Parada[]): Parada[] {

@@ -6,7 +6,7 @@ import { ptBR } from 'date-fns/locale'
 import { useStore } from '../store/useStore'
 import { Avatar, Segmented } from './ui'
 import type { Escopo } from '../types'
-import { STATUS_META, enderecoLinha, refCurta } from '../lib/os'
+import { STATUS_META, cap, enderecoLinha, refCurta } from '../lib/os'
 import { StatusChip } from './ui'
 
 const NAV = [
@@ -78,7 +78,7 @@ export function Layout() {
             <button className="btn btn-ghost btn-icon" title="Tema" onClick={() => setConfig({ tema: config.tema === 'claro' ? 'escuro' : 'claro' })}>
               {config.tema === 'claro' ? <Moon size={16} /> : <Sun size={16} />}
             </button>
-            <span className="hidden sm:inline text-[12px] text-muted first-cap">{format(new Date(), "EEE, d 'de' MMM", { locale: ptBR })}</span>
+            <span className="hidden sm:inline text-[12px] text-muted">{cap(format(new Date(), "EEE, d 'de' MMM", { locale: ptBR }))}</span>
           </div>
         </header>
         <main className="flex-1 px-4 md:px-6 py-5 max-w-[1280px] w-full mx-auto pb-24 md:pb-8">

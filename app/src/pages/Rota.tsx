@@ -7,7 +7,7 @@ import { ArrowDownAZ, Check, ChevronLeft, ChevronRight, Clock, Copy, GripVertica
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Avatar, Card, Empty, FarolChip, PageHeader, StatusChip } from '../components/ui'
-import { TIPO_META, dataCurta, dataLonga, enderecoMaps, refCurta } from '../lib/os'
+import { TIPO_META, cap, dataCurta, dataLonga, enderecoMaps, refCurta } from '../lib/os'
 import { agruparPorBairro, conflitos, fmtMin, ordenarPorHora, preencherHorarios, resumoRota, toHHMM, toMin } from '../lib/rota'
 import { useStore } from '../store/useStore'
 import type { OS, Parada, Responsavel } from '../types'
@@ -160,7 +160,7 @@ export function RotaPage() {
         <div className="flex flex-col gap-3 min-w-0">
           <Card pad={false}>
             <div className="flex flex-wrap items-center gap-2 px-3 py-2.5">
-              <span className="text-[12.5px] text-muted first-cap mr-1">{dataLonga(data)}</span>
+              <span className="text-[12.5px] text-muted mr-1">{cap(dataLonga(data))}</span>
               <label className="flex items-center gap-1.5 text-[12px] text-muted">
                 <Clock size={13} /> partida
                 <input type="time" className="input input-sm tnum w-[112px]" value={rota.partida} step={300} onChange={(e) => e.target.value && salvarRota({ ...rota, partida: e.target.value })} />

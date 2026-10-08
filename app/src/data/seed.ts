@@ -47,6 +47,12 @@ export const CONFIG_PADRAO: Config = {
   deslocamentoOutraCidade: 60,
   partidaPadrao: '08:00',
   repasseRT: 0.4,
+  repasseBase: 'total',
+  metaMensal: 12000,
+  prazoPadraoDias: 12,
+  // Vazios de propósito: o repositório é público. Preencha em Configurações; fica salvo no seu navegador e no backup.
+  contrato: { numero: '', edital: '', processo: '', rrt: '' },
+  empresa: { razao: '', cnpj: '', municipio: '' },
 }
 
 const d = (x: Date) => format(x, 'yyyy-MM-dd')

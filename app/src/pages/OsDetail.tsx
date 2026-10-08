@@ -1,8 +1,9 @@
 import clsx from 'clsx'
 import { format } from 'date-fns'
-import { ArrowLeft, ArrowLeftRight, Camera, Check, ExternalLink, FolderOpen, MapPin, MessageCircle, Phone } from 'lucide-react'
+import { ArrowLeft, ArrowLeftRight, Camera, Check, ExternalLink, FolderOpen, MapPin, MessageCircle, Pencil, Phone, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { OsForm } from '../components/OsForm'
 import { Avatar, Card, FarolChip, Field, Modal, StatusChip } from '../components/ui'
 import { DOC_META, STATUS_META, TIPO_META, brl, dataHora, dataMedia, docsFaltando, enderecoMaps, refCurta, telefoneWhats } from '../lib/os'
 import { useStore } from '../store/useStore'
@@ -18,7 +19,10 @@ export function OsDetail() {
   const transferir = useStore((s) => s.transferir)
   const toggleDoc = useStore((s) => s.toggleDoc)
   const atualizarOS = useStore((s) => s.atualizarOS)
+  const removerOS = useStore((s) => s.removerOS)
   const [agendando, setAgendando] = useState(false)
+  const [editando, setEditando] = useState(false)
+  const [confirmaExcluir, setConfirmaExcluir] = useState(false)
   const [aba, setAba] = useState<'resumo' | 'documentos' | 'historico'>('resumo')
 
   if (!os) return <div className="card p-8 text-center text-muted">O.S. não encontrada. <Link className="text-brand" to="/os">Voltar</Link></div>
@@ -43,6 +47,17 @@ export function OsDetail() {
     <>
       <div className="flex items-center gap-2 mb-3">
         <button className="btn btn-ghost btn-sm" onClick={() => nav(-1)}><ArrowLeft size={14} /> Voltar</button>
+        <span className="flex-1" />
+        <button id="btn-editar-os" className="btn btn-secondary btn-sm" onClick={() => setEditando(true)}><Pencil size={13} /> Editar dados</button>
+        {confirmaExcluir ? (
+          <>
+            <span className="text-[12.5px] text-muted">Excluir esta O.S. de vez?</span>
+            <button id="btn-excluir-sim" className="btn btn-sm" style={{ background: 'var(--f-late-bg)', color: '#fff' }} onClick={() => { removerOS(os.id); nav('/os') }}>Sim, excluir</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => setConfirmaExcluir(false)}>Não</button>
+          </>
+        ) : (
+          <button id="btn-excluir-os" className="btn btn-ghost btn-sm" onClick={() => setConfirmaExcluir(true)}><Trash2 size={13} /> Excluir</button>
+        )}
       </div>
 
       <div className="card p-5 mb-4">
@@ -178,6 +193,7 @@ export function OsDetail() {
         </Card>
       )}
 
+      <OsForm open={editando} modo={{ tipo: 'editar', os }} onClose={() => setEditando(false)} />
       <AgendarModal open={agendando} onClose={() => setAgendando(false)} osId={os.id} inicial={os.vistoria} duracaoPadrao={config.duracaoPadrao[os.tipo]} onSalvar={agendar} />
     </>
   )

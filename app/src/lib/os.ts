@@ -2,6 +2,8 @@ import { differenceInCalendarDays, format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import type { DocKey, OS, Responsavel, Status, TipoServico } from '../types'
 
+export type NovaOSInput = Pick<OS, 'referencia' | 'tipo' | 'tipologia' | 'responsavel' | 'proponente' | 'contato' | 'telefone' | 'endereco' | 'matricula' | 'valorServico' | 'valorDeslocamento' | 'emissao' | 'prazo'> & { status?: Status; observacoes?: string }
+
 export const STATUS_META: Record<Status, { label: string; curto: string; ordem: number; descricao: string }> = {
   convocada: { label: 'Convocada', curto: 'Convocada', ordem: 0, descricao: 'Aguardando aceite (24h)' },
   emitida: { label: 'Emitida', curto: 'A agendar', ordem: 1, descricao: 'Aceita, sem dia de vistoria' },
@@ -99,3 +101,23 @@ export function docsFaltando(os: OS): DocKey[] {
 export function telefoneWhats(tel: string) {
   return '55' + tel.replace(/\D/g, '')
 }
+
+/** Monta uma O.S. completa a partir dos dados mínimos. */
+export function montarOS(input: NovaOSInput, id: string, numero: number, evento: string): OS {
+  const docs = Object.fromEntries((Object.keys(DOC_META) as DocKey[]).map((k) => [k, false])) as Record<DocKey, boolean>
+  return {
+    ...input,
+    id,
+    numero,
+    status: input.status ?? 'emitida',
+    docs,
+    fotos: 0,
+    observacoes: input.observacoes ?? '',
+    historico: [{ data: new Date().toISOString(), texto: evento }],
+    conferida: false,
+    rrt: false,
+  }
+}
+
+/** Primeira letra maiúscula, sem mexer no resto (datas em pt-BR vêm em minúsculas). */
+export const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
