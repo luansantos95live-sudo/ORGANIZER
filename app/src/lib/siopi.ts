@@ -1,12 +1,13 @@
-import { addDays, format, parse } from 'date-fns'
-import type { OS, Tipologia, TipoServico } from '../types'
+import { format } from 'date-fns'
+import type { Importacao, OS, Tipologia } from '../types'
+import { IMPORTACAO_VAZIA, TIPOLOGIAS, prazoDaTipologia } from './os'
 
-/** Rascunho de O.S. lido de um arquivo .txt do SIOPI. Campos que o arquivo não traz ficam vazios para revisão. */
+/** Rascunho de O.S. lido de um arquivo .txt da Caixa. Campos que o arquivo não traz ficam vazios para revisão. */
 export interface RascunhoOS {
   referencia: string
-  tipo: TipoServico
   tipologia: Tipologia
   proponente: string
+  documento: string
   contato: string
   telefone: string
   endereco: OS['endereco']
@@ -15,12 +16,16 @@ export interface RascunhoOS {
   valorDeslocamento: number
   emissao: string // yyyy-mm-dd
   prazo: string // yyyy-mm-dd
+  descricao: string
+  importacao: Importacao
   avisos: string[]
 }
 
-export const REFERENCIA_RE = /\d{4}\.\d{4}\.\d{8}\/\d{4}\.\d{2}\.\d{2}(?:\.\d{2}\.\d{2})?/
-
-const TIPOLOGIA_PADRAO: Record<TipoServico, Tipologia> = { AVALIACAO: 'A413', VISTORIA_RAE: 'E004', PCI_PLS: 'C021', REAVALIACAO: 'R017' }
+/**
+ * Nº da O.S. da Caixa. Formato do sistema real: 7886.1831.001122004/2026.01.01 (9 dígitos);
+ * também aceita o formato antigo com a data de emissão: 7886.1831.00012345/2026.09.10.01.01.
+ */
+export const REFERENCIA_RE = /\d{4}\.\d{4}\.\d{8,9}\/\d{4}\.\d{2}\.\d{2}(?:\.\d{2}\.\d{2})?/
 
 /** "R$ 1.234,56" ou "1234,56" ou "1234.56" → 1234.56 */
 export function lerValor(txt: string | undefined): number {
@@ -72,28 +77,40 @@ export function lerCidadeUf(linha: string | undefined) {
   return { cidade: maiusculaInicial(bruto), uf: 'RO' }
 }
 
-function detectarTipo(texto: string): TipoServico {
+/** Tipologia pelo código que vier no texto (ex.: B438); sem código, pelas palavras do serviço. */
+export function detectarTipologia(texto: string): Tipologia {
+  const cod = (Object.keys(TIPOLOGIAS) as Tipologia[]).find((c) => new RegExp(`\\b${c}\\b`).test(texto))
+  if (cod) return cod
   const t = texto.toLowerCase()
-  if (/reavalia/.test(t)) return 'REAVALIACAO'
-  if (/(vistoria|rae|evolu[cç][aã]o de obra)/.test(t)) return 'VISTORIA_RAE'
-  if (/\b(pci|pls)\b/.test(t)) return 'PCI_PLS'
-  return 'AVALIACAO'
+  if (/reedi[cç][aã]o/.test(t)) return 'G402'
+  if (/rean[aá]lise/.test(t)) return 'G014'
+  if (/nova vistoria|pend[eê]ncias/.test(t)) return 'G416'
+  if (/reprograma/.test(t)) return 'E005'
+  if (/(acompanhamento|vistoria de obra|evolu[cç][aã]o de obra|\brae\b)/.test(t)) return 'E401'
+  if (/altera[cç][aã]o de projeto/.test(t)) return 'G012'
+  if (/terreno pr[oó]prio/.test(t)) return 'B437'
+  if (/(an[aá]lise de proposta|projeto de constru)/.test(t)) return 'B438'
+  return 'A413'
 }
 
-export function lerSiopiTxt(texto: string, prazoDias = 12): RascunhoOS {
+export function lerSiopiTxt(texto: string, prazoDias = 12, hoje = new Date()): RascunhoOS {
   const avisos: string[] = []
   const refMatch = texto.match(REFERENCIA_RE)
   const referencia = refMatch ? refMatch[0] : ''
   if (!referencia) avisos.push('Referência da O.S. não encontrada.')
 
-  // data de emissão vem da própria referência (…/AAAA.MM.DD…)
-  let emissao = format(new Date(), 'yyyy-MM-dd')
-  const dataRef = referencia.match(/\/(\d{4})\.(\d{2})\.(\d{2})/)
-  if (dataRef) emissao = `${dataRef[1]}-${dataRef[2]}-${dataRef[3]}`
-  else if (referencia) avisos.push('Data de emissão não veio na referência; usei hoje.')
-  const prazo = format(addDays(parse(emissao, 'yyyy-MM-dd', new Date()), prazoDias), 'yyyy-MM-dd')
+  // Data de recebimento: rótulo do arquivo; senão a data embutida no formato antigo da referência; senão hoje.
+  let emissao = format(hoje, 'yyyy-MM-dd')
+  const dataTxt = campo(texto, 'Data (?:de )?(?:emiss[aã]o|recebimento)')?.match(/(\d{2})\/(\d{2})\/(\d{4})/)
+  const dataRef = referencia.match(/\/(\d{4})\.(\d{2})\.(\d{2})\.\d{2}\.\d{2}$/)
+  if (dataTxt) emissao = `${dataTxt[3]}-${dataTxt[2]}-${dataTxt[1]}`
+  else if (dataRef) emissao = `${dataRef[1]}-${dataRef[2]}-${dataRef[3]}`
+  else if (referencia) avisos.push('Data de recebimento não veio no arquivo; usei hoje.')
+  // Prazo: o do arquivo; senão o prazo da tipologia (cadastro); senão o prazo padrão.
+  const tipologia = detectarTipologia(texto)
+  const prazoTxt = campo(texto, 'Prazo')?.match(/(\d{2})\/(\d{2})\/(\d{4})/)
+  const prazo = prazoTxt ? `${prazoTxt[3]}-${prazoTxt[2]}-${prazoTxt[1]}` : prazoDaTipologia(tipologia, emissao, prazoDias)
 
-  const tipo = detectarTipo(texto)
   const end = lerEndereco(campo(texto, 'Endere[cç]o'))
   const cid = lerCidadeUf(campo(texto, 'Cidade/UF'))
   const cep = (campo(texto, 'CEP') ?? '').replace(/[^\d]/g, '')
@@ -103,23 +120,37 @@ export function lerSiopiTxt(texto: string, prazoDias = 12): RascunhoOS {
   const valorDeslocamento = lerValor(campo(texto, 'Valor previsto do Deslocamento'))
   if (!valorServico) avisos.push('Valor previsto do serviço não encontrado.')
 
-  const proponente = campo(texto, 'Proponente') ?? campo(texto, 'Nome do contato') ?? ''
+  const proponente = campo(texto, 'Proponente') ?? campo(texto, 'Cliente') ?? campo(texto, 'Nome do contato') ?? ''
   const contato = campo(texto, 'Nome do contato') ?? proponente
   if (!end.bairro) avisos.push('Bairro não identificado no endereço; confira antes de salvar.')
 
+  const importacao: Importacao = {
+    ...IMPORTACAO_VAZIA,
+    codProduto: campo(texto, 'C[oó]d(?:igo)?\\.? ?(?:do )?Produto') ?? '',
+    codLinha: campo(texto, 'C[oó]d(?:igo)?\\.? ?(?:da )?Linha') ?? '',
+    codFonte: campo(texto, 'C[oó]d(?:igo)?\\.? ?(?:da )?Fonte') ?? '',
+    cartorio: campo(texto, 'Cart[oó]rio(?: \\(?Of[ií]cio\\)?)?') ?? '',
+    livro: campo(texto, 'Livro') ?? '',
+    localRetirada: campo(texto, 'Local (?:de )?Retirada') ?? '',
+    solicitante: campo(texto, 'Solicitante') ?? '',
+    executante: campo(texto, 'Executante') ?? '',
+  }
+
   return {
     referencia,
-    tipo,
-    tipologia: TIPOLOGIA_PADRAO[tipo],
+    tipologia,
     proponente: maiusculaInicial(proponente),
+    documento: campo(texto, 'CPF/CNPJ') ?? campo(texto, 'CPF') ?? campo(texto, 'CNPJ') ?? '',
     contato: maiusculaInicial(contato),
     telefone: campo(texto, 'Telefone contato') ?? campo(texto, 'Telefone') ?? '',
     endereco: { ...end, cidade: cid.cidade, uf: cid.uf, cep: cepFmt },
-    matricula: (campo(texto, 'Matr[ií]cula') ?? '').replace(/[^\d]/g, ''),
+    matricula: (campo(texto, 'Matr[ií]cula') ?? campo(texto, 'N[º°o]? ?Registro') ?? '').replace(/[^\d]/g, ''),
     valorServico,
     valorDeslocamento,
     emissao,
     prazo,
+    descricao: campo(texto, 'Descri[cç][aã]o') ?? '',
+    importacao,
     avisos,
   }
 }

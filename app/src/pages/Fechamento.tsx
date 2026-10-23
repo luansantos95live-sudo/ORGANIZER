@@ -15,7 +15,6 @@ export function Fechamento() {
   const escopo = useStore((s) => s.escopo)
   const config = useStore((s) => s.config)
   const atualizarOS = useStore((s) => s.atualizarOS)
-  const mudarStatus = useStore((s) => s.mudarStatus)
   const fechamentos = useStore((s) => s.fechamentos)
   const setFechamento = useStore((s) => s.setFechamento)
   const [mes, setMes] = useState(new Date())
@@ -25,7 +24,7 @@ export function Fechamento() {
 
   // O extrato e a nota da Caixa cobrem as duas carteiras (a sua e a do RT), seja qual for o escopo da tela.
   const doMes = useMemo(
-    () => todas.filter((o) => ['finalizada', 'conferida'].includes(o.status)).filter((o) => (o.enviadoEm ?? o.emissao).startsWith(chave)),
+    () => todas.filter((o) => o.status === 'concluida').filter((o) => (o.entregaEm ?? o.concluidaEm ?? o.emissao).startsWith(chave)),
     [todas, chave],
   )
   const totalSistema = doMes.reduce((s, o) => s + o.valorServico + o.valorDeslocamento, 0)
@@ -45,8 +44,8 @@ export function Fechamento() {
 
   const lista = useMemo(
     () => filtrarEscopo(todas, escopo)
-      .filter((o) => ['finalizada', 'conferida'].includes(o.status))
-      .filter((o) => (o.enviadoEm ?? o.emissao).startsWith(chave))
+      .filter((o) => o.status === 'concluida')
+      .filter((o) => (o.entregaEm ?? o.concluidaEm ?? o.emissao).startsWith(chave))
       .sort((a, b) => a.referencia.localeCompare(b.referencia)),
     [todas, escopo, chave],
   )
@@ -71,8 +70,8 @@ export function Fechamento() {
   return (
     <>
       <PageHeader
-        title="Fechamento mensal"
-        subtitle="Conferência das O.S. contra o extrato da Caixa e controle do RRT Múltiplo Mensal."
+        title={<span className="flex items-center gap-2"><Link to="/financeiro" className="btn btn-ghost btn-icon" aria-label="Voltar ao Financeiro"><ChevronLeft size={18} /></Link>Fechamento mensal</span>}
+        subtitle="Extra do laboratório: conferência das O.S. contra o extrato da Caixa e controle do RRT Múltiplo Mensal."
         actions={
           <div className="flex flex-wrap items-center gap-1">
             <button className="btn btn-secondary btn-icon" onClick={() => setMes(addMonths(mes, -1))} aria-label="Mês anterior"><ChevronLeft size={16} /></button>
@@ -85,16 +84,16 @@ export function Fechamento() {
         }
       />
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
         <Kpi label="O.S. no mês" value={lista.length} />
         <Kpi label="Serviços" value={brl(somaServ)} />
         <Kpi label="Deslocamento" value={brl(somaDesl)} />
-        <Kpi label="Total previsto" value={brl(somaServ + somaDesl)} tone="status-finalizada" hint={`${conferidas}/${lista.length} conferidas · ${rrts}/${lista.length} no RRT`} />
+        <Kpi label="Total previsto" value={brl(somaServ + somaDesl)} tone="status-concluida" hint={`${conferidas}/${lista.length} conferidas · ${rrts}/${lista.length} no RRT`} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
         <Card title="Conferência com o Relatório da Caixa">
-          <p className="text-[12.5px] text-muted mb-3">Soma das duas carteiras ({doMes.length} O.S. finalizadas no mês). Digite o total que consta no Relatório de Conferência para comparar.</p>
+          <p className="text-[12.5px] text-muted mb-3">Soma das duas carteiras ({doMes.length} O.S. concluídas no mês). Digite o total que consta no Relatório de Conferência para comparar.</p>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Total do relatório (R$)"><input id="fech-extrato-total" className="input tnum" inputMode="decimal" value={fech.extratoTotal ?? ''} onChange={(e) => setFechamento(chave, { extratoTotal: num(e.target.value) })} placeholder="0,00" /></Field>
             <Field label="O.S. no relatório"><input id="fech-extrato-qtd" className="input tnum" inputMode="numeric" value={fech.extratoQtd ?? ''} onChange={(e) => setFechamento(chave, { extratoQtd: num(e.target.value) })} placeholder={String(doMes.length)} /></Field>
@@ -130,7 +129,7 @@ export function Fechamento() {
 
       <Card pad={false}>
         {lista.length === 0 ? (
-          <Empty title="Nenhuma O.S. finalizada neste mês" text="As O.S. aparecem aqui quando o laudo é aceito." />
+          <Empty title="Nenhuma O.S. concluída neste mês" text="As O.S. aparecem aqui quando são concluídas." />
         ) : (
           <div className="overflow-auto">
             <table className="table table-compact min-w-[1100px]">
@@ -159,10 +158,10 @@ export function Fechamento() {
                     <td className="text-right tnum">{brl(o.valorServico)}</td>
                     <td className="text-right tnum">{brl(o.valorDeslocamento)}</td>
                     <td className="text-right tnum font-semibold">{brl(o.valorServico + o.valorDeslocamento)}</td>
-                    <td className="tnum text-[12.5px]">{o.enviadoEm ? dataCurta(o.enviadoEm) : '—'}</td>
-                    <td><StatusChip status={o.status} curto /></td>
+                    <td className="tnum text-[12.5px]">{o.entregaEm ? dataCurta(o.entregaEm) : '—'}</td>
+                    <td><StatusChip status={o.status} /></td>
                     <td className="text-center">
-                      <Toggle on={o.conferida} onClick={() => (o.conferida ? atualizarOS(o.id, { conferida: false }) : mudarStatus(o.id, 'conferida'))} />
+                      <Toggle on={o.conferida} onClick={() => atualizarOS(o.id, { conferida: !o.conferida }, o.conferida ? undefined : 'Conferida no Relatório de Conferência das O.S.')} />
                     </td>
                     <td className="text-center">
                       <Toggle on={o.rrt} onClick={() => atualizarOS(o.id, { rrt: !o.rrt }, o.rrt ? 'Removida do RRT mensal' : 'Endereço lançado no RRT Múltiplo Mensal')} />

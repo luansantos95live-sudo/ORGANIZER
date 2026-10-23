@@ -1,92 +1,129 @@
-import type { Config, OS, Parada } from '../types'
+import type { OS, Rota } from '../types'
+import { TIPOLOGIAS_SEM_VISTORIA, normCidade } from './os'
+
+export interface Ponto { lat: number; lng: number }
 
 export const toMin = (hhmm: string) => {
   const [h, m] = hhmm.split(':').map(Number)
   return h * 60 + (m || 0)
 }
 export const toHHMM = (min: number) => {
-  const m = ((min % 1440) + 1440) % 1440
+  const m = ((Math.round(min) % 1440) + 1440) % 1440
   return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
 }
 
-export function deslocamentoEntre(a: OS | undefined, b: OS | undefined, cfg: Config) {
-  if (!a || !b) return 0
-  if (a.endereco.cidade !== b.endereco.cidade) return cfg.deslocamentoOutraCidade
-  if (a.endereco.bairro !== b.endereco.bairro) return cfg.deslocamentoOutroBairro
-  return cfg.deslocamentoMesmoBairro
+/** Distância em linha reta (km) entre dois pontos, pela fórmula de haversine. */
+export function distanciaKm(a: Ponto, b: Ponto) {
+  const R = 6371
+  const rad = (g: number) => (g * Math.PI) / 180
+  const dLat = rad(b.lat - a.lat)
+  const dLng = rad(b.lng - a.lng)
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2
+  return 2 * R * Math.asin(Math.sqrt(h))
+}
+
+/** Fator para transformar linha reta em distância de estrada (estimativa). */
+export const FATOR_ESTRADA = 1.3
+
+/** Distância estimada da rota: partida → paradas na ordem → volta à partida. Paradas sem coordenada ficam de fora. */
+export function distanciaRota(partida: Ponto, pontos: (Ponto | undefined)[], voltar = true) {
+  const ok = pontos.filter((p): p is Ponto => !!p)
+  if (!ok.length) return 0
+  let km = 0
+  let atual = partida
+  for (const p of ok) { km += distanciaKm(atual, p); atual = p }
+  if (voltar) km += distanciaKm(atual, partida)
+  return km * FATOR_ESTRADA
 }
 
 /**
- * Agrupa as paradas por cidade e, dentro da cidade, por bairro.
- * A ordem respeita as horas que o usuário definiu: a cidade com a parada mais cedo vem primeiro,
- * e o mesmo vale para os bairros dentro de cada cidade. A ordem interna de cada bairro é mantida.
+ * Hora estimada de chegada em cada parada, a partir da hora de saída, da velocidade média e da duração
+ * de cada vistoria. Parada sem coordenada conta só a duração.
  */
-export function agruparPorBairro(paradas: Parada[], byId: (id: string) => OS | undefined): Parada[] {
-  const cidades = new Map<string, Map<string, Parada[]>>()
-  for (const p of paradas) {
-    const os = byId(p.osId)
-    const cidade = os?.endereco.cidade ?? '~'
-    const bairro = os?.endereco.bairro ?? '~'
-    if (!cidades.has(cidade)) cidades.set(cidade, new Map())
-    const bairros = cidades.get(cidade)!
-    if (!bairros.has(bairro)) bairros.set(bairro, [])
-    bairros.get(bairro)!.push(p)
-  }
-  const cedo = (ps: Parada[]) => Math.min(...ps.map((p) => toMin(p.inicio)))
-  const porCidade = [...cidades.values()].map((bairros) => [...bairros.values()].sort((x, y) => cedo(x) - cedo(y)))
-  porCidade.sort((x, y) => cedo(x.flat()) - cedo(y.flat()))
-  return porCidade.flat(2)
-}
-
-export function ordenarPorHora(paradas: Parada[]): Parada[] {
-  return [...paradas].sort((a, b) => toMin(a.inicio) - toMin(b.inicio))
-}
-
-/** Recalcula deslocamentos conforme a sequência atual. */
-export function recalcularDeslocamentos(paradas: Parada[], byId: (id: string) => OS | undefined, cfg: Config): Parada[] {
-  return paradas.map((p, i) => ({
-    ...p,
-    deslocamento: i < paradas.length - 1 ? deslocamentoEntre(byId(p.osId), byId(paradas[i + 1].osId), cfg) : 0,
-  }))
-}
-
-/** Preenche horários em cascata a partir da partida, respeitando duração + deslocamento. */
-export function preencherHorarios(paradas: Parada[], partida: string): Parada[] {
-  let t = toMin(partida)
-  return paradas.map((p) => {
-    const inicio = toHHMM(t)
-    t += p.duracao + p.deslocamento
-    return { ...p, inicio }
+export function horariosEstimados(saida: string, partida: Ponto, pontos: (Ponto | undefined)[], velocidade: number, duracao: number) {
+  let t = toMin(saida)
+  let atual: Ponto = partida
+  return pontos.map((p) => {
+    if (p) { t += (distanciaKm(atual, p) * FATOR_ESTRADA / Math.max(velocidade, 1)) * 60; atual = p }
+    const chegada = toHHMM(t)
+    t += duracao
+    return chegada
   })
 }
 
-export interface Conflito { idx: number; comIdx: number; minutos: number }
-
-/** Detecta sobreposição entre paradas consecutivas na ordem atual. */
-export function conflitos(paradas: Parada[]): Conflito[] {
-  const out: Conflito[] = []
-  for (let i = 0; i < paradas.length - 1; i++) {
-    const fimComDesloc = toMin(paradas[i].inicio) + paradas[i].duracao + paradas[i].deslocamento
-    const prox = toMin(paradas[i + 1].inicio)
-    if (prox < fimComDesloc) out.push({ idx: i + 1, comIdx: i, minutos: fimComDesloc - prox })
+/** Ordem pelo vizinho mais próximo a partir da partida ("otimizar ordem"). Paradas sem coordenada vão para o fim. */
+export function ordemOtimizada<T>(partida: Ponto, itens: T[], pontoDe: (t: T) => Ponto | undefined): T[] {
+  const com = itens.filter((i) => pontoDe(i))
+  const sem = itens.filter((i) => !pontoDe(i))
+  const out: T[] = []
+  let atual = partida
+  const resto = [...com]
+  while (resto.length) {
+    let melhor = 0
+    let dMelhor = Infinity
+    resto.forEach((it, i) => {
+      const d = distanciaKm(atual, pontoDe(it)!)
+      if (d < dMelhor) { dMelhor = d; melhor = i }
+    })
+    const [esc] = resto.splice(melhor, 1)
+    out.push(esc)
+    atual = pontoDe(esc)!
   }
-  return out
+  return [...out, ...sem]
 }
 
-export function resumoRota(paradas: Parada[]) {
-  if (!paradas.length) return { inicio: '—', fim: '—', totalMin: 0, vistoriaMin: 0, deslocMin: 0 }
-  const ordenadas = ordenarPorHora(paradas)
-  const inicio = ordenadas[0].inicio
-  const ult = ordenadas[ordenadas.length - 1]
-  const fim = toHHMM(toMin(ult.inicio) + ult.duracao)
-  const vistoriaMin = paradas.reduce((s, p) => s + p.duracao, 0)
-  const deslocMin = paradas.reduce((s, p) => s + p.deslocamento, 0)
-  return { inicio, fim, totalMin: toMin(fim) - toMin(inicio), vistoriaMin, deslocMin }
+/** Ponto dentro de um polígono (laço do roteirizador), pelo método do raio. */
+export function dentroDoPoligono(p: { x: number; y: number }, poligono: { x: number; y: number }[]) {
+  let dentro = false
+  for (let i = 0, j = poligono.length - 1; i < poligono.length; j = i++) {
+    const a = poligono[i], b = poligono[j]
+    if ((a.y > p.y) !== (b.y > p.y) && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x) dentro = !dentro
+  }
+  return dentro
+}
+
+export const rotaAtiva = (r: Rota) => r.status === 'rascunho' || r.status === 'confirmada'
+
+/**
+ * O.S. que podem entrar numa rota, como no sistema real: não concluídas nem canceladas, ainda sem a vistoria
+ * feita, com vistoria na tipologia, e fora de outra rota ativa (a rota em edição não conta).
+ */
+export function elegivelParaRota(o: OS, rotas: Rota[], rotaAtualId?: string) {
+  if (o.status !== 'recebida' && o.status !== 'em_andamento') return false
+  if (TIPOLOGIAS_SEM_VISTORIA.includes(o.tipologia)) return false
+  return !rotas.some((r) => r.id !== rotaAtualId && rotaAtiva(r) && r.paradas.some((p) => p.osId === o.id))
+}
+
+/** Código curto da rota, como no sistema real (ROTA-27E9). */
+export function novoCodigoRota(existentes: string[]) {
+  for (;;) {
+    const c = 'ROTA-' + Math.floor(Math.random() * 0xffff).toString(16).toUpperCase().padStart(4, '0')
+    if (!existentes.includes(c)) return c
+  }
 }
 
 export function fmtMin(min: number) {
-  const h = Math.floor(min / 60)
-  const m = min % 60
+  const total = Math.round(min)
+  const h = Math.floor(total / 60)
+  const m = total % 60
   if (!h) return `${m} min`
   return m ? `${h}h${String(m).padStart(2, '0')}` : `${h}h`
+}
+
+export const fmtKm = (km: number) => `${km.toLocaleString('pt-BR', { maximumFractionDigits: km < 10 ? 1 : 0 })} km`
+
+/**
+ * Sugestão do Início (sistema real): a cidade com mais O.S. ainda sem vistoria marcada, fora da cidade da base,
+ * para fazer todas na mesma viagem. Precisa de pelo menos duas.
+ */
+export function sugestaoDeViagem(lista: OS[], cidadeBase: string, rotas: Rota[] = []): { cidade: string; os: OS[] } | null {
+  const porCidade = new Map<string, OS[]>()
+  for (const o of lista) {
+    if (o.vistoria || !elegivelParaRota(o, rotas)) continue
+    const c = o.endereco.cidade
+    if (normCidade(c) === normCidade(cidadeBase)) continue
+    porCidade.set(c, [...(porCidade.get(c) ?? []), o])
+  }
+  const melhor = [...porCidade.entries()].sort((a, b) => b[1].length - a[1].length)[0]
+  return melhor && melhor[1].length >= 2 ? { cidade: melhor[0], os: melhor[1] } : null
 }

@@ -1,54 +1,89 @@
 import { describe, expect, it } from 'vitest'
-import { agruparPorBairro, conflitos, fmtMin, ordenarPorHora, preencherHorarios, resumoRota, toHHMM, toMin } from '../rota'
-import type { OS, Parada } from '../../types'
+import { dentroDoPoligono, distanciaKm, distanciaRota, elegivelParaRota, fmtKm, fmtMin, horariosEstimados, novoCodigoRota, ordemOtimizada, sugestaoDeViagem, toHHMM, toMin } from '../rota'
+import type { OS, Rota } from '../../types'
 
-const os = (id: string, bairro: string, cidade = 'Ji-Paraná') => ({ id, endereco: { bairro, cidade } }) as unknown as OS
-const mapa: Record<string, OS> = { a: os('a', 'Centro'), b: os('b', 'Urupá'), c: os('c', 'Centro'), d: os('d', 'Setor 02', 'Jaru') }
-const byId = (id: string) => mapa[id]
-const p = (osId: string, inicio: string, duracao = 30, deslocamento = 20): Parada => ({ osId, inicio, duracao, deslocamento })
+const ARIQUEMES = { lat: -9.9133, lng: -63.0408 }
+const JI_PARANA = { lat: -10.8777, lng: -61.9322 }
 
-describe('horas', () => {
+describe('horas e formatos', () => {
   it('converte ida e volta', () => {
     expect(toMin('08:45')).toBe(525)
     expect(toHHMM(525)).toBe('08:45')
     expect(toHHMM(1500)).toBe('01:00')
     expect(fmtMin(75)).toBe('1h15')
     expect(fmtMin(45)).toBe('45 min')
+    expect(fmtKm(4.26)).toBe('4,3 km')
+    expect(fmtKm(163.4)).toBe('163 km')
   })
 })
 
-describe('rota', () => {
-  it('agrupa por bairro mantendo a ordem interna de cada bairro', () => {
-    const r = agruparPorBairro([p('a', '08:00'), p('b', '09:00'), p('c', '10:00')], byId)
-    expect(r.map((x) => x.osId)).toEqual(['a', 'c', 'b'])
+describe('distâncias', () => {
+  it('Ariquemes a Ji-Paraná dá cerca de 160 km em linha reta', () => {
+    const d = distanciaKm(ARIQUEMES, JI_PARANA)
+    expect(d).toBeGreaterThan(155)
+    expect(d).toBeLessThan(170)
+    expect(distanciaKm(ARIQUEMES, ARIQUEMES)).toBe(0)
   })
-  it('mantém a mesma cidade junta e ordena cidades pela hora mais cedo, não pelo alfabeto', () => {
-    // Jaru (d) às 08:00 vem antes de Ji-Paraná (a) às 09:00, mesmo que "Ji" venha depois de "Ja" só por acaso
-    expect(agruparPorBairro([p('a', '09:00'), p('d', '08:00')], byId).map((x) => x.osId)).toEqual(['d', 'a'])
-    // inverte as horas: agora Ji-Paraná vem primeiro, o que prova que não é ordem alfabética
-    expect(agruparPorBairro([p('d', '09:00'), p('a', '08:00')], byId).map((x) => x.osId)).toEqual(['a', 'd'])
+  it('a rota soma ida, paradas e volta, com fator de estrada, e ignora parada sem coordenada', () => {
+    const ida = distanciaKm(ARIQUEMES, JI_PARANA)
+    expect(distanciaRota(ARIQUEMES, [JI_PARANA, undefined])).toBeCloseTo(ida * 2 * 1.3)
+    expect(distanciaRota(ARIQUEMES, [JI_PARANA], false)).toBeCloseTo(ida * 1.3)
+    expect(distanciaRota(ARIQUEMES, [])).toBe(0)
   })
-  it('não separa a mesma cidade para encaixar outra no meio', () => {
-    const r = agruparPorBairro([p('a', '08:00'), p('d', '09:00'), p('b', '10:00')], byId)
-    expect(r.map((x) => x.osId)).toEqual(['a', 'b', 'd'])
+  it('hora estimada de chegada considera viagem e duração da vistoria', () => {
+    const perto = { lat: -9.9133, lng: -63.0408 + 0.1 } // ~11 km
+    const h = horariosEstimados('08:00', ARIQUEMES, [perto, perto], 30, 40)
+    expect(h[0] > '08:00').toBe(true)
+    // a segunda parada é no mesmo lugar: chega 40 min depois da primeira
+    expect(toMin(h[1]) - toMin(h[0])).toBe(40)
   })
-  it('ordena por hora sem mexer no original', () => {
-    const orig = [p('a', '10:00'), p('b', '08:00')]
-    expect(ordenarPorHora(orig).map((x) => x.osId)).toEqual(['b', 'a'])
-    expect(orig[0].osId).toBe('a')
+})
+
+describe('otimizar ordem', () => {
+  it('vai sempre para a parada mais próxima e deixa as sem coordenada no fim', () => {
+    const longe = { id: 'longe', p: JI_PARANA }
+    const perto = { id: 'perto', p: { lat: -9.95, lng: -63.05 } }
+    const sem = { id: 'sem', p: undefined }
+    expect(ordemOtimizada(ARIQUEMES, [longe, sem, perto], (x) => x.p).map((x) => x.id)).toEqual(['perto', 'longe', 'sem'])
   })
-  it('preenche horários em cascata com duração mais deslocamento', () => {
-    const r = preencherHorarios([p('a', '00:00', 30, 20), p('b', '00:00', 45, 10)], '08:00')
-    expect(r.map((x) => x.inicio)).toEqual(['08:00', '08:50'])
+})
+
+describe('laço do roteirizador', () => {
+  const quadrado = [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }, { x: 0, y: 10 }]
+  it('ponto dentro e fora do polígono', () => {
+    expect(dentroDoPoligono({ x: 5, y: 5 }, quadrado)).toBe(true)
+    expect(dentroDoPoligono({ x: 15, y: 5 }, quadrado)).toBe(false)
   })
-  it('detecta sobreposição entre paradas seguidas', () => {
-    const r = conflitos([p('a', '08:00', 30, 20), p('b', '08:30', 30, 0)])
-    expect(r).toEqual([{ idx: 1, comIdx: 0, minutos: 20 }])
-    expect(conflitos([p('a', '08:00', 30, 20), p('b', '09:00', 30, 0)])).toEqual([])
+})
+
+describe('O.S. elegíveis para rota', () => {
+  const os = (id: string, status: OS['status'], tipologia: OS['tipologia'] = 'A413') => ({ id, status, tipologia }) as OS
+  const rota = (id: string, status: Rota['status'], ids: string[]) => ({ id, status, paradas: ids.map((osId) => ({ osId })) }) as Rota
+  it('só recebidas ou em andamento, com vistoria, e fora de outra rota ativa', () => {
+    const rotas = [rota('r1', 'rascunho', ['a']), rota('r2', 'concluida', ['b'])]
+    expect(elegivelParaRota(os('a', 'recebida'), rotas)).toBe(false) // já está no rascunho r1
+    expect(elegivelParaRota(os('a', 'recebida'), rotas, 'r1')).toBe(true) // editando a própria r1
+    expect(elegivelParaRota(os('b', 'em_andamento'), rotas)).toBe(true) // r2 já foi concluída
+    expect(elegivelParaRota(os('c', 'concluida'), rotas)).toBe(false)
+    expect(elegivelParaRota(os('d', 'recebida', 'G402'), rotas)).toBe(false) // reedição sem vistoria
   })
-  it('resume a rota', () => {
-    const r = resumoRota([p('a', '08:00', 30, 20), p('b', '09:00', 45, 0)])
-    expect(r).toMatchObject({ inicio: '08:00', fim: '09:45', vistoriaMin: 75, deslocMin: 20 })
-    expect(resumoRota([]).totalMin).toBe(0)
+  it('código ROTA-XXXX sem repetir', () => {
+    const c = novoCodigoRota(['ROTA-0001'])
+    expect(c).toMatch(/^ROTA-[0-9A-F]{4}$/)
+    expect(c).not.toBe('ROTA-0001')
+  })
+})
+
+describe('sugestão de viagem do Início', () => {
+  const os = (id: string, cidade: string, extra: Partial<OS> = {}) => ({ id, status: 'recebida', tipologia: 'A413', endereco: { cidade }, ...extra }) as OS
+  it('escolhe a cidade com mais O.S. sem vistoria, fora da base', () => {
+    const lista = [os('a', 'CACOAL'), os('b', 'CACOAL'), os('c', 'CACOAL'), os('d', 'JARU'), os('e', 'JARU'), os('f', 'ARIQUEMES'), os('g', 'ARIQUEMES'), os('h', 'ARIQUEMES')]
+    const s = sugestaoDeViagem(lista, 'ARIQUEMES')
+    expect(s?.cidade).toBe('CACOAL')
+    expect(s?.os.map((o) => o.id)).toEqual(['a', 'b', 'c'])
+  })
+  it('ignora as que já têm vistoria e precisa de pelo menos duas', () => {
+    const lista = [os('a', 'CACOAL'), os('b', 'CACOAL', { vistoria: { data: '2026-10-10', hora: '08:00', duracao: 40 } })]
+    expect(sugestaoDeViagem(lista, 'ARIQUEMES')).toBeNull()
   })
 })

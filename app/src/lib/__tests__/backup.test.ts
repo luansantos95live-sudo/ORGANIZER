@@ -24,6 +24,14 @@ describe('backup', () => {
     expect(lerBackup(JSON.stringify({ versao: 1 })).ok).toBe(false)
     expect(lerBackup('[]').ok).toBe(false)
   })
+  it('converte o formato antigo (versão 1) para as etapas reais', () => {
+    const r = lerBackup(JSON.stringify({ versao: 1, os: [os('A', { status: 'finalizada' }), os('B', { status: 'emitida' })] }))
+    expect(r.ok).toBe(true)
+    if (r.ok) {
+      expect(r.dados.os.map((o) => o.status)).toEqual(['concluida', 'recebida'])
+      expect(r.resumo).toContain('formato antigo')
+    }
+  })
   it('recusa status desconhecido, valor inválido e referência repetida', () => {
     const base = (lista: unknown[]) => JSON.stringify({ versao: 1, os: lista })
     expect(lerBackup(base([os('A', { status: 'xpto' })])).ok).toBe(false)

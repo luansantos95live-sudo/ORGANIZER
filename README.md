@@ -62,7 +62,7 @@ O endereço fica `https://<usuário>.github.io/<repositório>/`. O site é públ
 
 - **Painel** — prioridades dos próximos 3 dias, farol de prazo, rota de hoje, carteira por etapa.
 - **Ordens de serviço** — seletor de escopo *Minhas · Marco · Todas* sempre visível, filtros por
-  status, prazo, cidade, bairro e tipo, visão tabela ou quadro, busca `⌘K`.
+  status, prazo, cidade, bairro e tipo, visão em lista ou kanban, busca `⌘K`.
 - **Detalhe da O.S.** — ações do fluxo (aceitar, agendar, vistoriada, laudo enviado, diligência,
   finalizar, conferir), checklist dos 11 documentos SIOPI, WhatsApp / ligar / Maps, histórico.
 - **Rota do dia** — escolha as O.S. disponíveis (agrupadas por cidade e bairro), defina a hora
