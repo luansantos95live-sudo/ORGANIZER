@@ -25,6 +25,16 @@ export const entraNoFaturamento = (o: OS) => o.status !== 'cancelada'
 
 export const estaFinalizada = (o: OS) => o.status === 'concluida'
 
+/**
+ * O.S. em aberto até o fim de um mês (19/11): não finalizadas e não canceladas, recebidas naquele mês ou em
+ * qualquer mês anterior. Usado no cartão "Faturamento total" do Financeiro (valor somado = serviço + deslocamento).
+ */
+export function emAbertoAte(lista: OS[], fim: Date): { valor: number; qtd: number } {
+  const limite = format(fim, 'yyyy-MM-dd')
+  const abertas = lista.filter((o) => o.status !== 'cancelada' && !estaFinalizada(o) && !!o.emissao && o.emissao <= limite)
+  return { valor: abertas.reduce((s, o) => s + valorTotal(o), 0), qtd: abertas.length }
+}
+
 /** Data que posiciona a O.S. no período: a conclusão, ou o prazo que vale agora enquanto está em aberto. */
 export const dataReferencia = (o: OS, hoje = new Date()) => (estaFinalizada(o) ? o.concluidaEm ?? o.prazo : prazoAtual(o, hoje))
 
@@ -86,6 +96,16 @@ export function noPeriodoComPendencias(o: OS, ini: Date, fim: Date, incluirPende
   if (noIntervalo(o, ini, fim, hoje)) return true
   if (!incluirPendencias || estaFinalizada(o) || o.status === 'cancelada') return false
   return parseISO(dataReferencia(o, hoje)) < ini
+}
+
+/**
+ * Financeiro (12/11): O.S. ainda em aberto contam no período que contém hoje, qualquer que seja o prazo (uma O.S. em
+ * PEPT com o prazo empurrado para o mês que vem continua no potencial deste mês). As finalizadas contam pela conclusão.
+ */
+export function noPeriodoFinanceiro(o: OS, ini: Date, fim: Date, hoje = new Date()) {
+  if (estaFinalizada(o)) return noIntervalo(o, ini, fim, hoje)
+  if (o.status === 'cancelada') return false
+  return inicioDoDia(hoje) >= inicioDoDia(ini) && inicioDoDia(hoje) <= fim
 }
 
 export interface Resumo {

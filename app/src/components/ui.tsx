@@ -35,12 +35,18 @@ export function Avatar({ resp, size = 24 }: { resp: Responsavel; size?: number }
   const soft = dono ? 'var(--brand-soft)' : 'var(--rt-soft)'
   return (
     <span className="relative inline-flex shrink-0" title={dono ? `${cfg.nome} (dono da conta)` : cfg.nome}>
-      <span
-        className="inline-flex items-center justify-center rounded-full font-semibold"
-        style={{ width: size, height: size, fontSize: size * 0.5, background: soft, color: cor, border: `1px solid ${cor}` }}
-      >
-        {cfg.curto.charAt(0).toUpperCase()}
-      </span>
+      {cfg.foto ? (
+        // foto de perfil (Configurações › Meu Perfil) no lugar da inicial; sem contorno (19/11: o contorno verde
+        // passava por baixo da coroinha e parecia um risco nela)
+        <img src={cfg.foto} alt="" className="rounded-full object-cover" style={{ width: size, height: size }} />
+      ) : (
+        <span
+          className="inline-flex items-center justify-center rounded-full font-semibold"
+          style={{ width: size, height: size, fontSize: size * 0.5, background: soft, color: cor, border: `1px solid ${cor}` }}
+        >
+          {cfg.curto.charAt(0).toUpperCase()}
+        </span>
+      )}
       {dono && (
         <Crown aria-hidden className="absolute left-1/2 -translate-x-1/2" fill="#f2c94c" color="#c99a1d" strokeWidth={1.5}
           style={{ width: Math.max(8, size * 0.55), height: Math.max(8, size * 0.55), top: -Math.max(5, size * 0.42) }} />
@@ -109,10 +115,12 @@ export function Empty({ title, text, action }: { title: string; text?: string; a
   )
 }
 
-export function Modal({ open, onClose, title, children, width = 480, footer, header, altura, fixo }: {
+export function Modal({ open, onClose, title, children, width = 480, footer, header, altura, fixo, semBarra }: {
   open: boolean; onClose: () => void; title?: ReactNode; children: ReactNode; width?: number; footer?: ReactNode; header?: ReactNode
   /** Altura fixa (ex.: janela com abas: não muda de tamanho ao trocar de aba; o conteúdo rola por dentro). */
   altura?: string
+  /** O conteúdo rola sem a barra de rolagem à mostra (Nova OS, pedido de 10/11). */
+  semBarra?: boolean
   /** Faixa presa logo abaixo do título (ex.: as abas), que não rola junto com o conteúdo. */
   fixo?: ReactNode
 }) {
@@ -137,7 +145,7 @@ export function Modal({ open, onClose, title, children, width = 480, footer, hea
           <button className="btn btn-ghost btn-icon shrink-0" onClick={onClose} aria-label="Fechar"><X size={16} /></button>
         </header>
         {fixo && <div className="px-5 pt-3 pb-3 border-b border-border shrink-0">{fixo}</div>}
-        <div className="px-5 py-4 overflow-y-auto flex-1 min-h-0">{children}</div>
+        <div className={clsx('px-5 py-4 overflow-y-auto flex-1 min-h-0', semBarra && 'rolagem-invisivel')}>{children}</div>
         {footer && <footer className="px-5 py-3 border-t border-border flex flex-wrap items-center justify-end gap-2 shrink-0">{footer}</footer>}
       </div>
     </div>

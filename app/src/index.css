@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
-/* Identidade visual do FLUXO ARQ (LFX Gestão 2.35+): fundo verde-acinzentado, cartões com borda sutil,
-   lateral e abas escuras, verde LFX #3AB81E como destaque, títulos de cartão pequenos em caixa alta. */
+/* Identidade visual do FLUXO ARQ (LFX GestÃ£o 2.35+): fundo verde-acinzentado, cartÃµes com borda sutil,
+   lateral e abas escuras, verde LFX #3AB81E como destaque, tÃ­tulos de cartÃ£o pequenos em caixa alta. */
 :root {
   --bg: #e4e8df;
   --surface: #eff2eb;
@@ -46,7 +46,7 @@
   --f-warn-bg: #fcefdf; --f-warn-fg: #a85a17;
   --f-urgent-bg: #fbe6e4; --f-urgent-fg: #b23a31;
   --f-late-bg: #d0443a; --f-late-fg: #ffffff;
-  /* séries de dados */
+  /* sÃ©ries de dados */
   --viz-me: var(--brand);
   --viz-rt: var(--rt);
   --viz-track: var(--seg);
@@ -54,7 +54,7 @@
 }
 
 :root[data-theme="dark"] {
-  /* Modo escuro do FLUXO ARQ: fundo quase preto esverdeado, cartões #1a221c com borda #2b362d */
+  /* Modo escuro do FLUXO ARQ: fundo quase preto esverdeado, cartÃµes #1a221c com borda #2b362d */
   --bg: #121813;
   --surface: #1a221c;
   --surface-2: #1f2921;
@@ -127,13 +127,15 @@ body {
 .tnum { font-variant-numeric: tabular-nums; }
 .suave { color: var(--muted); }
 
-/* ---------- Estrutura: lateral, barra de cima, área principal ---------- */
+/* ---------- Estrutura: lateral, barra de cima, Ã¡rea principal ---------- */
 .lateral { background: var(--chrome); color: #aeb4ab; }
 .lateral .marca b { color: #f4f6f2; font-size: 14.5px; font-weight: 700; letter-spacing: .005em; }
 .lateral .marca small { color: #7f877d; font-size: 11.5px; letter-spacing: .01em; }
-.lat-sec { padding: 16px 12px 6px; font-size: 10.5px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: #646b62; user-select: none; }
-.aba { position: relative; display: flex; align-items: center; gap: 12px; height: 38px; padding: 0 12px; border-radius: 9px; font-size: 13.5px; font-weight: 500; letter-spacing: .003em; color: #aeb4ab; transition: background .15s, color .15s; }
-.aba svg { width: 17px; height: 17px; flex: none; }
+/* Menu lateral maior (19/11, pedido do usuário): texto 13,5 → 15 px, ícones 17 → 20 px, títulos 10,5 → 11,5 px. */
+.lat-sec { padding: 16px 12px 6px; font-size: 11.5px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: #646b62; user-select: none; }
+.aba { position: relative; display: flex; align-items: center; gap: 12px; height: 42px; padding: 0 12px; border-radius: 9px; font-size: 15px; font-weight: 500; letter-spacing: .003em; color: #aeb4ab; transition: background .15s, color .15s; }
+.aba svg { width: 20px; height: 20px; flex: none; }
+.aba > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .aba:hover { background: rgba(255, 255, 255, .06); color: #fff; }
 .aba[aria-current="page"] { background: rgba(58, 184, 30, .17); color: #fff; font-weight: 600; box-shadow: inset 0 0 0 1px rgba(58, 184, 30, .22); }
 .aba[aria-current="page"]::before { content: ""; position: absolute; left: -12px; top: 9px; bottom: 9px; width: 3px; border-radius: 0 3px 3px 0; background: var(--brand); }
@@ -154,28 +156,29 @@ body {
 .topo-app::before { content: ""; position: absolute; inset: 0; pointer-events: none; background-position: 50% 50%; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='44'%3E%3Cdefs%3E%3Cpath id='f' d='M0,14.85 L24.31,0 L24.31,100 L0,84.72Z M24.31,0 L63.61,0 L73.07,25.47 L24.31,25.47Z M0,53.71 L23.29,38.72 L56.33,38.72 L56.33,64.05 L15.87,64.05 L0,73.8Z'/%3E%3C/defs%3E%3Cg fill='#fff' opacity='.075'%3E%3Cuse href='#f' transform='translate(26.2 14) scale(.16)'/%3E%3Cuse href='#f' transform='translate(-5.8 -8) scale(.16)'/%3E%3Cuse href='#f' transform='translate(58.2 -8) scale(.16)'/%3E%3Cuse href='#f' transform='translate(-5.8 36) scale(.16)'/%3E%3Cuse href='#f' transform='translate(58.2 36) scale(.16)'/%3E%3C/g%3E%3C/svg%3E"); }
 .topo-app > * { position: relative; }
 
-/* Menu lateral recolhido: só ícones, grupos separados por um traço (FLUXO ARQ "Recolher menu") */
+/* Menu lateral recolhido: sÃ³ Ã­cones, grupos separados por um traÃ§o (FLUXO ARQ "Recolher menu") */
 .lateral { width: 236px; transition: width .18s ease; }
 .lateral.recolhida { width: 68px; }
 .lateral.recolhida .marca { justify-content: center; padding-left: 0; padding-right: 0; }
+.lateral:not(.recolhida) .logo-icone, .lateral.recolhida .marca-logo { display: none; }
 .lateral.recolhida .marca-txt, .lateral.recolhida .aba > span, .lateral.recolhida .perfil-txt, .lateral.recolhida .lat-recolher span { display: none; }
 .lateral.recolhida .lat-sec { height: 1px; padding: 0; margin: 10px 8px; background: rgba(255, 255, 255, .07); font-size: 0; overflow: hidden; }
 .lateral.recolhida .abas { padding-left: 10px; padding-right: 10px; }
-.lateral.recolhida .aba { height: 40px; padding: 0; justify-content: center; gap: 0; }
+.lateral.recolhida .aba { height: 44px; padding: 0; justify-content: center; gap: 0; }
 .lateral.recolhida .aba[aria-current="page"]::before { left: -10px; }
 .lateral.recolhida .perfil { justify-content: center; padding: 8px 0; }
 .lateral.recolhida .lat-recolher { justify-content: center; padding: 9px 0; }
 .lateral.recolhida .lat-escopo { padding: 4px; }
 .lateral.recolhida .lat-escopo-tit { display: none; }
 .lateral.recolhida .lat-escopo-topo { justify-content: center; padding: 2px 0 4px; }
-/* Dica da lateral abre para a direita e para cima (fica perto do pé da tela) */
+/* Dica da lateral abre para a direita e para cima (fica perto do pÃ© da tela) */
 .lat-escopo .dica { color: #7f877d; }
 .lat-escopo .dica:hover { color: #9be97f; }
 .lat-escopo .dica .dica-txt { left: 24px; right: auto; top: auto; bottom: -10px; width: 300px; border: 1px solid rgba(255, 255, 255, .1); }
-.lateral.recolhida .lat-escopo .aba { height: 38px; padding: 0; justify-content: center; gap: 0; }
+.lateral.recolhida .lat-escopo .aba { height: 46px; padding: 0; justify-content: center; gap: 0; }
 .lat-escopo .aba[aria-current="page"]::before { display: none; }
 .lateral.recolhida .lat-recolher svg { transform: scaleX(-1); }
-.lat-recolher { display: flex; align-items: center; gap: 12px; width: 100%; padding: 9px 12px; border-radius: 9px; font-size: 12.5px; color: #7f877d; }
+.lat-recolher { display: flex; align-items: center; gap: 12px; width: 100%; padding: 9px 12px; border-radius: 9px; font-size: 13.5px; color: #7f877d; }
 .lat-recolher:hover { background: rgba(255, 255, 255, .06); color: #fff; }
 .lat-recolher svg { width: 17px; height: 17px; }
 
@@ -183,7 +186,7 @@ body {
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); }
 .card-hover { transition: box-shadow .15s, border-color .15s; }
 .card-hover:hover { box-shadow: var(--anel); }
-/* Título de cartão: pequeno, em caixa alta e cinza; a descrição vai ao lado em .suave */
+/* TÃ­tulo de cartÃ£o: pequeno, em caixa alta e cinza; a descriÃ§Ã£o vai ao lado em .suave */
 .card-tit { font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); }
 .card-tit .suave { text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 12.5px; margin-left: 6px; }
 
@@ -226,12 +229,13 @@ textarea.input { height: auto; padding: 8px 10px; }
 
 /* Abas e filtros: caixa na cor da lateral, aba selecionada com o destaque da lateral (FLUXO ARQ 2.37) */
 .seg { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 5px; border-radius: 14px; background: linear-gradient(160deg, #10241a 0%, #173b26 100%); border: 1px solid rgba(255, 255, 255, .08); box-shadow: 0 8px 22px -16px rgba(16, 36, 26, .6); max-width: 100%; }
+.seg button:disabled { opacity: .4; cursor: not-allowed; }
 .seg button { position: relative; display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 16px 0 19px; border-radius: 10px; font-size: 14px; font-weight: 500; color: #c9dccd; white-space: nowrap; transition: background .15s, color .15s; }
 .seg button:hover { color: #fff; background: rgba(255, 255, 255, .08); }
 .seg button[aria-pressed="true"] { background: rgba(123, 224, 92, .2); color: #fff; font-weight: 600; box-shadow: inset 0 0 0 1px rgba(123, 224, 92, .3); }
 .seg button[aria-pressed="true"]::before { content: ""; position: absolute; left: 6px; top: 9px; bottom: 9px; width: 3px; border-radius: 3px; background: #7be05c; }
-/* Versão baixa do seletor, na altura dos campos de filtro (36 px). */
-/* abas numa linha só, na largura toda (janela da O.S.): não quebram; se faltar espaço, rolam para o lado */
+/* VersÃ£o baixa do seletor, na altura dos campos de filtro (36 px). */
+/* abas numa linha sÃ³, na largura toda (janela da O.S.): nÃ£o quebram; se faltar espaÃ§o, rolam para o lado */
 .seg.seg-linha { display: flex; width: 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding: 4px; gap: 2px; }
 .seg.seg-linha button { flex: 1 0 auto; justify-content: center; height: 32px; padding: 0 10px 0 13px; font-size: 13px; }
 .seg.seg-linha button[aria-pressed="true"]::before { left: 5px; top: 9px; bottom: 9px; }
@@ -256,6 +260,9 @@ textarea.input { height: auto; padding: 8px 10px; }
 
 *:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 6px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+/* rola, mas sem a barra à mostra (janela Nova OS, pedido de 10/11) */
+.rolagem-invisivel { scrollbar-width: none; -ms-overflow-style: none; }
+.rolagem-invisivel::-webkit-scrollbar { display: none; width: 0; height: 0; }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; border: 2px solid var(--bg); }
 
@@ -289,7 +296,7 @@ textarea.input { height: auto; padding: 8px 10px; }
 .tip-G416 { background: var(--t-G416-bg); color: var(--t-G416-fg); }
 .tip-G014 { background: var(--t-G014-bg); color: var(--t-G014-fg); }
 .tip-G402 { background: var(--t-G402-bg); color: var(--t-G402-fg); }
-/* Tons por significado: verde = finalizado / você, roxo = RT, laranja = a faturar, azul = deslocamento */
+/* Tons por significado: verde = finalizado / vocÃª, roxo = RT, laranja = a faturar, azul = deslocamento */
 .tom-neutro { --tom: var(--text); --tom-ic: var(--muted); --tom-bg: var(--surface-2); }
 .tom-verde { --tom: var(--verde-valor); --tom-ic: var(--brand); --tom-bg: var(--brand-soft); }
 .tom-rt { --tom: var(--rt); --tom-ic: var(--rt); --tom-bg: var(--rt-soft); }
@@ -319,14 +326,14 @@ textarea.input { height: auto; padding: 8px 10px; }
 .menu-flut button:hover, .menu-flut a:hover { background: rgba(58, 184, 30, .09); }
 .menu-flut svg { width: 16px; height: 16px; color: var(--muted); }
 
-/* ---------- Financeiro: cartões lisos como no FLUXO ARQ (cor só no número e no ícone) ---------- */
+/* ---------- Financeiro: cartÃµes lisos como no FLUXO ARQ (cor sÃ³ no nÃºmero e no Ã­cone) ---------- */
 .kpi-arq { position: relative; padding: 14px 16px 13px; }
 .kpi-arq .kpi-valor { font-size: 24px; font-weight: 700; letter-spacing: -.2px; line-height: 1.15; margin-top: 6px; color: var(--tom); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ic-quadro { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 32px; height: 32px; border-radius: 9px; background: var(--surface-2); color: var(--tom-ic); border: 1px solid var(--border); }
 .ic-quadro svg { width: 16px; height: 16px; }
 .faixa-resumo { border-left: 3px solid var(--brand); }
 
-/* ---------- Início no padrão da Visão geral do FLUXO ARQ (20/10/2026) ---------- */
+/* ---------- InÃ­cio no padrÃ£o da VisÃ£o geral do FLUXO ARQ (20/10/2026) ---------- */
 .vg-saud h1 { margin: 0; font-size: 31px; font-weight: 600; letter-spacing: -.022em; line-height: 1.15; }
 .vg-saud p { margin: 7px 0 0; font-size: 15px; line-height: 1.55; color: var(--muted); max-width: 760px; }
 .vg-saud .vg-data { display: block; color: var(--text); font-weight: 500; }
@@ -380,11 +387,11 @@ textarea.input { height: auto; padding: 8px 10px; }
 .eg-pz { font-size: 10.5px; color: var(--muted); }
 .eg-vazia { font-size: 12px; color: var(--muted); text-align: center; padding: 6px 0; opacity: .6; }
 
-/* Início em blocos (direção B, 20/10/2026): cartão arredondado, branco no tema claro, sombra suave. */
+/* InÃ­cio em blocos (direÃ§Ã£o B, 20/10/2026): cartÃ£o arredondado, branco no tema claro, sombra suave. */
 .bloco { background: var(--surface); border: 1px solid var(--border); border-radius: 22px; box-shadow: 0 1px 2px rgba(20, 26, 20, .04), 0 12px 32px -20px rgba(20, 26, 20, .18); min-width: 0; }
 :root:not([data-theme="dark"]) .bloco { background: #fff; border-color: #e4e8e1; }
 
-/* Cartão grande do Início (Prioridade agora) no tema ESCURO: verde bem clarinho com texto escuro, para contrastar (pedido 20/10/2026). No tema claro fica o verde-escuro. */
+/* CartÃ£o grande do InÃ­cio (Prioridade agora) no tema ESCURO: verde bem clarinho com texto escuro, para contrastar (pedido 20/10/2026). No tema claro fica o verde-escuro. */
 :root[data-theme="dark"] .heroi { background: linear-gradient(160deg, #f5fbf2 0%, #e3f3da 100%) !important; color: #10241a !important; border: 1px solid #cfe5c3; box-shadow: 0 12px 32px -20px rgba(20, 70, 30, .35) !important; }
 :root[data-theme="dark"] .heroi .text-white { color: #10241a; }
 :root[data-theme="dark"] .heroi .text-white\/85 { color: rgba(16, 36, 26, .85); }
@@ -399,8 +406,17 @@ textarea.input { height: auto; padding: 8px 10px; }
 :root[data-theme="dark"] .heroi input::placeholder { color: rgba(16, 36, 26, .45); }
 :root[data-theme="dark"] .heroi input[type="date"] { color-scheme: light; }
 :root[data-theme="dark"] .heroi .bg-\[\#7be05c\] { background: #3ab81e; color: #fff; }
+:root[data-theme="dark"] .heroi .hover\:bg-white\/15:hover { background: rgba(16, 36, 26, .1); }
 
-/* Seletores (Minhas/Marco/Todas, Lista/Kanban…) no verde do cartão grande do Início: no tema escuro, verde clarinho. */
+/* Dados da O.S. no cartão Prioridade agora: link do WhatsApp e linha dos dias parados em PEPT (claro e escuro) */
+.heroi .prio-zap { background: rgba(123, 224, 92, .15); color: #9cf07f; }
+.heroi .prio-zap:hover { background: rgba(123, 224, 92, .25); }
+.heroi .prio-pept { color: #f0b46e; }
+:root[data-theme="dark"] .heroi .prio-zap { background: rgba(58, 184, 30, .14); color: #237a10; }
+:root[data-theme="dark"] .heroi .prio-zap:hover { background: rgba(58, 184, 30, .24); }
+:root[data-theme="dark"] .heroi .prio-pept { color: #a65a06; }
+
+/* Seletores (Minhas/Marco/Todas, Lista/Kanbanâ€¦) no verde do cartÃ£o grande do InÃ­cio: no tema escuro, verde clarinho. */
 :root[data-theme="dark"] .seg { background: linear-gradient(160deg, #f5fbf2 0%, #e3f3da 100%); border-color: #cfe5c3; box-shadow: none; }
 :root[data-theme="dark"] .seg button { color: #3d5a45; }
 :root[data-theme="dark"] .seg button:hover { color: #10241a; background: rgba(16, 36, 26, .07); }
@@ -410,8 +426,8 @@ textarea.input { height: auto; padding: 8px 10px; }
 :root[data-theme="dark"] .seg button[aria-pressed="true"] .n { background: rgba(58, 184, 30, .15); color: #10241a; }
 
 /* ===== Kanban de O.S.: cores estruturadas (22/10/2026) =====
-   Uma escada só, na família verde-acinzentada do sistema: fundo da página → coluna (um degrau abaixo) → cartão (um degrau
-   acima, a mesma superfície dos blocos do Início: branco no claro, verde-escuro no escuro). O prazo só tinge o cartão. */
+   Uma escada sÃ³, na famÃ­lia verde-acinzentada do sistema: fundo da pÃ¡gina â†’ coluna (um degrau abaixo) â†’ cartÃ£o (um degrau
+   acima, a mesma superfÃ­cie dos blocos do InÃ­cio: branco no claro, verde-escuro no escuro). O prazo sÃ³ tinge o cartÃ£o. */
 :root {
   --kb-col: #eaeee5; --kb-col-borda: #d6dccf;
   --kb-card: #ffffff; --kb-card-borda: #e0e5da; --kb-caixa: #f1f4ed; --kb-trilho: #e3e8dd;
@@ -435,19 +451,24 @@ textarea.input { height: auto; padding: 8px 10px; }
 :root:root .card-kanban { background: var(--kb-card) !important; color: var(--text); border-color: var(--kb-card-borda) !important; }
 .card-kanban { box-shadow: var(--kb-sombra); }
 :root:root:root .card-kanban:hover { border-color: var(--brand) !important; }
+/* selo "Validar" no mesmo amarelo do contorno */
+.chip-validar { background: rgba(234, 179, 8, .18); color: #a16207; box-shadow: inset 0 0 0 1px rgba(234, 179, 8, .55); }
+:root[data-theme="dark"] .chip-validar { background: rgba(234, 179, 8, .16); color: #facc15; }
+/* PEPT resolvida pelo cliente esperando validar ou reabrir: contorno amarelo fixo (pedido de 12/11), também com o mouse em cima */
+:root:root:root:root .card-kanban.card-validar { border-color: #eab308 !important; box-shadow: 0 0 0 1px #eab308, var(--kb-sombra); }
 .card-kanban .bg-\[var\(--surface-2\)\], .card-kanban .bg-\[var\(--seg\)\] { background: var(--kb-caixa); }
 .card-kanban .bg-black\/10 { background: var(--kb-trilho); }
-/* polo: etiqueta pequena e discreta no verde #2a582f (escolhido pelo usuário): fundo clarinho desse verde e texto nele */
+/* polo: etiqueta pequena e discreta no verde #2a582f (escolhido pelo usuÃ¡rio): fundo clarinho desse verde e texto nele */
 .card-kanban .polo-kanban { background: var(--kb-polo) !important; color: var(--kb-polo-txt) !important; }
 .card-kanban .cidade-kanban { color: var(--text); }
-/* prazo: tinge o cartão (amarelo ≤ 3 dias, vermelho ≤ 1 dia/vencida, cinza em PEPT) */
+/* prazo: tinge o cartÃ£o (amarelo â‰¤ 3 dias, vermelho â‰¤ 1 dia/vencida, cinza em PEPT) */
 :root:root .card-kanban.prazo-amarelo { background: var(--kb-amarelo) !important; border-color: var(--kb-amarelo-borda) !important; }
 :root:root .card-kanban.prazo-vermelho { background: var(--kb-vermelho) !important; border-color: var(--kb-vermelho-borda) !important; }
 :root:root .card-kanban.prazo-cinza { background: var(--kb-cinza) !important; border-color: var(--kb-cinza-borda) !important; filter: grayscale(1); }
 :root:root .card-kanban:is(.prazo-amarelo, .prazo-vermelho, .prazo-cinza) .bg-\[var\(--surface-2\)\],
 :root:root .card-kanban:is(.prazo-amarelo, .prazo-vermelho, .prazo-cinza) .bg-\[var\(--seg\)\] { background: var(--kb-tinta-caixa); }
 
-/* Cartão do Kanban de O.S. finalizada: verde inteiro, o mesmo do botão "Nova O.S." (nos dois temas). */
+/* CartÃ£o do Kanban de O.S. finalizada: verde inteiro, o mesmo do botÃ£o "Nova O.S." (nos dois temas). */
 :root:root .card-kanban.card-finalizada { background: var(--brand) !important; color: #fff !important; border-color: var(--brand) !important; }
 :root:root .card-kanban.card-finalizada:hover { border-color: #2a8d14 !important; }
 :root:root .card-kanban.card-finalizada .text-muted, :root:root .card-kanban.card-finalizada .text-\[var\(--azul\)\] { color: rgba(255, 255, 255, .88) !important; }
@@ -455,7 +476,7 @@ textarea.input { height: auto; padding: 8px 10px; }
 :root:root .card-kanban.card-finalizada .bg-\[var\(--surface-2\)\], :root:root .card-kanban.card-finalizada .chip-v { background: rgba(255, 255, 255, .2) !important; color: #fff !important; }
 :root:root .card-kanban.card-finalizada button { color: #fff !important; }
 
-/* Cor da O.S. pelo prazo (como no sistema real): amarela ≤ 3 dias, vermelha ≤ 1 dia/vencida, cinza em PEPT. */
+/* Cor da O.S. pelo prazo (como no sistema real): amarela â‰¤ 3 dias, vermelha â‰¤ 1 dia/vencida, cinza em PEPT. */
 .prazo-amarelo { background: #fdf3c4 !important; }
 .prazo-vermelho { background: #fbd5d2 !important; }
 .prazo-cinza { background: #e6e8e4 !important; }
@@ -466,7 +487,7 @@ textarea.input { height: auto; padding: 8px 10px; }
 :root[data-theme="dark"] .prazo-verde { background: #1c3517 !important; }
 tr.prazo-amarelo:hover, tr.prazo-vermelho:hover, tr.prazo-cinza:hover, tr.prazo-verde:hover { filter: brightness(.97); }
 
-/* Sobressai de leve ao passar o mouse: cartões do Kanban e linhas da lista de O.S. */
+/* Sobressai de leve ao passar o mouse: cartÃµes do Kanban e linhas da lista de O.S. */
 .card-kanban { transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease; }
 .card-kanban:hover { transform: translateY(-2px); box-shadow: 0 10px 22px -12px rgba(16, 36, 26, .45); }
 .card-kanban:active { transform: translateY(0); }
@@ -474,9 +495,83 @@ tr.prazo-amarelo:hover, tr.prazo-vermelho:hover, tr.prazo-cinza:hover, tr.prazo-
 .linha-os:hover { transform: translateY(-1px); box-shadow: 0 6px 16px -10px rgba(16, 36, 26, .5); z-index: 1; }
 @media (prefers-reduced-motion: reduce) { .card-kanban, .linha-os { transition: none; } .card-kanban:hover, .linha-os:hover { transform: none; } }
 
-/* Botão "Concluir" no cartão do Kanban (no lugar dos três pontinhos): escondido; aparece só com o mouse em cima do cartão
-   (ou com o foco do teclado). Em tela de toque, sem mouse, fica sempre à mostra. Texto pequeno com contorno fino; verde ao passar o mouse nele. */
+/* BotÃ£o "Concluir" no cartÃ£o do Kanban (no lugar dos trÃªs pontinhos): escondido; aparece sÃ³ com o mouse em cima do cartÃ£o
+   (ou com o foco do teclado). Em tela de toque, sem mouse, fica sempre Ã  mostra. Texto pequeno com contorno fino; verde ao passar o mouse nele. */
 .card-kanban .concluir-kanban { display: none; align-items: center; color: var(--muted); border: 1px solid var(--kb-card-borda); background: transparent; transition: color .15s, border-color .15s, background .15s; }
 .card-kanban:hover .concluir-kanban, .card-kanban:focus-within .concluir-kanban { display: inline-flex; }
 @media (hover: none) { .card-kanban .concluir-kanban { display: inline-flex; } }
 .card-kanban .concluir-kanban:hover { color: var(--brand); border-color: var(--brand); background: color-mix(in oklab, var(--brand) 10%, transparent); }
+
+/* Mapa real das rotas (MapLibre GL, 06/11/2026) */
+.mapa-os { font-family: inherit; z-index: 0; }
+.mapa-os .maplibregl-ctrl-group { background: var(--surface); border: 1px solid var(--border); box-shadow: 0 8px 24px -12px rgba(0, 0, 0, .35); border-radius: 10px; overflow: hidden; }
+.mapa-os .maplibregl-ctrl-group button { width: 30px; height: 30px; background: var(--surface); }
+.mapa-os .maplibregl-ctrl-group button + button { border-top: 1px solid var(--border); }
+.mapa-os .maplibregl-ctrl-group button:hover { background: var(--surface-2); }
+:root[data-theme="dark"] .mapa-os .maplibregl-ctrl-group button .maplibregl-ctrl-icon { filter: invert(1); }
+.mapa-os .maplibregl-ctrl-attrib { background: color-mix(in srgb, var(--surface) 85%, transparent); color: var(--fraco); font-size: 10px; border-radius: 8px 0 0 0; }
+.mapa-os .maplibregl-ctrl-attrib a { color: var(--fraco); }
+.mapa-os .maplibregl-marker { cursor: pointer; }
+.mapa-os .mk { display: flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; background: var(--azul); border: 2.5px solid #fff; box-shadow: 0 2px 6px rgba(0, 0, 0, .35); color: #fff; font-size: 10px; font-weight: 700; cursor: pointer; }
+.mapa-os .mk.sel { width: 22px; height: 22px; background: var(--brand); }
+.mapa-os .mk-base { display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 5px; background: var(--laranja); border: 2.5px solid #fff; box-shadow: 0 2px 6px rgba(0, 0, 0, .35); pointer-events: none; }
+.tip-mapa-pop .maplibregl-popup-content { background: var(--surface); color: var(--txt); border: 1px solid var(--border); border-radius: 10px; padding: 7px 10px; font-size: 12px; box-shadow: 0 8px 24px -12px rgba(0, 0, 0, .35); pointer-events: none; }
+.tip-mapa-pop .maplibregl-popup-tip { border-top-color: var(--surface); border-bottom-color: var(--surface); }
+/* passos do painel de rotas: 4 abas que cabem na largura do painel */
+/* 5 passos (Selecionar · Montar · Agendar · Confirmar · Exportar) no mesmo espaço: letra e folgas um pouco menores */
+.seg.seg-passos button { flex: 1 1 auto; min-width: 0; padding: 0 4px 0 6px; font-size: 11.5px; gap: 3px; letter-spacing: -.01em; }
+.seg.seg-passos button .n { padding: 0 4px; }
+.seg.seg-passos button svg { flex: 0 0 auto; }
+/* lista do painel de rotas: mesmo fundo das colunas do Kanban, com os cartões aprovados do Kanban */
+.lista-rota { background: var(--kb-col); }
+.card-rota.marcado { box-shadow: inset 0 0 0 1.5px var(--brand); }
+/* cartão Origem do passo Montar: destacado (pedido do usuário em 06/11) — faixa laranja à esquerda, fundo quente e nome grande */
+:root:root:root .card-origem {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, color-mix(in oklab, var(--laranja) 16%, var(--kb-card)) 0%, var(--kb-card) 70%) !important;
+  border-color: color-mix(in oklab, var(--laranja) 55%, var(--kb-card-borda)) !important;
+  box-shadow: 0 6px 18px -10px color-mix(in oklab, var(--laranja) 60%, transparent), var(--kb-sombra);
+}
+:root:root:root .card-origem:hover { border-color: var(--laranja) !important; transform: none; }
+.card-origem::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: var(--laranja); }
+.card-origem .ico-origem { width: 26px; height: 26px; border-radius: 8px; background: var(--laranja); color: #fff; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.card-origem .card-tit { color: var(--laranja-txt); font-size: 12px; }
+.card-origem .card-tit .suave { color: var(--text-muted); }
+.card-origem .nome-origem { font-size: 15px !important; font-weight: 800; letter-spacing: .01em; text-transform: uppercase; height: 36px !important; background: var(--kb-caixa) !important; }
+/* passo Agendar: cartão por cliente com a trilha 1 Agendar → 2 Cliente confirmou? → 3 Confirmado (pedido de 06/11: deixar
+   claro que é preciso confirmar se o cliente confirmou o agendamento) */
+.trilha-agenda { display: flex; align-items: center; gap: 4px; padding: 6px 12px; background: var(--kb-caixa); border-top: 1px solid var(--kb-card-borda); font-size: 11px; font-weight: 600; color: var(--text-muted); overflow: hidden; }
+.trilha-agenda .passo { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 7px; border-radius: 999px; white-space: nowrap; border: 1px solid transparent; }
+.trilha-agenda .passo.atual { color: var(--laranja-txt); background: var(--laranja-soft); border-color: color-mix(in oklab, var(--laranja) 50%, transparent); }
+.trilha-agenda .passo.feito { color: var(--verde-valor); background: rgba(58, 184, 30, .12); }
+.trilha-agenda .seta { flex: 1 1 6px; min-width: 6px; height: 1px; background: var(--kb-card-borda); }
+.acao-agenda { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 7px 12px 9px; font-size: 12px; border-left: 4px solid var(--kb-card-borda); }
+.acao-agenda .texto { flex: 1 1 100%; line-height: 1.35; }
+.acao-agenda .link { font-size: 11.5px; font-weight: 600; color: var(--text-muted); text-decoration: underline; text-underline-offset: 2px; margin-left: auto; }
+.acao-agenda .link:hover { color: var(--text); }
+.card-agenda.etapa-0 .acao-agenda { border-left-color: var(--laranja); }
+.card-agenda.etapa-1 .acao-agenda { border-left-color: var(--laranja); background: color-mix(in oklab, var(--laranja) 7%, transparent); }
+.card-agenda.etapa-2 .acao-agenda { border-left-color: var(--brand); background: rgba(58, 184, 30, .07); color: var(--verde-valor); }
+/* campo de coordenadas dos cartões de O.S.: sempre com cara de campo editável (borda tracejada, fundo da caixa) */
+:root:root:root .campo-coord { background: var(--kb-caixa) !important; border: 1px dashed color-mix(in oklab, var(--text-muted) 55%, transparent) !important; }
+:root:root:root .campo-coord:hover { border-color: var(--brand) !important; border-style: solid !important; }
+:root:root:root .campo-coord:focus { border-color: var(--brand) !important; border-style: solid !important; box-shadow: 0 0 0 3px rgba(58, 184, 30, .18); }
+:root:root:root .campo-coord.sem-coord { border-color: var(--laranja) !important; }
+/* painel da rota: paradas agrupadas por bairro */
+.parada-rota { transition: box-shadow .15s, border-color .15s; }
+.parada-rota:hover { border-color: color-mix(in oklab, var(--brand) 45%, var(--border)); }
+
+/* E-mail já aberto (lido) fica cinza na lista, para separar dos novos (pedido de 12/11) */
+.email-lido { background: rgba(127, 135, 125, .1); filter: grayscale(1); opacity: .6; }
+.email-lido:hover { opacity: .85; }
+
+/* O.S. nova criada sozinha pelo e-mail da Caixa (12/11): selo azul NOVA e contorno azul até ser aberta */
+.chip-nova { background: #2563eb; color: #fff; font-weight: 700; letter-spacing: .04em; }
+:root:root:root:root .card-kanban.card-nova { border-color: #3b82f6 !important; box-shadow: 0 0 0 1px #3b82f6, var(--kb-sombra); }
+.faixa-nova { background: #2563eb; color: #fff; }
+
+/* Nota fiscal do mês no gráfico "Últimos 6 meses" do Financeiro (19/11): linha tracejada laranja na altura do valor. */
+.nf-marca { height: 0; border-top: 2px dashed var(--laranja-txt); z-index: 1; }
+.nf-marca-txt { position: absolute; left: 50%; bottom: 3px; transform: translateX(-50%); white-space: nowrap; font-size: 10.5px; font-weight: 700; color: var(--laranja-txt); background: var(--surface); padding: 0 4px; border-radius: 4px; line-height: 15px; }
+.nf-marca-legenda { display: inline-block; width: 14px; height: 0; border-top: 2px dashed var(--laranja-txt); }

@@ -4,12 +4,14 @@ import { ptBR } from 'date-fns/locale'
 import { AlertTriangle, CalendarPlus, Check, CircleCheck, Inbox, ChevronLeft, ChevronRight, FileText, MessageCircle, PauseCircle, Phone, Plus, type LucideIcon } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { CaixaPrioridade, DadosPrioridade } from '../components/DadosPrioridade'
 import { NovaOS } from '../components/NovaOS'
 import { PausarOS } from '../components/PausarOS'
+import { TipologiaChip } from '../components/ui'
 import { TIPOLOGIAS, cap, codigoOS, dataMedia, enderecoLinha, farolDe, prazoAtual, telefoneWhats, TIPOLOGIAS_SEM_VISTORIA } from '../lib/os'
 import { diasDaSemana } from '../lib/faturamento'
 import { alertas, emPept, porTipologia } from '../lib/inicio'
-import { estadoPassos, passosDaOS, proximoPasso } from '../lib/passos'
+import { naoFinalizada, estadoPassos, passosDaOS, proximoPasso } from '../lib/passos'
 import type { PassoKey, Tipologia } from '../types'
 import { filtrarEscopo, useStore } from '../store/useStore'
 import type { OS } from '../types'
@@ -55,7 +57,8 @@ export function Painel() {
   const diasAte = (iso: string) => differenceInCalendarDays(parseISO(iso), hoje)
 
   // Blocos, na ordem pedida pelo usuário: em aberto (recebidas), em andamento, em PEPT e finalizadas no mês.
-  const emAberto = porPrazo(ativas.filter((o) => o.status === 'recebida'))
+  // Em aberto = toda O.S. não finalizada (recebida, em andamento ou em PEPT), pedido de 16/11
+  const emAberto = porPrazo(os.filter(naoFinalizada))
   const emAndamento = porPrazo(ativas.filter((o) => o.status !== 'recebida'))
   const mes = hojeStr.slice(0, 7)
   const finalizadas = os.filter((o) => o.status === 'concluida' && o.concluidaEm?.startsWith(mes)).sort((a, b) => b.concluidaEm!.localeCompare(a.concluidaEm!))
@@ -179,7 +182,8 @@ function Prioridade({ lista, hojeStr, mensagem }: { lista: OS[]; hojeStr: string
   const fone = telefoneWhats(o.whatsapp || o.telefone)
   const texto = mensagem.replace('{contato}', o.contato || o.proponente).replace('{cliente}', o.proponente).replace('{endereco}', enderecoLinha(o))
     .replace('{data}', o.vistoria ? dataMedia(o.vistoria.data) : '').replace('{hora}', o.vistoria?.hora ?? '').replace('{os}', codigoOS(o))
-  const corPrazo = f.farol === 'late' ? 'bg-[#e2665c] text-white' : f.farol === 'urgent' || f.farol === 'warn' ? 'bg-[#f0b46e] text-[#2b1a05]' : 'bg-white/15 text-white'
+  // vencida ou vencendo hoje: vermelha (pedido de 16/11)
+  const corPrazo = f.farol === 'late' || f.dias === 0 ? 'bg-[#e2665c] text-white' : f.farol === 'urgent' || f.farol === 'warn' ? 'bg-[#f0b46e] text-[#2b1a05]' : 'bg-white/15 text-white'
   const mudar = (n: number) => { setI((k + n + lista.length) % lista.length); setPedindo(false) }
   const botao = 'h-10 px-4 rounded-full font-semibold flex items-center gap-2 border border-white/30 text-white hover:bg-white/10'
   return (
@@ -195,7 +199,13 @@ function Prioridade({ lista, hojeStr, mensagem }: { lista: OS[]; hojeStr: string
       <div>
         <span className={'inline-block px-3 py-1 rounded-full text-[13px] font-bold ' + corPrazo}>{textoPrazo(o)}</span>
         <Link to={`/os/${o.id}`} className="block text-[30px] font-bold tracking-[-0.02em] leading-tight mt-3 hover:underline">{o.proponente}</Link>
-        <div className="text-[14px] opacity-75 mt-1">{codigoOS(o)} · {o.tipologia} · {cap(o.endereco.cidade.toLowerCase())} · {o.endereco.bairro}</div>
+        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px]">
+          <span className="opacity-75">{codigoOS(o)}</span>
+          {/* etiqueta da tipologia igual à das Ordens de Serviço (cor do cadastro) */}
+          <TipologiaChip t={o.tipologia} className="shrink-0 !h-[22px] !text-[11.5px] !px-2" />
+          <span className="opacity-75">{cap(o.endereco.cidade.toLowerCase())} · {o.endereco.bairro}</span>
+          {o.referencia && <CaixaPrioridade referencia={o.referencia} />}
+        </div>
       </div>
       <div className="rounded-2xl bg-white/[.08] px-4 py-3 text-[14px] leading-relaxed">
         <div className="text-[12px] font-bold uppercase tracking-[.06em] opacity-60">Agora</div>
@@ -215,6 +225,7 @@ function Prioridade({ lista, hojeStr, mensagem }: { lista: OS[]; hojeStr: string
         </ol>
         {o.vistoria && !o.vistoria.feita && o.vistoria.data > hojeStr && <div className="opacity-75 text-[13px] mt-2">Vistoria marcada para {dataMedia(o.vistoria.data)} às {o.vistoria.hora}.</div>}
       </div>
+      <DadosPrioridade os={o} />
       <div className="mt-auto">
         {/* Pausar abre a mesma janela de PEPT do resto do sistema (tipo da pendência, pendência e dia) */}
         {pedindo && <PausarOS os={o} onClose={() => setPedindo(false)} />}
@@ -253,8 +264,11 @@ function Bloco({ cor, fundo, Icone, rotulo, numero, para, itens, rodape, vazio, 
         <ul>
           {itens.map(({ os: o, direita, para: p }) => (
             <li key={o.id}>
-              <Link to={p ?? `/os/${o.id}`} onClick={(e) => e.stopPropagation()} className="flex justify-between gap-2 text-[13px] py-1.5 border-t border-border hover:text-[var(--verde-valor)]">
-                <b className="font-semibold truncate">{o.proponente}</b><span className="text-muted whitespace-nowrap">{direita}</span>
+              <Link to={p ?? `/os/${o.id}`} onClick={(e) => e.stopPropagation()} className="flex items-center gap-2 text-[13px] py-1.5 border-t border-border hover:text-[var(--verde-valor)]">
+                {/* número da O.S. e etiqueta da tipologia antes do nome (pedido de 19/11), como no Kanban: OS | tipologia */}
+                <span className="tnum font-semibold text-muted whitespace-nowrap shrink-0">{codigoOS(o)}</span>
+                <TipologiaChip t={o.tipologia} className="shrink-0 !h-[18px] !text-[10.5px] !px-1.5" />
+                <b className="font-semibold truncate min-w-0 flex-1">{o.proponente}</b><span className="text-muted whitespace-nowrap shrink-0">{direita}</span>
               </Link>
             </li>
           ))}

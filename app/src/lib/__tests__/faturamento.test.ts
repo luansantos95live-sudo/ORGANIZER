@@ -1,11 +1,26 @@
 import { describe, expect, it } from 'vitest'
 import { dataReferencia, entraNoFaturamento, intervalo, noIntervalo, noPeriodoComPendencias, painelEquipe, painelGeral, painelMinhas, paradaSemNota, projecaoPorRitmo, repasseDaOS, repasseDe, resumir, situacaoDe, textoPronto, ticksBonitos, valorTotal } from '../faturamento'
+import { emAbertoAte, noPeriodoFinanceiro } from '../faturamento'
 import type { OS, Status } from '../../types'
 
 const mk = (status: Status, servico: number, desloc: number, extra: Partial<OS> = {}) =>
   ({ id: Math.random().toString(36), status, valorServico: servico, valorDeslocamento: desloc, prazo: '2026-10-20', diasPausado: 0, faturada: false, concluidaEm: undefined, ...extra }) as OS
 
 const HOJE = new Date(2026, 9, 8, 12)
+
+describe('em aberto até o fim do mês (cartão Faturamento total)', () => {
+  it('soma as não finalizadas recebidas no mês ou antes; ignora finalizadas, canceladas e as de meses seguintes', () => {
+    const fimOut = new Date(2026, 9, 31, 23, 59)
+    const lista = [
+      mk('recebida', 300, 50, { emissao: '2026-10-05' }), // outubro: entra
+      mk('em_andamento', 200, 0, { emissao: '2026-09-20' }), // mês anterior, ainda aberta: entra
+      mk('concluida', 999, 0, { emissao: '2026-10-02', concluidaEm: '2026-10-10' }), // finalizada: fora
+      mk('cancelada', 999, 0, { emissao: '2026-10-03' }), // cancelada: fora
+      mk('recebida', 999, 0, { emissao: '2026-11-01' }), // mês seguinte: fora
+    ]
+    expect(emAbertoAte(lista, fimOut)).toEqual({ valor: 550, qtd: 2 })
+  })
+})
 
 describe('regras de entrada', () => {
   it('só a cancelada fica fora do faturamento', () => {
@@ -243,5 +258,19 @@ describe('visão Geral', () => {
     expect(valorTotal(p.menor!)).toBe(545)
     expect(p.previsto).toBe(6140)
     expect(p.ticketMedio).toBeCloseTo(6140 / 6)
+  })
+})
+
+describe('potencial do mês conta todas as O.S. em aberto (12/11)', () => {
+  const hoje = new Date(2026, 10, 12)
+  const ini = new Date(2026, 10, 1), fim = new Date(2026, 10, 30, 23, 59)
+  const aberta = { status: 'em_andamento', prazo: '2026-12-20', pepts: [] } as unknown as Parameters<typeof noPeriodoFinanceiro>[0]
+  it('em aberto com prazo no mês que vem entra no mês atual e não no outro', () => {
+    expect(noPeriodoFinanceiro(aberta, ini, fim, hoje)).toBe(true)
+    expect(noPeriodoFinanceiro(aberta, new Date(2026, 11, 1), new Date(2026, 11, 31), hoje)).toBe(false)
+  })
+  it('finalizada conta pela conclusão', () => {
+    const f = { ...aberta, status: 'concluida', concluidaEm: '2026-10-30' } as typeof aberta
+    expect(noPeriodoFinanceiro(f, ini, fim, hoje)).toBe(false)
   })
 })

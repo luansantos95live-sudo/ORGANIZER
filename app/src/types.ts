@@ -118,6 +118,9 @@ export interface OS {
   faturada: boolean
   faturadaEm?: string
   fichaFornecida: boolean
+  txtOriginal?: string // texto do .txt da Caixa (vai para o OS.txt da pasta da O.S.)
+  pasta?: string // caminho da pasta criada no OneDrive (12/11): '1 - …/2026/NOVEMBRO/OS-28 - …'
+  nova?: boolean // criada sozinha (e-mail da Caixa) e ainda não aberta: selo NOVA e aviso no sininho
   // Laboratório
   docs: Record<DocKey, boolean>
   fotos: number
@@ -130,7 +133,9 @@ export type StatusRota = 'rascunho' | 'confirmada' | 'concluida' | 'cancelada'
 
 export interface Parada {
   osId: string
-  hora?: string // HH:mm, opcional (melhoria do laboratório)
+  hora?: string // HH:mm combinada com o cliente (passo Agendar da rota)
+  avisado?: boolean // cliente avisado pelo WhatsApp (passo Agendar da rota)
+  confirmado?: boolean // cliente confirmou o horário; a rota só é criada depois das confirmações
 }
 
 export interface Rota {
@@ -144,6 +149,8 @@ export interface Rota {
   velocidadeMedia: number // km/h
   descricao: string
   paradas: Parada[]
+  etapa?: number // último passo do planejador liberado (13/11: os passos abrem um depois do outro)
+  ordemManual?: boolean // o usuário arrastou as paradas: ao adicionar O.S., não reordena por bairro sozinho
 }
 
 export interface Membro {
@@ -153,6 +160,9 @@ export interface Membro {
   email: string
   papel: 'Proprietário' | 'Membro'
   ativo: boolean
+  foto?: string // foto de perfil (Configurações › Meu Perfil), quadrada e reduzida, em data URL; sem ela, a inicial
+  fotoOriginal?: string // a imagem escolhida (reduzida a 800 px), para poder reajustar o enquadramento depois
+  fotoEnq?: { zoom: number; x: number; y: number } // enquadramento: zoom (1 = cobre o círculo) e deslocamento em fração da janela
 }
 
 /** PEPT (pendência que pausa o prazo): documental (problema em documento) ou de vistoria (impedimento na vistoria). */
@@ -181,8 +191,16 @@ export type KanbanColuna =
   | { id: string; tipo: 'livre'; titulo: string; cor: string; oculta?: boolean }
   | { id: string; tipo: 'passo'; passo: PassoKey; titulo?: string; cor: string; oculta?: boolean }
 
+/** Nota fiscal de um mês (a empresa emite uma no fim de cada mês, com as O.S. finalizadas). Histórico do Financeiro. */
+export interface NotaFiscal {
+  mes: string // yyyy-MM (competência)
+  valor: number // soma das notas do mês, em R$
+  numeros: string[] // números das notas somadas (evita importar a mesma duas vezes)
+}
+
 export interface Config {
   tema: 'claro' | 'escuro'
+  notasFiscais?: NotaFiscal[] // notas fiscais dos meses anteriores, digitadas ou importadas do XML (Financeiro › Últimos 6 meses)
   kanban: KanbanColuna[] // colunas do Kanban, na ordem; ocultas não aparecem
   menuRecolhido: boolean // menu lateral só com ícones, como no FLUXO ARQ
   capaInicio?: string // imagem de capa do Início (como no FLUXO ARQ), reduzida, em data URL
@@ -199,4 +217,6 @@ export interface Config {
   polosAtendidos: string[]
   contrato: { numero: string; edital: string; processo: string; rrt: string } // contrato de credenciamento com a Caixa
   empresa: { fantasia: string; razao: string; cnpj: string; telefone: string; responsavel: string; municipio: string } // quem emite a nota
+  /** Ligação com o Gmail pelo Google Apps Script (10/11): endereço do script publicado, senha (token) e se a O.S. é criada sozinha. */
+  gmail: { url: string; token: string; criarOs: boolean; ativoDesde?: string; polos?: string[] } // ativoDesde: e-mails antes disso só ficam para consulta; polos: de quais polos a O.S. entra sozinha (vazio = todos)
 }

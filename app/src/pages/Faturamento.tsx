@@ -2,18 +2,23 @@ import clsx from 'clsx'
 import { addMonths, format, startOfMonth } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import {
-  ChartColumn, ChartPie, Check, ChevronDown, ChevronRight, CircleAlert, CircleCheck, ClipboardCopy, Clock, Copy, Download, Ellipsis,
-  FileText, Info, Layers, MapPin, Percent, Receipt, Search, SlidersHorizontal, TrendingUp, Trophy, Users, Wallet, Zap,
+  ChartColumn, ChartPie, Check, ChevronDown, ChevronRight, CircleCheck, ClipboardCopy, Clock, Copy, Download, Ellipsis,
+  FileText, Info, MapPin, Receipt, Search, SlidersHorizontal, TrendingUp, Trophy, Users,
 } from 'lucide-react'
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Avatar, Card, Empty, FiltroPeriodo, PageHeader, TipologiaChip } from '../components/ui'
 import {
-  POLOS, TIPOLOGIAS, brlCompacto, dataReferencia, entraNoFaturamento, estaFinalizada, intervalo, noIntervalo, painelEquipe, painelGeral,
-  painelMinhas, pct, poloDe, projecaoPorRitmo, repasseDaOS, repasseDe, resumir, rotuloPeriodo, situacaoDe, textoPronto, ticksBonitos, valorTotal,
-  type BaseRepasse, type Periodo, type Resumo, type Situacao,
+  POLOS, TIPOLOGIAS, brlCompacto, dataReferencia, emAbertoAte, entraNoFaturamento, estaFinalizada, noPeriodoFinanceiro, intervalo, noIntervalo, painelGeral,
+  pct, poloDe, projecaoPorRitmo, resumir, rotuloPeriodo, textoPronto, ticksBonitos, valorTotal,
+  type Periodo, type Resumo,
 } from '../lib/faturamento'
+// 19/11/2026: o repasse de 40% do RT (e o "faturamento líquido" que vinha dele) saiu do Financeiro a pedido do usuário.
+// Agora só interessam três números: o faturamento do RT Luan, o do RT Marco e o total da empresa (a soma dos dois).
+// As contas antigas (repasseDe, painelMinhas, painelEquipe) continuam em lib/faturamento.ts, mas nenhuma tela usa.
 import { copiar } from '../lib/clipboard'
+import { notaDoMes } from '../lib/notasFiscais'
+import { NotasFiscais } from '../components/NotasFiscais'
 import { brl, cap, codigoOS, dataMedia, enderecoCompleto, enderecoLinha, refCurta } from '../lib/os'
 import { useStore } from '../store/useStore'
 import type { Escopo, OS, Tipologia } from '../types'
@@ -31,13 +36,6 @@ type Trio =
   | { tipo: 'anel'; titulo: string; valor: number; texto: string; kind: SegKind }
   | { tipo: 'card'; tom: Tom; icon: ReactNode; titulo: string; valor: string; texto: string }
 
-const SITUACAO_META: Record<Situacao, { label: string; cls: string; icon: ReactNode }> = {
-  em_aberto: { label: 'Em aberto', cls: 'status-recebida', icon: <Clock size={14} /> },
-  vencida: { label: 'Vencida', cls: 'chip-r', icon: <CircleAlert size={14} /> },
-  a_faturar: { label: 'A faturar', cls: 'chip-l', icon: <Receipt size={14} /> },
-  faturada: { label: 'Faturada', cls: 'chip-v', icon: <CircleCheck size={14} /> },
-}
-
 const frac = (parte: number, todo: number) => (todo > 0 ? parte / todo : 0)
 const ic = (C: typeof ChartColumn) => <C strokeWidth={1.75} />
 
@@ -47,10 +45,8 @@ export function Faturamento() {
   const escopo = useStore((s) => s.escopo)
   const setEscopo = useStore((s) => s.setEscopo)
   const config = useStore((s) => s.config)
-  const rep = config.repasseRT
-  const base = config.repasseBase
-  const repTxt = `${Math.round(rep * 100)}%`
   const nomeRT = config.responsaveis.rt.curto
+  const nomeEu = config.responsaveis.luan.curto
 
   const [busca, setBusca] = useState('')
   const [tipologia, setTipologia] = useState<Tipologia | ''>('')
@@ -58,8 +54,6 @@ export function Faturamento() {
   const [periodo, setPeriodo] = useState<Periodo>('mes')
   const [ref, setRef] = useState(() => startOfMonth(new Date()))
   const [especifico, setEspecifico] = useState({ ini: '', fim: '' })
-  const [sp] = useSearchParams()
-  const [situacao, setSituacao] = useState<Situacao | ''>(() => (sp.get('situacao') as Situacao | null) ?? '')
 
   const { ini, fim } = intervalo(periodo, ref, especifico)
 
@@ -72,7 +66,7 @@ export function Faturamento() {
       .filter((o) => !t || [o.referencia, refCurta(o.referencia), o.proponente, o.endereco.bairro, o.endereco.cidade].join(' ').toLowerCase().includes(t))
   }, [todas, busca, tipologia, polo])
 
-  const doPeriodo = useMemo(() => baseOS.filter((o) => noIntervalo(o, ini, fim)), [baseOS, ini, fim])
+  const doPeriodo = useMemo(() => baseOS.filter((o) => noPeriodoFinanceiro(o, ini, fim)), [baseOS, ini, fim])
   const meus = doPeriodo.filter((o) => o.responsavel === 'luan')
   const doRT = doPeriodo.filter((o) => o.responsavel === 'rt')
   const rMe = resumir(meus)
@@ -80,16 +74,17 @@ export function Faturamento() {
   const rAll = resumir(doPeriodo)
 
   const noPeriodo = periodo === 'mes' ? 'no mês' : periodo === 'semana' ? 'na semana' : periodo === 'ano' ? 'no ano' : 'no período'
-  const visao = montarVisao(escopo, rMe, rRt, rAll, rep, repTxt, nomeRT, base, noPeriodo)
-  const minhas = painelMinhas(rMe, rRt, rep, base)
+  const visao = montarVisao(escopo, rMe, rRt, rAll, nomeEu, nomeRT, noPeriodo)
 
-  const linhas = escopo === 'rt' ? doRT : doPeriodo
-  const linhasFiltradas = situacao ? linhas.filter((o) => situacaoDe(o) === situacao) : linhas
+  // cada carteira mostra só as O.S. do próprio RT; "Total da empresa" mostra as dos dois
+  const linhas = escopo === 'rt' ? doRT : escopo === 'luan' ? meus : doPeriodo
+  // Tabela: só as O.S. finalizadas no período escolhido (pedido de 12/11); as em aberto ficam só nos cartões de cima.
+  const finalizadas = linhas.filter(estaFinalizada)
 
   const subtitulo =
-    escopo === 'luan' ? `Seu faturamento e sua participação de ${repTxt} no RT de ${nomeRT}.`
-      : escopo === 'rt' ? `Desempenho da equipe de ${nomeRT} e o repasse de ${repTxt} que volta para você.`
-        : 'Visão geral do faturamento total: suas O.S. e as da equipe do RT.'
+    escopo === 'luan' ? `Faturamento do RT ${nomeEu}: as O.S. no nome dele.`
+      : escopo === 'rt' ? `Faturamento do RT ${nomeRT}: as O.S. no nome dele.`
+        : `Faturamento total da empresa: RT ${nomeEu} + RT ${nomeRT}.`
 
   return (
     <>
@@ -120,16 +115,15 @@ export function Faturamento() {
         </Filtro>
         <Filtro label="Carteira">
           <div className="seg">
-            {([['luan', 'Só minhas'], ['rt', 'Minha equipe'], ['todas', 'Geral']] as [Escopo, string][]).map(([v, l]) => (
+            {([['luan', `RT ${nomeEu}`], ['rt', `RT ${nomeRT}`], ['todas', 'Total da empresa']] as [Escopo, string][]).map(([v, l]) => (
               <button key={v} aria-pressed={escopo === v} onClick={() => setEscopo(v)} className="!h-[24px]">{l}</button>
             ))}
           </div>
         </Filtro>
       </div>
 
-      <Insight escopo={escopo} rMe={rMe} rRt={rRt} rAll={rAll} rep={rep} nomeRT={nomeRT} base={base} />
-
-      {escopo === 'luan' && periodo === 'mes' && <MetaCard meta={config.metaMensal} consolidado={minhas.consolidado} potencial={minhas.previstoTotal} refMes={ref} />}
+      {/* "Faturamento total" no lugar da meta do mês (19/11): finalizado da empresa no mês + em aberto acumulado */}
+      {escopo === 'todas' && periodo === 'mes' && <FaturamentoTotalCard finalizado={rAll.finalizado} aberto={emAbertoAte(baseOS, fim)} refMes={ref} />}
 
       {/* indicadores principais */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 mb-3">
@@ -139,7 +133,7 @@ export function Faturamento() {
       <div className="grid grid-cols-1 xl:grid-cols-[1.55fr_1fr] gap-3 mb-3 items-start">
         <Card
           title={<span className="flex items-center gap-2"><ChartColumn size={15} className="text-brand" />{visao.tituloComposicao}</span>}
-          actions={<Legenda escopo={escopo} nomeRT={nomeRT} repTxt={repTxt} />}
+          actions={<Legenda escopo={escopo} nomeEu={nomeEu} nomeRT={nomeRT} />}
         >
           <div className="flex flex-col gap-4 pt-1">
             {visao.barras.map((b) => <BarraEmpilhada key={b.titulo} barra={b} />)}
@@ -165,106 +159,63 @@ export function Faturamento() {
         </Card>
       </div>
 
-      <Historico base={baseOS} baseRepasse={base} escopo={escopo} rep={rep} refMes={periodo === 'mes' ? ref : startOfMonth(fim)} nomeRT={nomeRT} repTxt={repTxt} />
+      <Historico base={baseOS} escopo={escopo} refMes={periodo === 'mes' ? ref : startOfMonth(fim)} nomeEu={nomeEu} nomeRT={nomeRT} />
 
       <Tabela
-        linhas={linhasFiltradas} escopo={escopo} rep={rep} base={base} repTxt={repTxt} periodoLabel={rotuloPeriodo(periodo, ref, especifico)}
-        situacao={situacao} onSituacao={setSituacao}
+        linhas={finalizadas} escopo={escopo} nomeEu={nomeEu} nomeRT={nomeRT} periodoLabel={rotuloPeriodo(periodo, ref, especifico)}
       />
     </>
   )
 }
 
 // ---------------------------------------------------------------- regras de apresentação por visão (as contas estão em lib/faturamento)
-function montarVisao(escopo: Escopo, rMe: Resumo, rRt: Resumo, rAll: Resumo, rep: number, repTxt: string, nomeRT: string, base: BaseRepasse, noPeriodo: string) {
-  const rr = repasseDe(rRt, rep, base)
-  const baseTxt = base === 'servico' ? ' (só o serviço, sem deslocamento)' : ' (serviço + deslocamento)'
-
-  if (escopo === 'luan') {
-    const p = painelMinhas(rMe, rRt, rep, base)
+function montarVisao(escopo: Escopo, rMe: Resumo, rRt: Resumo, rAll: Resumo, nomeEu: string, nomeRT: string, noPeriodo: string) {
+  // Carteira de um RT (Luan ou Marco): o faturamento dele, sem repasse nem participação.
+  if (escopo === 'luan' || escopo === 'rt') {
+    const r = escopo === 'luan' ? rMe : rRt
+    const nome = escopo === 'luan' ? nomeEu : nomeRT
+    const kind: SegKind = escopo === 'luan' ? 'me' : 'rt'
+    const tom: Tom = escopo === 'luan' ? 'verde' : 'rt'
     const kpis: KpiDef[] = [
-      { tom: 'neutro', icon: ic(ChartColumn), label: 'Meu previsto', valor: brl(p.meuPrevisto), sub: `${rMe.qtd} O.S. + deslocamentos ${noPeriodo}`, info: 'Serviço + deslocamento das suas O.S. aceitas no período, finalizadas ou a faturar.' },
-      { tom: 'verde', icon: ic(CircleCheck), label: 'Meu finalizado', valor: brl(p.meuFinalizado), sub: `${pct(rMe.conversao)} do meu previsto`, info: 'Suas O.S. com laudo aceito (finalizadas ou conferidas) no período.' },
-      { tom: 'rt', icon: ic(Users), label: `Participação no RT (${repTxt})`, valor: brl(p.partFinalizada), sub: <>prevista <b className="tnum text-text">{brl(p.partPrevista)}</b></>, info: `${repTxt} sobre as O.S. de ${nomeRT}${baseTxt}. O valor grande é a parte já finalizada.` },
-      { tom: 'verde', icon: ic(Layers), label: 'Total consolidado', valor: brl(p.consolidado), sub: `meu finalizado + ${repTxt} do RT finalizado`, info: 'O que já está garantido no período: seu finalizado somado à sua parte do finalizado do RT.' },
-      { tom: 'laranja', icon: ic(Zap), label: 'Potencial a faturar', valor: brl(p.saldo), sub: `previsto (meu + ${repTxt} do RT) − consolidado`, info: `Quanto ainda pode entrar se todas as O.S. em aberto forem finalizadas. Previsto total: ${brl(p.previstoTotal)}.` },
+      { tom, icon: ic(CircleCheck), label: `Faturamento RT ${nome}`, valor: brl(r.finalizado), sub: `${pct(r.conversao)} do previsto · ${r.qtdFinalizadas} O.S. finalizadas`, info: `Serviço + deslocamento das O.S. do RT ${nome} com laudo aceito (finalizadas ou conferidas) no período.` },
+      { tom: 'neutro', icon: ic(ChartColumn), label: 'Previsto', valor: brl(r.previsto), sub: `${r.qtd} O.S. + deslocamentos ${noPeriodo}`, info: `Serviço + deslocamento de todas as O.S. do RT ${nome} no período, finalizadas ou em aberto.` },
+      { tom: 'laranja', icon: ic(Clock), label: 'Em aberto', valor: brl(r.emAberto), sub: `${r.qtdEmAberto} O.S. em aberto`, info: 'Previsto menos o que já foi finalizado.' },
+      { tom: 'azul', icon: ic(MapPin), label: 'Deslocamento', valor: brl(r.deslocamento), sub: `${pct(frac(r.deslocamento, r.previsto))} do previsto`, info: `Soma dos deslocamentos das O.S. do RT ${nome} no período.` },
+      { tom: 'verde', icon: ic(TrendingUp), label: 'Projeção de fechamento', valor: brl(r.projecao), sub: r.vencido ? `${brl(r.vencido)} vencido fica fora` : 'nenhuma O.S. vencida', info: 'Previsto sem as O.S. com prazo vencido.' },
     ]
     const barras: Barra[] = [{
-      titulo: 'Potencial do período', nota: brl(p.previstoTotal),
-      segs: [
-        { key: 'mf', label: 'Meu finalizado', valor: p.meuFinalizado, kind: 'me' },
-        { key: 'rf', label: `${repTxt} do RT finalizado`, valor: p.partFinalizada, kind: 'rt' },
-        { key: 'mp', label: 'Meu em aberto', valor: rMe.emAberto, kind: 'me', pend: true },
-        { key: 'rp', label: `${repTxt} do RT em aberto`, valor: rr.emAberto, kind: 'rt', pend: true },
+      titulo: `Previsto do RT ${nome}`, nota: brl(r.previsto), segs: [
+        { key: 'f', label: 'Finalizado', valor: r.finalizado, kind },
+        { key: 'a', label: 'Em aberto', valor: r.emAberto, kind, pend: true },
       ],
     }]
     const trio: Trio[] = [
-      { tipo: 'anel', titulo: 'Taxa de conversão do meu previsto', valor: p.conversao, texto: `${brl(p.consolidado)} de ${brl(p.previstoTotal)} já faturados.`, kind: 'me' },
-      { tipo: 'card', tom: 'rt', icon: ic(Percent), titulo: 'Participação do RT no meu total', valor: pct(p.pesoRT), texto: `do consolidado vem do repasse de ${nomeRT}.` },
-      { tipo: 'card', tom: 'laranja', icon: ic(Wallet), titulo: 'Saldo a faturar', valor: brl(p.saldo), texto: `${pct(frac(p.saldo, p.previstoTotal))} do previsto ainda em aberto.` },
+      { tipo: 'anel', titulo: 'Taxa de conversão', valor: r.conversao, texto: `${brl(r.finalizado)} de ${brl(r.previsto)} já finalizados.`, kind },
+      { tipo: 'card', tom: 'neutro', icon: ic(Trophy), titulo: 'Maior O.S.', valor: r.maior ? brl(valorTotal(r.maior)) : '—', texto: r.maior ? `#${refCurta(r.maior.referencia)} · ${r.maior.proponente}` : 'sem O.S. no período' },
+      { tipo: 'card', tom: 'neutro', icon: ic(ChartColumn), titulo: 'Média por O.S.', valor: brl(r.ticketMedio), texto: `valor médio das O.S. ${noPeriodo}.` },
     ]
     const indicadores: Indicador[] = [
-      { tom: 'verde', icon: ic(CircleCheck), label: 'Minhas O.S. concluídas', sub: 'laudo aceito no período', valor: String(p.qtdConcluidas) },
-      { tom: 'laranja', icon: ic(Clock), label: 'Minhas O.S. em aberto', sub: p.qtdVencidas ? `${p.qtdVencidas} com prazo vencido` : 'nenhuma vencida', valor: String(p.qtdEmAberto) },
-      { tom: 'neutro', icon: ic(ChartColumn), label: 'Ticket médio das minhas O.S.', sub: 'média das minhas O.S. finalizadas', valor: brl(p.ticketFinalizadas) },
-      { tom: 'rt', icon: ic(Users), label: `O.S. de ${nomeRT} no período`, sub: `${rRt.qtdFinalizadas} finalizadas · ${rRt.qtdEmAberto} em aberto`, valor: String(rRt.qtd) },
-      { tom: 'verde', icon: ic(TrendingUp), label: 'Projeção de fechamento', sub: `sem as O.S. vencidas: ${pct(frac(p.projecao, p.previstoTotal), 0)} do previsto`, valor: brl(p.projecao) },
-      { tom: 'laranja', icon: ic(Receipt), label: 'A faturar (sem nota)', sub: `${rMe.qtdAFaturarNF} concluídas ainda sem nota fiscal`, valor: brl(rMe.aFaturarNF) },
-      { tom: 'verde', icon: ic(CircleCheck), label: 'Valores faturados', sub: `${rMe.qtdFaturadas} O.S. marcadas como faturadas`, valor: brl(rMe.faturado) },
+      { tom: 'neutro', icon: ic(FileText), label: 'O.S. do período', sub: `no nome do RT ${nome}`, valor: String(r.qtd) },
+      { tom: 'verde', icon: ic(CircleCheck), label: 'O.S. finalizadas', sub: 'laudo aceito no período', valor: String(r.qtdFinalizadas) },
+      { tom: 'laranja', icon: ic(Clock), label: 'O.S. em aberto', sub: r.qtdVencidas ? `${r.qtdVencidas} com prazo vencido` : 'nenhuma vencida', valor: String(r.qtdEmAberto) },
     ]
-    return { kpis, barras, trio, indicadores, tituloComposicao: 'Composição do meu faturamento', tituloIndicadores: 'Resumo estratégico' }
+    return { kpis, barras, trio, indicadores, tituloComposicao: `Faturamento do RT ${nome}`, tituloIndicadores: 'Indicadores do período' }
   }
 
-  if (escopo === 'rt') {
-    const q = painelEquipe(rRt, rep, base)
-    const kpis: KpiDef[] = [
-      { tom: 'neutro', icon: ic(ChartColumn), label: 'RT previsto', valor: brl(q.previsto), sub: `${q.qtd} O.S. da equipe ${noPeriodo}`, info: `Serviço + deslocamento de todas as O.S. aceitas de ${nomeRT} no período.` },
-      { tom: 'verde', icon: ic(CircleCheck), label: 'RT finalizado', valor: brl(q.finalizado), sub: `${pct(q.conversao)} do previsto`, info: 'O.S. do RT com laudo aceito no período.' },
-      { tom: 'rt', icon: ic(Users), label: `Repasse previsto (${repTxt})`, valor: brl(q.repassePrevisto), sub: 'sua parte sobre o previsto', info: `${repTxt} do RT previsto${baseTxt}.` },
-      { tom: 'verde', icon: ic(Layers), label: `Repasse finalizado (${repTxt})`, valor: brl(q.repasseFinalizado), sub: 'sua parte já garantida', info: `${repTxt} do RT finalizado${baseTxt}.` },
-      { tom: 'laranja', icon: ic(Zap), label: 'Saldo do RT em aberto', valor: brl(q.emAberto), sub: `${q.qtdEmAberto} O.S. em aberto`, info: 'Diferença entre o previsto e o finalizado do RT.' },
-    ]
-    const barras: Barra[] = [
-      { titulo: 'RT previsto', nota: brl(q.previsto), segs: [
-        { key: 'rf', label: 'RT finalizado', valor: q.finalizado, kind: 'rt' },
-        { key: 'rp', label: 'RT em aberto', valor: q.emAberto, kind: 'rt', pend: true },
-      ] },
-      { titulo: `Seu repasse (${repTxt})`, nota: brl(q.repassePrevisto), segs: [
-        { key: 'pf', label: 'Repasse finalizado', valor: q.repasseFinalizado, kind: 'me' },
-        { key: 'pp', label: 'Repasse potencial restante', valor: q.repasseRestante, kind: 'me', pend: true },
-      ] },
-    ]
-    const trio: Trio[] = [
-      { tipo: 'anel', titulo: 'Conversão do RT', valor: q.conversao, texto: `do previsto de ${nomeRT} já foi finalizado.`, kind: 'rt' },
-      { tipo: 'card', tom: 'neutro', icon: ic(Trophy), titulo: 'Maior O.S. da equipe', valor: q.maior ? brl(valorTotal(q.maior)) : '—', texto: q.maior ? `#${refCurta(q.maior.referencia)} · ${q.maior.proponente}` : 'sem O.S. no período' },
-      { tipo: 'card', tom: 'neutro', icon: ic(ChartColumn), titulo: 'Média por O.S. da equipe', valor: brl(q.media), texto: `valor médio das O.S. da equipe ${noPeriodo}.` },
-    ]
-    const indicadores: Indicador[] = [
-      { tom: 'neutro', icon: ic(FileText), label: 'O.S. da equipe', sub: 'aceitas no período', valor: String(q.qtd) },
-      { tom: 'verde', icon: ic(CircleCheck), label: 'O.S. finalizadas', sub: 'laudo aceito', valor: String(q.qtdFinalizadas) },
-      { tom: 'laranja', icon: ic(Clock), label: 'O.S. em aberto', sub: q.qtdVencidas ? `${q.qtdVencidas} com prazo vencido` : 'nenhuma vencida', valor: String(q.qtdEmAberto) },
-      { tom: 'verde', icon: ic(Layers), label: `Repasse finalizado (${repTxt})`, sub: 'sua parte já garantida', valor: brl(q.repasseFinalizado) },
-      { tom: 'rt', icon: ic(Users), label: `Repasse previsto (${repTxt})`, sub: 'sua parte sobre o previsto', valor: brl(q.repassePrevisto) },
-      { tom: 'laranja', icon: ic(Zap), label: 'Saldo do RT em aberto', sub: 'previsto − finalizado do RT', valor: brl(q.emAberto) },
-      { tom: 'laranja', icon: ic(Receipt), label: 'RT a faturar (sem nota)', sub: `${rRt.qtdAFaturarNF} concluídas ainda sem nota fiscal`, valor: brl(rRt.aFaturarNF) },
-    ]
-    return { kpis, barras, trio, indicadores, tituloComposicao: 'Desempenho financeiro da equipe', tituloIndicadores: 'Indicadores da equipe' }
-  }
-
-  // visão geral
+  // Total da empresa: os dois RTs somados.
   const g = painelGeral(rAll)
   const kpis: KpiDef[] = [
-    { tom: 'neutro', icon: ic(ChartColumn), label: 'Previsto total', valor: brl(g.previsto), sub: `${g.qtd} O.S. + deslocamentos ${noPeriodo}`, info: 'Serviço + deslocamento de todas as O.S. aceitas no período, das duas carteiras.' },
-    { tom: 'verde', icon: ic(CircleCheck), label: 'Finalizado', valor: brl(g.finalizado), sub: `${pct(frac(g.finalizado, g.previsto))} do previsto`, info: 'O.S. com laudo aceito (finalizadas ou conferidas) no período.' },
+    { tom: 'neutro', icon: ic(ChartColumn), label: 'Faturamento total da empresa', valor: brl(rAll.finalizado), sub: `previsto ${brl(rAll.previsto)} · ${g.qtd} O.S.`, info: `Soma do faturamento do RT ${nomeEu} e do RT ${nomeRT}: serviço + deslocamento das O.S. com laudo aceito no período.` },
+    { tom: 'verde', icon: ic(CircleCheck), label: `Faturamento RT ${nomeEu}`, valor: brl(rMe.finalizado), sub: `previsto ${brl(rMe.previsto)} · ${rMe.qtd} O.S.`, info: `O.S. do RT ${nomeEu} com laudo aceito no período.` },
+    { tom: 'rt', icon: ic(Users), label: `Faturamento RT ${nomeRT}`, valor: brl(rRt.finalizado), sub: `previsto ${brl(rRt.previsto)} · ${rRt.qtd} O.S.`, info: `O.S. do RT ${nomeRT} com laudo aceito no período.` },
+    { tom: 'laranja', icon: ic(Clock), label: 'Em aberto', valor: brl(g.emAberto), sub: `${g.qtdPendentes} O.S. em aberto`, info: 'Previsto menos finalizado, dos dois RTs.' },
     { tom: 'azul', icon: ic(MapPin), label: 'Deslocamento total', valor: brl(g.deslocamento), sub: `${pct(frac(g.deslocamento, g.previsto))} do previsto`, info: 'Soma dos valores de deslocamento das O.S. do período.' },
-    { tom: 'laranja', icon: ic(FileText), label: 'Em aberto', valor: brl(g.emAberto), sub: `${g.qtdPendentes} O.S. em aberto`, info: 'Previsto menos finalizado.' },
-    { tom: 'neutro', icon: ic(ChartColumn), label: 'Ticket médio', valor: brl(g.ticketMedio), sub: 'média por O.S.', info: 'Previsto total dividido pela quantidade de O.S.' },
   ]
   const barras: Barra[] = [{
     titulo: 'Previsto total', nota: brl(g.previsto), segs: [
-      { key: 'mf', label: 'Finalizado · você', valor: rMe.finalizado, kind: 'me' },
+      { key: 'mf', label: `Finalizado · ${nomeEu}`, valor: rMe.finalizado, kind: 'me' },
       { key: 'rf', label: `Finalizado · ${nomeRT}`, valor: rRt.finalizado, kind: 'rt' },
-      { key: 'mp', label: 'Em aberto · você', valor: rMe.emAberto, kind: 'me', pend: true },
+      { key: 'mp', label: `Em aberto · ${nomeEu}`, valor: rMe.emAberto, kind: 'me', pend: true },
       { key: 'rp', label: `Em aberto · ${nomeRT}`, valor: rRt.emAberto, kind: 'rt', pend: true },
     ],
   }]
@@ -274,37 +225,16 @@ function montarVisao(escopo: Escopo, rMe: Resumo, rRt: Resumo, rAll: Resumo, rep
     { tipo: 'card', tom: 'verde', icon: ic(TrendingUp), titulo: 'Projeção de fechamento', valor: brl(g.projecao), texto: rAll.vencido ? `${brl(rAll.vencido)} vencido fica fora.` : 'nenhuma O.S. vencida no período.' },
   ]
   const indicadores: Indicador[] = [
-    { tom: 'neutro', icon: ic(FileText), label: 'O.S. do período', sub: `${rMe.qtd} suas · ${rRt.qtd} de ${nomeRT}`, valor: String(g.qtd) },
+    { tom: 'neutro', icon: ic(FileText), label: 'O.S. do período', sub: `${rMe.qtd} do RT ${nomeEu} · ${rRt.qtd} do RT ${nomeRT}`, valor: String(g.qtd) },
     { tom: 'verde', icon: ic(CircleCheck), label: 'O.S. finalizadas', sub: 'laudo aceito no período', valor: String(g.qtdFinalizadas) },
     { tom: 'laranja', icon: ic(Clock), label: 'O.S. pendentes', sub: g.qtdVencidas ? `${g.qtdVencidas} com prazo vencido` : 'nenhuma vencida', valor: String(g.qtdPendentes) },
     { tom: 'neutro', icon: ic(Trophy), label: 'Maior O.S.', sub: g.maior ? `#${refCurta(g.maior.referencia)} · ${g.maior.proponente}` : '—', valor: g.maior ? brl(valorTotal(g.maior)) : '—' },
-    { tom: 'laranja', icon: ic(Receipt), label: 'A faturar (sem nota)', sub: `${rAll.qtdAFaturarNF} concluídas ainda sem nota fiscal`, valor: brl(rAll.aFaturarNF) },
-    { tom: 'verde', icon: ic(CircleCheck), label: 'Valores faturados', sub: `${rAll.qtdFaturadas} O.S. marcadas como faturadas`, valor: brl(rAll.faturado) },
     { tom: 'verde', icon: ic(TrendingUp), label: 'Projeção de fechamento', sub: 'previsto sem as O.S. vencidas', valor: brl(g.projecao) },
   ]
-  return { kpis, barras, trio, indicadores, tituloComposicao: 'Panorama do faturamento', tituloIndicadores: 'Indicadores do período' }
+  return { kpis, barras, trio, indicadores, tituloComposicao: 'Faturamento da empresa', tituloIndicadores: 'Indicadores do período' }
 }
 
-// ---------------------------------------------------------------- frase-resumo
-function Insight({ escopo, rMe, rRt, rAll, rep, nomeRT, base }: { escopo: Escopo; rMe: Resumo; rRt: Resumo; rAll: Resumo; rep: number; nomeRT: string; base: BaseRepasse }) {
-  const rr = repasseDe(rRt, rep, base)
-  let texto: ReactNode
-  if (escopo === 'luan') {
-    const p = painelMinhas(rMe, rRt, rep, base)
-    const venc = rMe.qtdVencidas + rRt.qtdVencidas
-    texto = <>Você já consolidou <b>{brl(p.consolidado)}</b> de <b>{brl(p.previstoTotal)}</b> possíveis ({pct(p.conversao, 0)}). Faltam <b>{rMe.qtdEmAberto}</b> O.S. suas e <b>{rRt.qtdEmAberto}</b> de {nomeRT} para fechar o período{venc ? <>, sendo <b className="text-[var(--vermelho)]">{venc} {venc === 1 ? 'já vencida' : 'já vencidas'}</b></> : null}.</>
-  } else if (escopo === 'rt') {
-    texto = <>{nomeRT} finalizou <b>{pct(rRt.conversao, 0)}</b> do previsto. Seu repasse garantido é <b>{brl(rr.finalizado)}</b> e ainda podem entrar <b>{brl(rr.emAberto)}</b>.</>
-  } else {
-    texto = <>As duas carteiras somam <b>{brl(rAll.previsto)}</b> no período, com <b>{pct(rAll.conversao, 0)}</b> já finalizado. Você responde por <b>{pct(frac(rMe.previsto, rAll.previsto), 0)}</b> do previsto.</>
-  }
-  return (
-    <div className="card faixa-resumo px-4 py-3 mb-3 flex items-start gap-3 text-[13.5px]">
-      <TrendingUp size={17} className="text-brand mt-0.5 shrink-0" />
-      <p className="leading-relaxed">{texto}</p>
-    </div>
-  )
-}
+// (a frase-resumo "Você já consolidou…" que ficava acima dos cartões foi removida a pedido do usuário em 06/11)
 
 // ---------------------------------------------------------------- peças
 function Filtro({ label, children }: { label: string; children: ReactNode }) {
@@ -339,13 +269,12 @@ function KpiCard({ tom, icon, label, valor, sub, info }: KpiDef) {
   )
 }
 
-function Legenda({ escopo, nomeRT, repTxt }: { escopo: Escopo; nomeRT: string; repTxt: string }) {
+function Legenda({ escopo, nomeEu, nomeRT }: { escopo: Escopo; nomeEu: string; nomeRT: string }) {
   return (
     <div className="hidden sm:flex items-center gap-3 text-[11.5px] text-muted normal-case tracking-normal">
-      {escopo !== 'rt' && <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-[3px] seg-me" />Você</span>}
-      <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-[3px] seg-rt" />{escopo === 'luan' ? `RT (${repTxt})` : nomeRT}</span>
-      {escopo === 'rt' && <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-[3px] seg-me" />Seu repasse</span>}
-      <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-[3px] seg-me pend" />em aberto</span>
+      {escopo !== 'rt' && <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-[3px] seg-me" />RT {nomeEu}</span>}
+      {escopo !== 'luan' && <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-[3px] seg-rt" />RT {nomeRT}</span>}
+      <span className="flex items-center gap-1.5"><span className={'w-3 h-3 rounded-[3px] pend ' + (escopo === 'rt' ? 'seg-rt' : 'seg-me')} />em aberto</span>
     </div>
   )
 }
@@ -413,38 +342,43 @@ function TrioCard({ item }: { item: Trio }) {
   )
 }
 
-function MetaCard({ meta, consolidado, potencial, refMes }: { meta: number; consolidado: number; potencial: number; refMes: Date }) {
+/**
+ * Faturamento total do mês (19/11, no lugar da "Meta do mês"): o finalizado da empresa no mês e, no fim da linha,
+ * o valor somado de todas as O.S. ainda não finalizadas recebidas no mês ou antes (`emAbertoAte`).
+ */
+function FaturamentoTotalCard({ finalizado, aberto, refMes }: { finalizado: number; aberto: { valor: number; qtd: number }; refMes: Date }) {
   const hoje = new Date()
   const mesAtual = refMes.getFullYear() === hoje.getFullYear() && refMes.getMonth() === hoje.getMonth()
-  const ritmo = mesAtual ? projecaoPorRitmo(consolidado, hoje) : null
-  const max = Math.max(meta, potencial, consolidado, 1)
-  const pctMeta = frac(consolidado, meta)
-  const falta = Math.max(0, meta - consolidado)
+  const ritmo = mesAtual ? projecaoPorRitmo(finalizado, hoje) : null
+  const total = Math.max(finalizado + aberto.valor, 1)
   return (
-    <div className="card px-4 py-3 mb-3" id="meta-mensal">
+    <div className="card px-4 py-3 mb-3" id="faturamento-total">
       <div className="flex flex-wrap items-baseline justify-between gap-2 mb-2">
-        <span className="card-tit">Meta do mês <span className="suave tnum">{brl(meta)}</span></span>
-        <span className="text-[12.5px] text-muted">
-          {pctMeta >= 1 ? <b className="text-[var(--verde-valor)]">Meta batida</b> : <>faltam <b className="tnum text-text">{brl(falta)}</b> ({pct(1 - pctMeta, 0)})</>}
+        <span className="card-tit">Faturamento total <span className="suave tnum">{brl(finalizado)}</span></span>
+        <span className="text-[12.5px] text-muted" title="O.S. não finalizadas recebidas neste mês ou em meses anteriores">
+          Em aberto <b className="tnum text-text">{brl(aberto.valor)}</b> · {aberto.qtd} {aberto.qtd === 1 ? 'O.S. não finalizada' : 'O.S. não finalizadas'}
         </span>
       </div>
-      <div className="relative h-4 rounded-[5px] track overflow-hidden" role="img" aria-label={`Consolidado ${brl(consolidado)} de uma meta de ${brl(meta)}`}>
-        <div className="absolute inset-y-0 left-0 seg-me pend" style={{ width: `${Math.min(100, (potencial / max) * 100)}%` }} />
-        <div className="absolute inset-y-0 left-0 seg-me" style={{ width: `${Math.min(100, (consolidado / max) * 100)}%` }} />
-        <div className="absolute inset-y-[-3px] w-[2px] bg-[var(--text)]" style={{ left: `${Math.min(100, (meta / max) * 100)}%` }} title="Meta" />
+      <div className="relative h-4 rounded-[5px] track overflow-hidden" role="img" aria-label={`Finalizado ${brl(finalizado)}; em aberto ${brl(aberto.valor)}`}>
+        <div className="absolute inset-y-0 left-0 seg-me pend" style={{ width: '100%' }} />
+        <div className="absolute inset-y-0 left-0 seg-me" style={{ width: `${Math.min(100, (finalizado / total) * 100)}%` }} />
       </div>
       <div className="flex flex-wrap gap-x-5 gap-y-1 mt-2 text-[12.5px] text-muted">
-        <span>Consolidado <b className="tnum text-text">{brl(consolidado)}</b> ({pct(pctMeta, 0)} da meta)</span>
-        <span>Potencial do mês <b className="tnum text-text">{brl(potencial)}</b></span>
-        {ritmo && <span>No ritmo atual (dia {ritmo.diaAtual} de {ritmo.diasNoMes}) fecha em <b className={clsx('tnum', ritmo.projecao >= meta ? 'text-[var(--verde-valor)]' : 'text-[var(--laranja-txt)]')}>{brl(ritmo.projecao)}</b></span>}
+        <span>Finalizado no mês <b className="tnum text-text">{brl(finalizado)}</b></span>
+        <span>Em aberto (recebidas até este mês) <b className="tnum text-text">{brl(aberto.valor)}</b></span>
+        {ritmo && <span>No ritmo atual (dia {ritmo.diaAtual} de {ritmo.diasNoMes}) fecha em <b className="tnum text-text">{brl(ritmo.projecao)}</b></span>}
       </div>
     </div>
   )
 }
 
 // ---------------------------------------------------------------- histórico 6 meses
-function Historico({ base, baseRepasse, escopo, rep, refMes, nomeRT, repTxt }: { base: OS[]; baseRepasse: BaseRepasse; escopo: Escopo; rep: number; refMes: Date; nomeRT: string; repTxt: string }) {
+function Historico({ base, escopo, refMes, nomeEu, nomeRT }: { base: OS[]; escopo: Escopo; refMes: Date; nomeEu: string; nomeRT: string }) {
   const [hover, setHover] = useState<number | null>(null)
+  const [notasAbertas, setNotasAbertas] = useState(false)
+  const notas = useStore((s) => s.config.notasFiscais)
+  // a nota fiscal é da empresa: a marca dela só aparece no Total da empresa (19/11)
+  const comNotas = escopo === 'todas'
   const meses = useMemo(() => {
     return Array.from({ length: 6 }, (_, i) => {
       const m = addMonths(startOfMonth(refMes), i - 5)
@@ -452,26 +386,21 @@ function Historico({ base, baseRepasse, escopo, rep, refMes, nomeRT, repTxt }: {
       const doMes = base.filter((o) => noIntervalo(o, ini, fim))
       const me = resumir(doMes.filter((o) => o.responsavel === 'luan'))
       const rt = resumir(doMes.filter((o) => o.responsavel === 'rt'))
-      const rtParte = escopo === 'luan' ? repasseDe(rt, rep, baseRepasse) : null
-      const rtFin = rtParte ? rtParte.finalizado : rt.finalizado
-      const rtAFat = rtParte ? rtParte.emAberto : rt.emAberto
-      const segs: Seg[] =
-        escopo === 'rt'
-          ? [
-            { key: 'rf', label: `${nomeRT} finalizado`, valor: rt.finalizado, kind: 'rt' },
-            { key: 'rp', label: `${nomeRT} em aberto`, valor: rt.emAberto, kind: 'rt', pend: true },
-          ]
-          : [
-            { key: 'mf', label: 'Você · finalizado', valor: me.finalizado, kind: 'me' },
-            { key: 'rf', label: escopo === 'luan' ? `RT ${repTxt} · finalizado` : `${nomeRT} · finalizado`, valor: rtFin, kind: 'rt' },
-            { key: 'mp', label: 'Você · em aberto', valor: me.emAberto, kind: 'me', pend: true },
-            { key: 'rp', label: escopo === 'luan' ? `RT ${repTxt} · em aberto` : `${nomeRT} · em aberto`, valor: rtAFat, kind: 'rt', pend: true },
-          ]
-      return { mes: m, segs, total: segs.reduce((s, x) => s + x.valor, 0), finalizado: segs.filter((s) => !s.pend).reduce((s, x) => s + x.valor, 0) }
+      const segsMe: Seg[] = [
+        { key: 'mf', label: `${nomeEu} · finalizado`, valor: me.finalizado, kind: 'me' },
+        { key: 'mp', label: `${nomeEu} · em aberto`, valor: me.emAberto, kind: 'me', pend: true },
+      ]
+      const segsRt: Seg[] = [
+        { key: 'rf', label: `${nomeRT} · finalizado`, valor: rt.finalizado, kind: 'rt' },
+        { key: 'rp', label: `${nomeRT} · em aberto`, valor: rt.emAberto, kind: 'rt', pend: true },
+      ]
+      const segs: Seg[] = escopo === 'luan' ? segsMe : escopo === 'rt' ? segsRt : [segsMe[0], segsRt[0], segsMe[1], segsRt[1]]
+      const nf = comNotas ? notaDoMes(notas, format(m, 'yyyy-MM')) : undefined
+      return { mes: m, segs, nf, total: segs.reduce((s, x) => s + x.valor, 0), finalizado: segs.filter((s) => !s.pend).reduce((s, x) => s + x.valor, 0) }
     })
-  }, [base, baseRepasse, escopo, rep, refMes, nomeRT, repTxt])
+  }, [base, escopo, refMes, nomeEu, nomeRT, comNotas, notas])
 
-  const { topo, ticks } = ticksBonitos(Math.max(...meses.map((m) => m.total)))
+  const { topo, ticks } = ticksBonitos(Math.max(...meses.map((m) => Math.max(m.total, m.nf ?? 0))))
   const H = 170
   const media = meses.slice(0, 5).reduce((s, m) => s + m.finalizado, 0) / 5
 
@@ -479,8 +408,17 @@ function Historico({ base, baseRepasse, escopo, rep, refMes, nomeRT, repTxt }: {
     <Card
       className="mb-3"
       title={<span className="flex items-center gap-2"><TrendingUp size={15} className="text-brand" />Últimos 6 meses</span>}
-      actions={<span className="text-[12.5px] text-muted">média finalizada nos 5 meses anteriores <b className="tnum text-text">{brl(media)}</b> · este mês <b className="tnum text-text">{brl(meses[5].finalizado)}</b> finalizados de <b className="tnum text-text">{brl(meses[5].total)}</b></span>}
+      actions={<span className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+        <span className="text-[12.5px] text-muted">média finalizada nos 5 meses anteriores <b className="tnum text-text">{brl(media)}</b> · este mês <b className="tnum text-text">{brl(meses[5].finalizado)}</b> finalizados de <b className="tnum text-text">{brl(meses[5].total)}</b></span>
+        {comNotas && <button type="button" className="btn btn-secondary btn-sm" onClick={() => setNotasAbertas(true)}><Receipt size={14} /> Notas fiscais</button>}
+      </span>}
     >
+      {notasAbertas && <NotasFiscais meses={meses.map((m) => m.mes)} onClose={() => setNotasAbertas(false)} />}
+      {comNotas && meses.some((m) => m.nf !== undefined) && (
+        <div className="flex items-center gap-1.5 text-[11.5px] text-muted mb-1">
+          <span className="nf-marca-legenda" />nota fiscal emitida no mês
+        </div>
+      )}
       <div className="overflow-x-auto">
         <div className="relative min-w-[520px] pl-14 pr-2" style={{ height: H + 52 }} onMouseLeave={() => setHover(null)}>
           {ticks.map((t) => (
@@ -498,6 +436,12 @@ function Historico({ base, baseRepasse, escopo, rep, refMes, nomeRT, repTxt }: {
                     <div key={s.key} className={clsx(s.kind === 'me' ? 'seg-me' : 'seg-rt', s.pend && 'pend', k === arr.length - 1 && 'rounded-t-[4px]')} style={{ height: `${(s.valor / m.total) * 100}%`, minHeight: 2 }} />
                   ))}
                 </div>
+                {/* marca da nota fiscal do mês, na altura do valor dela */}
+                {m.nf !== undefined && (
+                  <div className="nf-marca absolute left-1/2 -translate-x-1/2 w-[64px] pointer-events-none" style={{ bottom: `${(m.nf / topo) * 100}%` }}>
+                    <span className="nf-marca-txt tnum">{brlCompacto(m.nf)}</span>
+                  </div>
+                )}
                 {hover === i && (
                   <div className="tooltip" style={{ top: 4, left: i >= 3 ? 'auto' : 'calc(50% + 30px)', right: i >= 3 ? 'calc(50% + 30px)' : 'auto' }}>
                     <div className="font-semibold mb-1">{cap(format(m.mes, "MMMM 'de' yyyy", { locale: ptBR }))}</div>
@@ -509,6 +453,7 @@ function Historico({ base, baseRepasse, escopo, rep, refMes, nomeRT, repTxt }: {
                       </div>
                     ))}
                     <div className="flex justify-between border-t border-border mt-1 pt-1 font-semibold"><span>Total</span><span className="tnum">{brl(m.total)}</span></div>
+                    {m.nf !== undefined && <div className="flex justify-between gap-4 mt-0.5 font-semibold"><span className="flex items-center gap-1.5"><span className="nf-marca-legenda" />Nota fiscal</span><span className="tnum">{brl(m.nf)}</span></div>}
                   </div>
                 )}
               </div>
@@ -527,16 +472,15 @@ function Historico({ base, baseRepasse, escopo, rep, refMes, nomeRT, repTxt }: {
 
 // ---------------------------------------------------------------- tabela (colunas do sistema real + as das telas de referência)
 type SortKey = 'ref' | 'cliente' | 'conclusao' | 'total'
-type ColOpc = 'categoria' | 'tecnico' | 'telefone' | 'endereco' | 'conclusao' | 'deslocamento' | 'polo' | 'parte'
-const COL_LABEL: Record<ColOpc, string> = { categoria: 'Categoria', tecnico: 'Técnico', telefone: 'Telefone', endereco: 'Endereço', conclusao: 'Conclusão', deslocamento: 'Deslocamento', polo: 'Polo', parte: 'Sua parte' }
-const COLS_PADRAO: ColOpc[] = ['categoria', 'tecnico', 'telefone', 'endereco', 'conclusao', 'deslocamento', 'parte']
+type ColOpc = 'categoria' | 'tecnico' | 'telefone' | 'endereco' | 'conclusao' | 'deslocamento' | 'polo'
+const COL_LABEL: Record<ColOpc, string> = { categoria: 'Categoria', tecnico: 'Técnico', telefone: 'Telefone', endereco: 'Endereço', conclusao: 'Conclusão', deslocamento: 'Deslocamento', polo: 'Polo' }
+const COLS_PADRAO: ColOpc[] = ['categoria', 'tecnico', 'telefone', 'endereco', 'conclusao', 'deslocamento']
 const POR_PAG = 10
 
-function Tabela({ linhas, escopo, rep, base, repTxt, periodoLabel, situacao, onSituacao }: {
-  linhas: OS[]; escopo: Escopo; rep: number; base: BaseRepasse; repTxt: string; periodoLabel: string; situacao: Situacao | ''; onSituacao: (s: Situacao | '') => void
+function Tabela({ linhas, escopo, nomeEu, nomeRT, periodoLabel }: {
+  linhas: OS[]; escopo: Escopo; nomeEu: string; nomeRT: string; periodoLabel: string
 }) {
   const config = useStore((s) => s.config)
-  const marcarFaturada = useStore((s) => s.marcarFaturada)
   const nav = useNavigate()
   const [sort, setSort] = useState<{ k: SortKey; dir: 1 | -1 }>({ k: 'ref', dir: 1 })
   const [aberto, setAberto] = useState<string | null>(null)
@@ -555,8 +499,6 @@ function Tabela({ linhas, escopo, rep, base, repTxt, periodoLabel, situacao, onS
 
   const avisar = (t: string) => { setAviso(t); setTimeout(() => setAviso(''), 1600) }
   const copiarComAviso = async (texto: string, msg: string) => { if (await copiar(texto)) avisar(msg) }
-  // Sua parte: a O.S. inteira quando é sua; o repasse quando é do RT.
-  const parte = (o: OS) => (o.responsavel === 'rt' ? repasseDaOS(o, rep, base) : valorTotal(o))
 
   const ordenadas = useMemo(() => {
     const v = (o: OS) => (sort.k === 'ref' ? o.referencia : sort.k === 'cliente' ? o.proponente : sort.k === 'total' ? valorTotal(o) : dataReferencia(o))
@@ -570,7 +512,6 @@ function Tabela({ linhas, escopo, rep, base, repTxt, periodoLabel, situacao, onS
   const pag = Math.min(pagina, paginas - 1)
   const visiveis = ordenadas.slice(pag * POR_PAG, pag * POR_PAG + POR_PAG)
   const somaTotal = linhas.reduce((s, o) => s + valorTotal(o), 0)
-  const somaParte = linhas.reduce((s, o) => s + parte(o), 0)
 
   const th = (k: SortKey, label: string, cls?: string) => (
     <th className={clsx('cursor-pointer select-none hover:text-text', cls)} onClick={() => setSort((s) => ({ k, dir: s.k === k ? (s.dir === 1 ? -1 : 1) : k === 'total' || k === 'conclusao' ? -1 : 1 }))}>
@@ -579,10 +520,10 @@ function Tabela({ linhas, escopo, rep, base, repTxt, periodoLabel, situacao, onS
   )
 
   const montarCSV = () => {
-    const cab = ['OS', 'Numero', 'Cliente', 'Categoria', 'Origem', 'Tecnico', 'Telefone', 'Endereco', 'Polo', 'Conclusao', 'Valor_OS', 'Deslocamento', 'Total', 'Sua_parte', 'Situacao', 'Faturada']
+    const cab = ['OS', 'Numero', 'Cliente', 'Categoria', 'Tecnico', 'Telefone', 'Endereco', 'Polo', 'Conclusao', 'Valor_OS', 'Deslocamento', 'Total']
     const num = (v: number) => v.toFixed(2).replace('.', ',')
-    const rows = ordenadas.map((o) => [codigoOS(o), o.referencia, o.proponente, o.tipologia, o.responsavel === 'luan' ? 'Meu' : `Participação RT ${repTxt}`, config.responsaveis[o.responsavel].nome, o.telefone, enderecoCompleto(o), poloDe(o.endereco.cidade), o.concluidaEm ?? '',
-      num(o.valorServico), num(o.valorDeslocamento), num(valorTotal(o)), num(parte(o)), SITUACAO_META[situacaoDe(o)].label, o.faturada ? 'Sim' : 'Não'])
+    const rows = ordenadas.map((o) => [codigoOS(o), o.referencia, o.proponente, o.tipologia, config.responsaveis[o.responsavel].nome, o.telefone, enderecoCompleto(o), poloDe(o.endereco.cidade), o.concluidaEm ?? '',
+      num(o.valorServico), num(o.valorDeslocamento), num(valorTotal(o))])
     return [cab, ...rows].map((l) => l.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\n')
   }
   const baixarCSV = () => {
@@ -594,23 +535,16 @@ function Tabela({ linhas, escopo, rep, base, repTxt, periodoLabel, situacao, onS
   }
 
   const c = (k: ColOpc) => cols.has(k)
-  const antesDoTotal = 3 + (c('categoria') ? 1 : 0) + (escopo === 'luan' ? 1 : 0) + (c('tecnico') ? 1 : 0) + (c('telefone') ? 1 : 0) + (c('endereco') ? 1 : 0) + (c('polo') ? 1 : 0) + (c('conclusao') ? 1 : 0) + 1 + (c('deslocamento') ? 1 : 0)
-  const nCols = antesDoTotal + 1 + (c('parte') ? 1 : 0) + 4
+  const antesDoTotal = 3 + (c('categoria') ? 1 : 0) + (c('tecnico') ? 1 : 0) + (c('telefone') ? 1 : 0) + (c('endereco') ? 1 : 0) + (c('polo') ? 1 : 0) + (c('conclusao') ? 1 : 0) + 1 + (c('deslocamento') ? 1 : 0)
+  const nCols = antesDoTotal + 1 + 2
 
   return (
     <Card
       pad={false}
-      title={<span className="flex items-center gap-2"><FileText size={15} className="text-brand" />{escopo === 'rt' ? 'Ordens de serviço da equipe' : 'Ordens de serviço do período'}</span>}
+      title={<span className="flex items-center gap-2"><FileText size={15} className="text-brand" />{escopo === 'luan' ? `O.S. do RT ${nomeEu}` : escopo === 'rt' ? `O.S. do RT ${nomeRT}` : 'Ordens de serviço do período'}</span>}
       actions={
         <>
           {aviso && <span className="text-[12px] text-[var(--verde-valor)]">{aviso}</span>}
-          <select id="fat-situacao" aria-label="Situação" className="input input-sm w-[170px]" value={situacao} onChange={(e) => onSituacao(e.target.value as Situacao | '')}>
-            <option value="">Todas as situações</option>
-            <option value="a_faturar">A faturar</option>
-            <option value="faturada">Faturadas</option>
-            <option value="em_aberto">Em aberto</option>
-            <option value="vencida">Vencidas</option>
-          </select>
           <div className="relative" data-menu>
             <button className="btn btn-secondary btn-sm" onClick={() => setMenu(menu === 'cols' ? null : 'cols')}><SlidersHorizontal size={14} /> Colunas</button>
             {menu === 'cols' && (
@@ -639,7 +573,7 @@ function Tabela({ linhas, escopo, rep, base, repTxt, periodoLabel, situacao, onS
       }
     >
       {linhas.length === 0 ? (
-        <Empty title="Nenhuma O.S. neste período" text="Troque o período, a carteira, a situação ou os filtros." />
+        <Empty title="Nenhuma O.S. neste período" text="Troque o período, a carteira ou os filtros." />
       ) : (
         <>
           <div className="overflow-x-auto">
@@ -650,7 +584,6 @@ function Tabela({ linhas, escopo, rep, base, repTxt, periodoLabel, situacao, onS
                   {th('ref', 'O.S.')}
                   {th('cliente', 'Cliente')}
                   {c('categoria') && <th>Categoria</th>}
-                  {escopo === 'luan' && <th>Origem</th>}
                   {c('tecnico') && <th>Técnico</th>}
                   {c('telefone') && <th>Telefone</th>}
                   {c('endereco') && <th>Endereço</th>}
@@ -658,20 +591,15 @@ function Tabela({ linhas, escopo, rep, base, repTxt, periodoLabel, situacao, onS
                   {c('conclusao') && th('conclusao', 'Conclusão')}
                   <th className="text-right">Valor da O.S.</th>
                   {c('deslocamento') && <th className="text-right">Deslocamento</th>}
-                  {th('total', escopo === 'luan' ? 'Valor total' : 'Total', 'text-right')}
-                  {c('parte') && <th className="text-right">{escopo === 'rt' ? `Repasse ${repTxt}` : 'Sua parte'}</th>}
-                  <th>Status</th>
+                  {th('total', 'Total', 'text-right')}
                   <th className="text-center">Texto pronto</th>
-                  <th>Faturada</th>
                   <th className="text-right pr-4">Ações</th>
                 </tr>
               </thead>
               <tbody>
                 {visiveis.map((o) => {
-                  const sit = situacaoDe(o)
-                  const S = SITUACAO_META[sit]
                   const exp = aberto === o.id
-                  const concluida = sit === 'a_faturar' || sit === 'faturada'
+                  const concluida = estaFinalizada(o)
                   return (
                     <Fragment key={o.id}>
                       <tr onClick={() => setAberto(exp ? null : o.id)} aria-expanded={exp}>
@@ -679,7 +607,6 @@ function Tabela({ linhas, escopo, rep, base, repTxt, periodoLabel, situacao, onS
                         <td className="tnum font-medium whitespace-nowrap text-[12.5px]"><span className="flex items-center gap-1.5">{concluida && <Check size={13} className="text-[var(--verde-valor)]" />}{o.referencia}</span></td>
                         <td className="font-medium whitespace-nowrap max-w-[210px] truncate" title={o.proponente}>{o.proponente}</td>
                         {c('categoria') && <td><TipologiaChip t={o.tipologia} /></td>}
-                        {escopo === 'luan' && <td>{o.responsavel === 'luan' ? <span className="chip chip-v !h-[22px]">Meu</span> : <span className="chip chip-rt !h-[22px]">Participação RT</span>}</td>}
                         {c('tecnico') && <td className="whitespace-nowrap text-[12.5px]"><span className="flex items-center gap-2"><Avatar resp={o.responsavel} size={20} />{config.responsaveis[o.responsavel].curto}</span></td>}
                         {c('telefone') && <td onClick={(e) => e.stopPropagation()}>{o.telefone ? <button className="tnum text-[12.5px] hover:text-[var(--verde-valor)]" title="Clique para copiar" onClick={() => copiarComAviso(o.telefone, 'Telefone copiado')}>{o.telefone}</button> : <span className="text-muted">-</span>}</td>}
                         {c('endereco') && <td onClick={(e) => e.stopPropagation()} className="max-w-[230px]"><button className="text-[12.5px] truncate max-w-[230px] block text-left hover:text-[var(--verde-valor)]" title={`${enderecoCompleto(o)} (clique para copiar)`} onClick={() => copiarComAviso(enderecoCompleto(o), 'Endereço copiado')}>{enderecoCompleto(o)}</button></td>}
@@ -688,15 +615,8 @@ function Tabela({ linhas, escopo, rep, base, repTxt, periodoLabel, situacao, onS
                         <td className="text-right tnum">{brl(o.valorServico)}</td>
                         {c('deslocamento') && <td className="text-right tnum text-muted">{brl(o.valorDeslocamento)}</td>}
                         <td className="text-right tnum font-bold">{brl(valorTotal(o))}</td>
-                        {c('parte') && <td className="text-right tnum font-semibold text-[var(--verde-valor)]">{brl(parte(o))}</td>}
-                        <td><span className={clsx('chip', S.cls)}>{S.icon}{S.label}</span></td>
                         <td className="text-center" onClick={(e) => e.stopPropagation()}>
                           <button className="btn btn-ghost btn-icon" title="Copiar texto pronto" aria-label="Copiar texto pronto" onClick={() => copiarComAviso(textoPronto(o, config.contrato.rrt), 'Texto pronto copiado')}><ClipboardCopy size={15} strokeWidth={1.75} /></button>
-                        </td>
-                        <td onClick={(e) => e.stopPropagation()}>
-                          {!concluida ? <span className="text-muted text-[12px]">—</span> : o.faturada
-                            ? <button className="chip chip-v" title="Clique para desmarcar" onClick={() => marcarFaturada(o.id, false)}><Check size={13} />Faturada</button>
-                            : <button className="btn btn-secondary btn-sm !h-[26px]" onClick={() => marcarFaturada(o.id, true)}><Receipt size={13} /> Marcar</button>}
                         </td>
                         <td onClick={(e) => e.stopPropagation()} className="whitespace-nowrap text-right pr-3">
                           <Link to={`/os/${o.id}`} className="btn btn-ghost btn-icon" aria-label="Abrir O.S." title="Abrir O.S."><FileText size={15} strokeWidth={1.75} /></Link>
@@ -723,8 +643,6 @@ function Tabela({ linhas, escopo, rep, base, repTxt, periodoLabel, situacao, onS
                               <Det l="Entrega do laudo" v={o.entregaEm ? dataMedia(o.entregaEm) : '—'} />
                               <Det l="Técnico" v={`${config.responsaveis[o.responsavel].nome}${config.responsaveis[o.responsavel].registro ? ' · ' + config.responsaveis[o.responsavel].registro : ''}`} />
                               <Det l="Polo" v={poloDe(o.endereco.cidade)} />
-                              <Det l={o.responsavel === 'rt' ? `Sua parte (${repTxt})` : 'Sua parte'} v={brl(parte(o))} />
-                              <Det l="Nota fiscal" v={o.faturada ? `faturada em ${o.faturadaEm ? dataMedia(o.faturadaEm) : '—'}` : concluida ? 'a faturar' : 'O.S. em aberto'} />
                             </div>
                           </td>
                         </tr>
@@ -737,8 +655,7 @@ function Tabela({ linhas, escopo, rep, base, repTxt, periodoLabel, situacao, onS
                 <tr className="font-semibold">
                   <td colSpan={antesDoTotal} className="!bg-surface-2 card-tit">{linhas.length} O.S. · total do filtro</td>
                   <td className="!bg-surface-2 text-right tnum">{brl(somaTotal)}</td>
-                  {c('parte') && <td className="!bg-surface-2 text-right tnum text-[var(--verde-valor)]">{brl(somaParte)}</td>}
-                  <td colSpan={4} className="!bg-surface-2" />
+                  <td colSpan={2} className="!bg-surface-2" />
                 </tr>
               </tfoot>
             </table>

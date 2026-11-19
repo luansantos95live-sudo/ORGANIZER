@@ -1,17 +1,18 @@
 import clsx from 'clsx'
 import { format } from 'date-fns'
-import { CalendarPlus, Check, CircleCheck, DoorClosed, FileWarning, MapPin, MessageCircle, Pause, PauseCircle, Pencil, Phone, RotateCcw, Trash2, UserCheck } from 'lucide-react'
+import { CalendarPlus, Check, CircleCheck, Copy, DoorClosed, FileWarning, MapPin, MessageCircle, Pause, PauseCircle, Pencil, Phone, RotateCcw, Trash2, UserCheck } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { OsForm } from '../components/OsForm'
 import { PausarOS } from '../components/PausarOS'
 import { AcaoPept, type ModoPept } from '../components/PeptJanelas'
-import { Abas, Avatar, FarolChip, Modal, StatusChip, TipologiaChip, useFora } from '../components/ui'
-import { repasseDaOS, valorTotal } from '../lib/faturamento'
-import { ORIGEM_META, STATUS_META, TIPOLOGIAS, brl, codigoOS, dataHora, dataMedia, enderecoLinha, enderecoMaps, limiteParaPausar, pausaValida, poloDe, prazoEfetivo, prazoIndeterminado, telefoneWhats, tipoEvento } from '../lib/os'
+import { copiar } from '../lib/clipboard'
+import { Abas, Avatar, FarolChip, Modal, StatusChip, TipologiaChip } from '../components/ui'
+import { valorTotal } from '../lib/faturamento'
+import { ORIGEM_META, TIPOLOGIAS, brl, codigoOS, dataHora, dataMedia, enderecoLinha, enderecoMaps, limiteParaPausar, pausaValida, poloDe, prazoEfetivo, prazoIndeterminado, telefoneWhats, tipoEvento } from '../lib/os'
 import type { TipoEvento } from '../lib/os'
-import { estadoPassos, passosDaOS, proximoPasso, voltarParaPasso } from '../lib/passos'
-import { COMO_RESOLVEU, ORIGEM_RESOLUCAO, TIPO_PEPT, peptAberta, peptsDaOS, prazosDaPept, resumoPept, ultimaFinalizada } from '../lib/pept'
+import { estadoPassos, faseDe, passosDaOS, proximoPasso } from '../lib/passos'
+import { COMO_RESOLVEU, MOTIVO_NAO_CONCLUI, ORIGEM_RESOLUCAO, TIPO_PEPT, peptAberta, podeConcluir, peptsDaOS, prazosDaPept, resumoPept, ultimaFinalizada } from '../lib/pept'
 import { lerCoordenadas, textoGMS } from '../lib/coordenadas'
 import { useStore } from '../store/useStore'
 import type { OS, PassoKey, TipoPept } from '../types'
@@ -42,39 +43,48 @@ export function DetalheOS({ id, abaInicial, onClose }: { id: string; abaInicial?
   const config = useStore((s) => s.config)
   const mudarStatus = useStore((s) => s.mudarStatus)
   const removerOS = useStore((s) => s.removerOS)
-  const marcarFaturada = useStore((s) => s.marcarFaturada)
-  const [aba, setAba] = useState<Aba>(abaInicial ?? 'passos')
+  // O.S. em PEPT (pausada ou resolvida esperando validar) abre direto na aba PEPT (pedido de 12/11); as outras no Passo a passo.
+  const abaPadrao: Aba = os && faseDe(os) === 'pept' ? 'pept' : 'passos'
+  const [aba, setAba] = useState<Aba>(abaInicial ?? abaPadrao)
   const [editando, setEditando] = useState(false)
   const [pausando, setPausando] = useState(false)
   const [acaoPept, setAcaoPept] = useState<ModoPept | null>(null)
   const [confirma, setConfirma] = useState<'excluir' | 'concluir' | null>(null)
 
-  useEffect(() => { setAba(abaInicial ?? 'passos'); setConfirma(null) }, [id, abaInicial])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { setAba(abaInicial ?? abaPadrao); setConfirma(null) }, [id, abaInicial])
+  // O.S. nova (criada sozinha pelo e-mail): ao abrir, deixa de ser nova (some o selo NOVA e o aviso do sininho)
+  const atualizarOS = useStore((s) => s.atualizarOS)
+  useEffect(() => { if (os?.nova) atualizarOS(os.id, { nova: false }) }, [os?.id, os?.nova, atualizarOS])
 
   if (!os) return null
   const aberta = os.status !== 'concluida' && os.status !== 'cancelada'
   const empresa = [config.empresa.razao || config.empresa.fantasia, config.empresa.cnpj && `CNPJ: ${config.empresa.cnpj}`].filter(Boolean).join(' | ')
 
   const header = (
+    <div className="flex flex-col gap-2">
     <div className="flex flex-wrap items-start gap-x-4 gap-y-3">
       {/* o número e o cliente nunca ficam espremidos: com muitos botões, os botões descem para a linha de baixo */}
       <div className="min-w-[240px] flex-1">
         <div className="text-[22px] font-bold leading-tight tnum text-[var(--verde-valor)]">{codigoOS(os)}</div>
         <div className="text-[14px] text-muted truncate">{os.proponente}</div>
-        <div className="flex flex-wrap items-center gap-1.5 mt-2">
-          <FarolChip os={os} selo />
-          <TipologiaChip t={os.tipologia} />
-          <StatusChip status={os.status} />
-          {os.faturada && <span className="chip chip-v !h-[22px]"><Check size={12} />Faturada</span>}
-        </div>
       </div>
       <div className="flex flex-wrap items-center justify-end gap-2 mt-1">
-        {aberta && <button className="btn btn-primary" onClick={() => setConfirma('concluir')}><CircleCheck size={15} /> Concluir</button>}
+        {aberta && <button className="btn btn-primary" disabled={!podeConcluir(os)} title={podeConcluir(os) ? undefined : MOTIVO_NAO_CONCLUI} onClick={() => setConfirma('concluir')}><CircleCheck size={15} /> Concluir</button>}
         {/* Cliente resolveu / Finalizar PEPT / Reabrir PEPT ficam só dentro da aba PEPT (pedido de 23/10);
             no topo, só Pausar (PEPT) quando não há PEPT em aberto */}
         {aberta && !peptAberta(os) && <button className="btn btn-secondary" onClick={() => setPausando(true)}><Pause size={15} /> Pausar (PEPT)</button>}
         <button className="btn btn-secondary" onClick={() => setEditando(true)}><Pencil size={14} /> Editar</button>
         <button className="btn btn-ghost text-[var(--vermelho)]" onClick={() => setConfirma('excluir')}><Trash2 size={14} /> Excluir</button>
+      </div>
+    </div>
+      {/* etiquetas à esquerda e, na mesma linha, no outro extremo, o nº da O.S. da Caixa (pedido de 16/11) */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        {/* a tipologia vem sempre antes do selo de prazo (pedido de 19/11) */}
+        <TipologiaChip t={os.tipologia} />
+        <FarolChip os={os} selo />
+        <StatusChip status={os.status} />
+        {os.referencia && <span className="ml-auto"><NumeroCaixa referencia={os.referencia} /></span>}
       </div>
     </div>
   )
@@ -211,17 +221,7 @@ export function DetalheOS({ id, abaInicial, onClose }: { id: string; abaInicial?
               <Cartao l="Deslocamento" v={brl(os.valorDeslocamento)} />
               <Cartao l="Total" v={brl(valorTotal(os))} destaque />
             </div>
-            {(os.responsavel === 'rt' || os.status === 'concluida') && (
-              <Grade className="mt-5">
-                {os.responsavel === 'rt' && <Dado l={`Sua parte (${Math.round(config.repasseRT * 100)}%)`} v={<span className="tnum text-[var(--verde-valor)]">{brl(repasseDaOS(os, config.repasseRT, config.repasseBase))}</span>} />}
-                {os.status === 'concluida' && (
-                  <Dado l="Faturada" v={
-                    <span className="flex items-center gap-2">{os.faturada ? `Sim, em ${dt(os.faturadaEm)}` : 'Ainda não'}
-                      <button className="btn btn-secondary btn-sm !h-6" onClick={() => marcarFaturada(os.id, !os.faturada)}>{os.faturada ? 'Desmarcar' : 'Marcar'}</button>
-                    </span>} />
-                )}
-              </Grade>
-            )}
+            {/* 19/11: saíram "Sua parte (40%)" (repasse) e "Faturada" com Marcar: a nota é uma só, no fim do mês, com as O.S. finalizadas */}
           </>
         )}
 
@@ -252,17 +252,11 @@ function PassoAPasso({ os, onAgendar, onPept }: { os: NonNullable<ReturnType<typ
   const est = estadoPassos(os, hojeStr)
   const prox = proximoPasso(os, hojeStr)
   const aberta = os.status !== 'concluida' && os.status !== 'cancelada'
-  // Clicar no visto de um passo feito pergunta se quer desmarcar: ele e os seguintes voltam a ficar pendentes.
-  const [pergunta, setPergunta] = useState<PassoKey | null>(null)
-  const refPergunta = useFora<HTMLDivElement>(!!pergunta, () => setPergunta(null))
+  // Clicar no visto de um passo feito desmarca na hora, sem perguntar (pedido de 12/11): ele e os seguintes voltam a ficar pendentes.
   const podeVoltar = (k: PassoKey) => os.status !== 'cancelada' && k !== 'recebida' && est[k].estado !== 'pendente' && !(k === 'pept' && os.pausadoEm)
-  const resumoVolta = (k: PassoKey) => {
-    const lista = passosDaOS(os)
-    const depois = lista.slice(lista.findIndex((p) => p.key === k) + 1).filter((p) => est[p.key].estado !== 'pendente').length
-    const etapa = voltarParaPasso(os, k, hojeStr).status
-    return [depois > 0 && `${depois === 1 ? 'O passo seguinte também volta' : `Os ${depois} passos seguintes também voltam`}.`,
-      etapa && `A etapa volta para ${STATUS_META[etapa].label}.`].filter(Boolean).join(' ')
-  }
+  // Marcar como feito: clicar no círculo de um passo pendente (pedido de 12/11; saíram os botões "Feito").
+  // PEPT e "Marcar vistoria" sem data continuam com os botões próprios (precisam de dados).
+  const podeMarcar = (k: PassoKey) => aberta && k !== 'recebida' && k !== 'pept' && est[k].estado === 'pendente' && !(k === 'marcar_vistoria' && !os.vistoria)
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
@@ -276,22 +270,13 @@ function PassoAPasso({ os, onAgendar, onPept }: { os: NonNullable<ReturnType<typ
           const eProx = p.key === prox.key
           return (
             <li key={p.key} className={clsx('relative flex items-center gap-3 px-3 py-2.5 rounded-lg border-b border-border last:border-b-0', eProx && 'bg-[var(--brand-soft)]')}>
-              <button type="button" disabled={!podeVoltar(p.key)} onClick={() => setPergunta(pergunta === p.key ? null : p.key)}
-                title={podeVoltar(p.key) ? 'Desmarcar este passo' : undefined}
+              <button type="button" disabled={!podeVoltar(p.key) && !podeMarcar(p.key)}
+                onClick={() => (podeMarcar(p.key) ? marcarPasso(os.id, p.key, 'feito') : podeVoltar(p.key) && voltarPasso(os.id, p.key))}
+                title={podeMarcar(p.key) ? 'Marcar como feito' : podeVoltar(p.key) ? 'Desmarcar este passo' : undefined}
                 className={clsx('w-6 h-6 rounded-full flex items-center justify-center shrink-0 border-2 disabled:cursor-default enabled:hover:opacity-75 enabled:cursor-pointer',
                 e.estado === 'feito' ? 'bg-[var(--brand)] border-[var(--brand)] text-white' : e.estado === 'pulado' ? 'border-[var(--fraco)] text-[var(--fraco)]' : eProx ? 'border-[var(--brand)]' : 'border-[var(--border)]')}>
                 {e.estado === 'feito' ? <Check size={13} strokeWidth={3} /> : e.estado === 'pulado' ? '–' : null}
               </button>
-              {pergunta === p.key && (
-                <div ref={refPergunta} className="absolute left-2 top-[calc(100%-4px)] z-20 w-[300px] bloco !rounded-[12px] shadow-lg p-3">
-                  <div className="text-[13px] font-semibold">Desmarcar “{p.label}”?</div>
-                  {resumoVolta(p.key) && <div className="text-[12px] text-muted mt-1">{resumoVolta(p.key)}</div>}
-                  <div className="flex justify-end gap-1.5 mt-2.5">
-                    <button className="btn btn-ghost btn-sm" onClick={() => setPergunta(null)}>Cancelar</button>
-                    <button className="btn btn-primary btn-sm" onClick={() => { voltarPasso(os.id, p.key); setPergunta(null) }}>Desmarcar</button>
-                  </div>
-                </div>
-              )}
               <span className={clsx('flex-1 text-[13.5px]', e.estado === 'feito' && 'text-muted', eProx && 'font-semibold')}>
                 {p.label}{e.estado === 'pulado' && <span className="text-muted"> (não precisou)</span>}{eProx && <span className="text-[var(--verde-valor)] text-[12px] font-semibold"> ← próximo</span>}
               </span>
@@ -303,14 +288,14 @@ function PassoAPasso({ os, onAgendar, onPept }: { os: NonNullable<ReturnType<typ
                     <button className="btn btn-ghost btn-sm" onClick={() => marcarPasso(os.id, 'pept', 'pulado')}>Não precisa</button>
                   </> : p.key === 'marcar_vistoria' && !os.vistoria
                     ? <button className={clsx('btn btn-sm', eProx ? 'btn-primary' : 'btn-secondary')} onClick={onAgendar}><CalendarPlus size={13} />Marcar data</button>
-                    : <button className={clsx('btn btn-sm', eProx ? 'btn-primary' : 'btn-secondary')} onClick={() => marcarPasso(os.id, p.key, 'feito')}><Check size={13} />Feito</button>
+                    : null
                 )}
               </span>
             </li>
           )
         })}
       </ol>
-      <p className="text-[12px] text-muted mt-3">Fazer vistoria, Baixar o laudo e Assinar também andam a etapa da O.S. sozinhos. Terminar os passos (inclusive Enviar) não finaliza a O.S.: para isso use o botão Concluir. Para desfazer, clique no visto do passo: ele e os seguintes voltam a ficar pendentes.</p>
+      <p className="text-[12px] text-muted mt-3">Fazer vistoria, Baixar o laudo e Assinar também andam a etapa da O.S. sozinhos. Terminar os passos (inclusive Enviar) não finaliza a O.S.: para isso use o botão Concluir. Para marcar um passo como feito, clique no círculo; para desfazer, clique de novo no visto (ele e os seguintes voltam a ficar pendentes).</p>
     </div>
   )
 }
@@ -565,5 +550,15 @@ function MotivoPept({ os, peptId, motivo }: { os: OS; peptId: string; motivo: st
       <textarea className="input w-full mt-1 min-h-[64px] py-2 leading-snug resize-y bg-[var(--surface)]" placeholder="Descreva a pendência…" value={texto}
         onChange={(e) => setTexto(e.target.value)} onBlur={salvar} />
     </label>
+  )
+}
+/** Nº da O.S. da Caixa no topo da janela: clicar copia (para colar no SIOPI, e-mails etc.). */
+function NumeroCaixa({ referencia }: { referencia: string }) {
+  const [ok, setOk] = useState(false)
+  return (
+    <button type="button" className="chip !h-[22px] !px-2 tnum font-semibold bg-[var(--surface-2)] hover:text-[var(--verde-valor)]" title="Nº da O.S. na Caixa · clique para copiar"
+      onClick={async () => { if (await copiar(referencia)) { setOk(true); setTimeout(() => setOk(false), 1500) } }}>
+      Nº {referencia}{ok ? <Check size={12} className="text-[var(--verde-valor)]" /> : <Copy size={12} className="opacity-60" />}
+    </button>
   )
 }

@@ -1,13 +1,16 @@
 import clsx from 'clsx'
-import { Bell, ChartColumn, ClipboardList, FileSearch, House, Mail, Moon, PanelLeftClose, Route, Search, Settings, Sun, UserRound, Users } from 'lucide-react'
+import { Bell, DollarSign, ClipboardList, FileSearch, House, Mail, Moon, PanelLeftClose, Route, Search, Settings, Sun, UserRound, Users } from 'lucide-react'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { differenceInCalendarDays, format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { useStore } from '../store/useStore'
+import { iniciarPasta, reconectarPasta } from '../store/pastaSync'
+import { iniciarPastasOS, reconectarPastaOS } from '../store/pastasOS'
 import { Avatar, Dica, Segmented, StatusChip, useFora } from './ui'
-import { Logo } from './Logo'
-import { notificaveis, tipoEmail } from '../lib/emails'
+import { Logo, LogoCompleta } from './Logo'
+import { IconeCasaLupa } from './IconeCasaLupa'
+import { caixaDeEntrada, notificaveis, tipoEmail } from '../lib/emails'
 import type { Escopo, OS } from '../types'
 import { STATUS_META, cap, codigoOS, enderecoLinha, farolDe, temEquipe } from '../lib/os'
 
@@ -17,8 +20,9 @@ const GRUPOS = [
     { to: '/', label: 'Início', icon: House, end: true },
     { to: '/os', label: 'Ordens de Serviço', icon: ClipboardList },
     { to: '/rotas', label: 'Rotas', icon: Route },
-    { to: '/financeiro', label: 'Financeiro', icon: ChartColumn },
+    { to: '/financeiro', label: 'Financeiro', icon: DollarSign },
     { to: '/fichas', label: 'Fichas de Pesquisa', icon: FileSearch },
+    { to: '/amostragem', label: 'Amostragem', icon: IconeCasaLupa }, // 18/11/2026
     { to: '/emails', label: 'E-mails da Caixa', icon: Mail },
   ] },
   { titulo: 'Sistema', itens: [
@@ -28,7 +32,8 @@ const GRUPOS = [
 const NAV = GRUPOS.flatMap((g) => g.itens)
 
 export function Layout() {
-  const emailsNaoLidos = useStore((s) => notificaveis(s.emails).length)
+  // contador do ícone de E-mails (12/11): todo e-mail da Caixa ainda não aberto; o sininho continua só com O.S. nova e PEPT resolvida
+  const emailsNaoLidos = useStore((s) => caixaDeEntrada(s.emails).filter((e) => !e.lido).length)
   const emails = useStore((s) => s.emails)
   const aplicarPepts = useStore((s) => s.aplicarPeptsResolvidas)
   useEffect(() => { aplicarPepts() }, [emails, aplicarPepts]) // e-mail de PEPT resolvida tira a O.S. da pausa
@@ -37,7 +42,25 @@ export function Layout() {
   const config = useStore((s) => s.config)
   const setConfig = useStore((s) => s.setConfig)
   const [busca, setBusca] = useState(false)
+  // Gmail ligado (Configurações › Gmail): busca os e-mails da Caixa ao abrir o sistema e a cada 5 min, em qualquer tela.
+  // Só código, sem IA: convocação vira O.S. (se ligado) e "PEPT resolvida" tira a O.S. da pausa e avisa (pedido de 12/11).
+  const sincronizarGmail = useStore((s) => s.sincronizarGmail)
+  const gmailLigado = !!config.gmail?.url?.trim()
+  useEffect(() => {
+    if (!gmailLigado) return
+    void sincronizarGmail()
+    const t = setInterval(() => void sincronizarGmail(), 5 * 60 * 1000)
+    return () => clearInterval(t)
+  }, [gmailLigado, sincronizarGmail])
   const recolhido = config.menuRecolhido
+  // Pasta de dados no OneDrive (10/11): ao abrir, lê o arquivo da pasta lembrada; se o Chrome pedir confirmação, mostra a faixa
+  const pastaAviso = useStore((s) => s.pastaAviso)
+  const pastaDados = useStore((s) => s.pastaDados)
+  useEffect(() => { void iniciarPasta() }, [])
+  // Pasta das O.S. no OneDrive (12/11): cria a pasta de cada O.S. nova
+  const pastaOSAviso = useStore((s) => s.pastaOSAviso)
+  useEffect(() => { void iniciarPastasOS() }, [])
+  const osNovas = useStore((s) => s.os.filter((o) => o.nova).length)
   // Só um técnico ativo: não há o que separar, então o seletor some e tudo fica em "Minhas".
   const equipe = temEquipe(config)
   useEffect(() => { if (!equipe && escopo !== 'luan') setEscopo('luan') }, [equipe, escopo, setEscopo])
@@ -64,11 +87,9 @@ export function Layout() {
     <div className="min-h-full flex">
       <aside className={clsx('lateral hidden md:flex shrink-0 flex-col sticky top-0 h-screen z-30', recolhido && 'recolhida')}>
         <div className="marca flex items-center gap-3 px-[18px] pt-5 pb-3">
-          <Logo size={38} className="shrink-0" />
-          <div className="marca-txt flex flex-col leading-tight">
-            <b>Fluxo Caixa</b>
-            <small>O.S. Caixa · laboratório</small>
-          </div>
+          {/* menu recolhido: só o ícone; aberto: a logo completa */}
+          <Logo size={38} className="logo-icone shrink-0 rounded-[9px]" />
+          <LogoCompleta altura={36} className="marca-logo max-w-full" />
         </div>
         <nav className="abas flex-1 overflow-y-auto flex flex-col gap-px px-3 pb-3">
           {GRUPOS.map((g) => (
@@ -78,6 +99,7 @@ export function Layout() {
                 <NavLink key={n.to} to={n.to} end={n.end} className="aba relative" title={recolhido ? n.label : undefined}>
                   <n.icon strokeWidth={1.75} />
                   <span>{n.label}</span>
+                  {n.to === '/os' && osNovas > 0 && <b className="absolute top-0.5 left-7 min-w-[16px] h-4 px-1 rounded-full bg-[#2563eb] text-white text-[10px] font-bold leading-4 text-center not-italic" aria-label={`${osNovas} O.S. novas`} title={`${osNovas} O.S. nova(s) criada(s) pelo e-mail`}>{osNovas}</b>}
                   {n.to === '/emails' && emailsNaoLidos > 0 && <b className="absolute top-0.5 left-7 min-w-[16px] h-4 px-1 rounded-full bg-[var(--vermelho)] text-white text-[10px] font-bold leading-4 text-center not-italic" aria-label={`${emailsNaoLidos} não lidos`}>{emailsNaoLidos}</b>}
                 </NavLink>
               ))}
@@ -99,13 +121,14 @@ export function Layout() {
               </Dica>
             </div>
             {([
-              { value: 'luan' as Escopo, label: 'Minhas', icone: <Avatar resp="luan" size={20} /> },
-              { value: 'rt' as Escopo, label: config.responsaveis.rt.curto, icone: <Avatar resp="rt" size={20} /> },
-              { value: 'todas' as Escopo, label: 'Todas', icone: <Users size={17} strokeWidth={1.75} /> },
+              // perfis maiores (19/11): avatares 20 → 26 px e ícone de Todas 17 → 24 px
+              { value: 'luan' as Escopo, label: 'Minhas', icone: <Avatar resp="luan" size={26} /> },
+              { value: 'rt' as Escopo, label: config.responsaveis.rt.curto, icone: <Avatar resp="rt" size={26} /> },
+              { value: 'todas' as Escopo, label: 'Todas', icone: <Users strokeWidth={1.75} style={{ width: 24, height: 24 }} /> },
             ]).map((e) => (
               <button key={e.value} type="button" className="aba w-full text-left" aria-current={escopo === e.value ? 'page' : undefined}
                 onClick={() => setEscopo(e.value)} title={recolhido ? e.label : undefined}>
-                <div className="w-[20px] flex justify-center shrink-0">{e.icone}</div>
+                <div className="w-[26px] flex justify-center shrink-0">{e.icone}</div>
                 <span>{e.label}</span>
               </button>
             ))}
@@ -135,6 +158,20 @@ export function Layout() {
         </header>
         <main className="area flex-1 px-3 md:px-5 py-4 w-full pb-24 md:pb-5">
           <div className="max-w-[2400px] mx-auto">
+            {pastaDados && pastaAviso && (pastaAviso.tipo === 'permissao' || pastaAviso.tipo === 'erro') && (
+              <div className={clsx('mb-3 rounded-[12px] px-4 py-2.5 text-[13px] flex flex-wrap items-center gap-3', pastaAviso.tipo === 'permissao' ? 'bg-[var(--laranja-soft)] text-[var(--laranja-txt)]' : 'bg-[var(--vermelho-soft)] text-[var(--vermelho)]')}>
+                <span className="flex-1 min-w-[200px]"><b>Pasta do OneDrive.</b> {pastaAviso.texto}</span>
+                {pastaAviso.tipo === 'permissao' && <button className="btn btn-primary btn-sm" onClick={() => void reconectarPasta()}>Reconectar pasta</button>}
+                <NavLink to="/configuracoes?secao=backup" className="btn btn-secondary btn-sm">Configurar</NavLink>
+              </div>
+            )}
+            {pastaOSAviso && (pastaOSAviso.tipo === 'permissao' || pastaOSAviso.tipo === 'erro') && (
+              <div className={clsx('mb-3 rounded-[12px] px-4 py-2.5 text-[13px] flex flex-wrap items-center gap-3', pastaOSAviso.tipo === 'permissao' ? 'bg-[var(--laranja-soft)] text-[var(--laranja-txt)]' : 'bg-[var(--vermelho-soft)] text-[var(--vermelho)]')}>
+                <span className="flex-1 min-w-[200px]"><b>Pastas das O.S.</b> {pastaOSAviso.texto}</span>
+                {pastaOSAviso.tipo === 'permissao' && <button className="btn btn-primary btn-sm" onClick={() => void reconectarPastaOS()}>Reconectar pasta</button>}
+                <NavLink to="/configuracoes?secao=backup" className="btn btn-secondary btn-sm">Configurar</NavLink>
+              </div>
+            )}
             <Outlet />
           </div>
         </main>
@@ -181,8 +218,10 @@ function Notificacoes() {
   const marcarEmail = useStore((s) => s.marcarEmailLido)
   const marcarEmails = useStore((s) => s.marcarTodosEmailsLidos)
   const osTodas = useStore((s) => s.os)
-  const emailsNovos = notificaveis(emails)
-  const total = novos.length + emailsNovos.length
+  // O.S. criadas sozinhas pelo e-mail (12/11): o e-mail fica como lido ao virar O.S., então o aviso vem da própria O.S.
+  const osNovas = osTodas.filter((o) => o.nova)
+  const emailsNovos = notificaveis(emails).filter((e) => !e.importadaId)
+  const total = novos.length + emailsNovos.length + osNovas.length
   return (
     <div className="relative" ref={ref}>
       <button className="ic-btn relative" aria-label="Abrir notificações" title="Notificações" onClick={() => setAberto((a) => !a)}>
@@ -196,6 +235,15 @@ function Notificacoes() {
             <button className="!w-auto !p-0 !bg-transparent text-[12px] font-semibold text-[var(--verde-valor)]" onClick={() => { marcar(avisos.map((a) => a.id)); marcarEmails() }}>Marcar todas como lidas</button>
           </div>
           <div className="max-h-[380px] overflow-y-auto p-1.5">
+            {osNovas.map((o) => (
+              <button key={o.id} className="!items-start" onClick={() => { setAberto(false); nav(`/os/${o.id}`) }}>
+                <ClipboardList size={15} className="mt-0.5 shrink-0 text-[#2563eb]" />
+                <span className="min-w-0">
+                  <span className="block font-medium leading-tight">O.S. nova: OS-{o.numero} · {o.tipologia} — criada pelo e-mail da Caixa</span>
+                  <span className="block text-[12px] text-muted truncate">{o.proponente} · {o.endereco.cidade}</span>
+                </span>
+              </button>
+            ))}
             {emailsNovos.map((e) => (
               <button key={e.id} className="!items-start" onClick={() => { marcarEmail(e.id); setAberto(false); nav(`/emails?id=${e.id}`) }}>
                 <Mail size={15} className="mt-0.5 shrink-0 text-[var(--verde-valor)]" />
@@ -232,7 +280,9 @@ function MenuUsuario() {
   return (
     <div className="relative" ref={ref}>
       <button className="ic-btn !rounded-full !p-0 !w-[34px]" aria-label="Abrir menu do usuário" onClick={() => setAberto((a) => !a)}>
-        <span className="w-[30px] h-[30px] rounded-full bg-brand text-white flex items-center justify-center font-semibold text-[13px]">{u.curto.slice(0, 1).toUpperCase()}</span>
+        {u.foto
+          ? <img src={u.foto} alt="" className="w-[30px] h-[30px] rounded-full object-cover" />
+          : <span className="w-[30px] h-[30px] rounded-full bg-brand text-white flex items-center justify-center font-semibold text-[13px]">{u.curto.slice(0, 1).toUpperCase()}</span>}
       </button>
       {aberto && (
         <div className="menu-flut right-0 top-[42px] !w-[230px] text-[var(--text)]">
