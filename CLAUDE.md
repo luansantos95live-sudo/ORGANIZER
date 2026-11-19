@@ -12,8 +12,35 @@ para não precisar recomeçar do zero.
 - Ele tem outro projeto, o **FLUXO GESTOR ARQ**, que roda **localmente no PC dele**. Este projeto
   deve funcionar **exatamente do mesmo jeito**: pasta local "FLUXO CAIXA" **ao lado** da pasta do
   GESTOR ARQ (nunca dentro), aberta no app Claude para desktop. Não mexa na pasta do GESTOR ARQ.
+- **Onde fica (10/11/2026)**: `C:\Users\Jeguim\OneDrive\FLUXO CAIXA` — na raiz do OneDrive, ao lado de `FLUXO ARQ`
+  (foi movida de `OneDrive\CLAUDE\1 - SISTEMAS\FLUXO CAIXA` a pedido: "organize todo o sistema dentro de uma pasta no
+  drive com o nome FLUXO CAIXA", para abrir e editar de qualquer PC com o OneDrive dele). Tudo relativo à pasta:
+  `Abrir Fluxo Caixa.cmd`, `Criar atalho do sistema.cmd`, `.claude/launch.json`, a skill `/caixa-emails` e a pasta
+  `Caixa de entrada`. Em outro PC: deixar o OneDrive baixar a pasta, dois cliques em `Abrir Fluxo Caixa.cmd` (gera o
+  sistema se faltar, instala o `node_modules` se faltar) e abrir a pasta no app Claude para editar.
+- **Dados entre PCs (10/11)**: Configurações › Backup e dados › **Pasta de dados no OneDrive** (`PastaOneDrive`). O usuário
+  escolhe `FLUXO CAIXA\Dados` (File System Access API do Chrome/Edge; a pasta fica lembrada no IndexedDB). O sistema grava
+  `fluxocaixa-dados.json` (backup + e-mails + `salvoEm`) 1,5 s depois de cada mudança e, ao abrir, lê o arquivo: **o mais novo
+  vence** (`arquivoMaisNovo`). Lógica pura em `lib/pastaDados.ts` (com teste), ligação ao store em `store/pastaSync.ts`
+  (`iniciarPasta` no Layout, `conectarPasta`, `reconectarPasta`, `gravarAgora`, `desconectarPasta`). O Chrome pode pedir
+  confirmação a cada abertura: faixa laranja no topo com **Reconectar pasta**. `Dados/` está no .gitignore.
 - Quer ver o resultado no Chrome, em aba própria, fora do Claude: `http://localhost:5173`.
 - **REGRA DE OURO DO USUÁRIO: NUNCA mudar uma tela que ele já aprovou sem ele pedir.** Se um pedido novo afetar uma tela aprovada, mude só o que foi pedido e pergunte antes de mexer no resto (ele reclamou várias vezes, em 22–23/10, de telas aprovadas que mudaram: a tela da PEPT com Finalizar e Reabrir lado a lado, os cartões etc.). Ao implementar algo novo, acrescente sem tirar o que já existe.
+
+- **Pastas das O.S. (12/11/2026)**: `OneDrive\LFX ARQUITETURA - CAIXA - ORDENS DE SERVIÇO\<técnico>\<ano>\<MÊS>\OS-<nº> - <tipologia> - <cidade> - <bairro> - <rua>\OS.txt`
+  (técnicos "1 - <NOME> RT" e "2 - <NOME DO RT> RT"; numeração própria de cada técnico). **Não criar estrutura nova e
+  não mexer na pasta do Marco** (pedido do usuário). As pastas avulsas "Fluxo - Proprietário do Sistema" do Luan foram
+  movidas para `1 - <NOME> RT6\(mês)` em 12/11 (sobrou a pasta vazia com a cópia repetida da OS-21 para o usuário apagar).
+  Importação: `npx vite-node scripts/importar-pastas.ts "<1 - ORDENS DE SERVIÇO>" ../Dados/<saida>.json ../Dados/<complementos>.json`
+  gera um backup **só com O.S.** (sem config: ao importar, as configurações do navegador ficam; `restaurarDados`); etapa pela
+  pasta (laudo PDF → Concluída, fotos → Em Andamento) ou pelo arquivo de complementos. Em aberto do Luan em 12/11: OS-21 (Em
+  Andamento), OS-24, 25, 26, 27 (Recebidas). O leitor do SIOPI agora entende "Data da Ordem de Serviço" e "N Dia(s) corridos" e separa o CPF/CNPJ do nome do cliente (`separarDocumento`; O.S. já salvas com "CPF - NOME" são corrigidas no `merge`, `semDocumentoNoNome`). **Polos (12/11)**: Jaru, Machadinho d'Oeste e Buritis são do polo ARIQUEMES (como no real).
+
+- **Produção × desenvolvimento (12/11/2026)**: produção = `Dados\Fluxo_Caixa.html` (gerado pelo `build:single` quando existe
+  `Dados\os-reais.json`; traz as O.S. reais e as coloca no navegador na primeira abertura ou enquanto só houver exemplos `os-N`;
+  depois nunca sobrescreve). O atalho da área de trabalho e o `Abrir Fluxo Caixa.cmd` abrem essa versão. Desenvolvimento =
+  `localhost:5173` (dados de exemplo, origem separada). Tudo em `Dados\` fica fora do git. Para atualizar as O.S. reais:
+  rodar `scripts/importar-pastas.ts` gravando em `Dados\os-reais.json` e `npm run build:single`.
 
 ## O que é este projeto
 
@@ -28,11 +55,12 @@ sistema real. Roda no navegador com dados fictícios salvos em `localStorage`. F
   títulos de cartão pequenos em CAIXA ALTA cinza, fonte Jost, verde `#3AB81E`. Tema padrão: **escuro**.
 - **Sem degradês nos cartões.** Cartão liso (`card`), cor só no número e no ícone, por significado:
   verde = finalizado, roxo = RT, laranja = a faturar, azul = deslocamento, vermelho só vencido.
-- **Logo**: "F" de faixa dobrada em verde-água. Vetor em `app/src/components/Logo.tsx`; o ícone do
+- **Logo nova (12/11/2026)**: arte enviada pelo usuário (original em `LOGO/fluxo-logo-original.png` e ícone recortado em `LOGO/fluxo-icone.png`): ícone quadrado escuro com o "F" verde (`app/src/assets/fluxo-icone.png`, aba do navegador, `ferramentas/fluxo.ico/-32/-256.png`) e logo completa "FLUXO · Gestão de Ordens de Serviço" (`fluxo-logo-escura.png` texto claro no menu lateral aberto; `fluxo-logo-clara.png` para fundo claro). `Logo`/`LogoCompleta` em components/Logo.tsx, embutidas com `?inline`. Recolhido = ícone; aberto = logo completa. (Antes: "F" de faixa dobrada em verde-água.) Vetor em `app/src/components/Logo.tsx`; o ícone do
   atalho sai de `ferramentas/gerar-icone.py` (`fluxo.ico`, `fluxo-256.png`).
-- **Financeiro**: o usuário prefere a arrumação de cartões antiga (frase-resumo, meta do mês, 5 KPIs
+- **Financeiro**: o usuário prefere a arrumação de cartões antiga (meta do mês, 5 KPIs
   compactos, barra única de composição com legenda + 3 cartões, resumo em lista, histórico de 6 meses,
-  tabela). A tabela segue as telas que ele desenhou (O.S. completa, Categoria, Origem "Meu" ou
+  tabela; a frase-resumo "Você já consolidou…" acima dos cartões foi **removida a pedido dele em 06/11** — não recolocar).
+  A tabela segue as telas que ele desenhou (O.S. completa, Categoria, Origem "Meu" ou
   "Participação RT", Responsável, Conclusão, Valor da O.S., Deslocamento, Total, Status, Ações).
 - **Compacto e na largura toda** (pedido em 13/10/2026): o conteúdo ocupa a tela inteira (sem limite de
   1480 px), margens e espaços entre cartões pequenos (gap-2.5/3, mb-3), títulos de página em 22 px.
@@ -50,7 +78,7 @@ sistema real. Roda no navegador com dados fictícios salvos em `localStorage`. F
   (Recebidas, Em Andamento, Assinatura Pendente, Assinatura Concluída, Concluídas, Canceladas) com ícone, contador e
   faixa colorida; cartão com tipologia, OS, selo (Vencida/Urgente/Atenção/No prazo/PEPT), referência, cliente, POLO,
   endereço e Prazo/Recebida/Vence; arrastar troca a etapa. **Cor pelo prazo** (lista e Kanban, `corPrazo`):
-  amarela com 3 dias ou menos, vermelha com 1 dia ou menos até concluir (inclusive vencida), cinza em PEPT, verde quando finalizada. O.S. em PEPT sempre aparecem (ignoram o período). **Todas** mostra todas as O.S. do período (recebidas, em andamento, PEPT, finalizadas e canceladas). Cartão do Kanban na organização do real (tipologia | OS, selo, referência, cliente, POLO, endereço, caixinhas Prazo/Recebida/Vence e, embaixo, o próximo passo com "N de M" e barrinha de quanto falta para ficar pronta) no visual novo, faixa lateral da cor do prazo. Passo a passo: clicar no **visto** de um passo feito abre uma caixinha "Desmarcar …?" (`voltarParaPasso`): ele e os seguintes voltam a pendente e a etapa volta junto. Cores dos cartões do Kanban: ver "Cartão do Kanban (22/10/2026)" abaixo; O.S. finalizada = cartão verde inteiro, o verde do botão "Nova O.S." (`.card-finalizada`, nos dois temas); cartão inteiro amarelo (≤3 dias), vermelho (≤1 dia e vencida) e cinza (PEPT) como na lista, e o selo segue a mesma regra (`corPrazo`); coluna com mais cartões abaixo fica com o fim reto (só arredonda quando a rolagem chega ao último cartão); ao passar o mouse, cartão do Kanban sobe 2 px e linha da lista sobe 1 px com sombra leve (`.card-kanban:hover`, `.linha-os`); datas dd/mm e prazo curto ("7 dias", "Vencida 2d") para caber. Barra de cima: só "Buscar O.S." (sem Ctrl K).
+  amarela com 3 dias ou menos, vermelha com 1 dia ou menos até concluir (inclusive vencida), cinza em PEPT, verde quando finalizada. O.S. em PEPT sempre aparecem (ignoram o período). **Todas** mostra todas as O.S. do período (recebidas, em andamento, PEPT, finalizadas e canceladas). Cartão do Kanban na organização do real (tipologia | OS, selo, referência, cliente, POLO, endereço, caixinhas Prazo/Recebida/Vence e, embaixo, o próximo passo com "N de M" e barrinha de quanto falta para ficar pronta) no visual novo, faixa lateral da cor do prazo. Passo a passo: **clicar no círculo marca o passo como feito** (12/11; saíram os botões "Feito"; PEPT e "Marcar data" seguem com botão); clicar no **visto** de um passo feito desmarca na hora, sem perguntar (12/11; antes abria a caixinha "Desmarcar …?") (`voltarParaPasso`): ele e os seguintes voltam a pendente e a etapa volta junto. Cores dos cartões do Kanban: ver "Cartão do Kanban (22/10/2026)" abaixo; O.S. finalizada = cartão verde inteiro, o verde do botão "Nova O.S." (`.card-finalizada`, nos dois temas); cartão inteiro amarelo (≤3 dias), vermelho (≤1 dia e vencida) e cinza (PEPT) como na lista, e o selo segue a mesma regra (`corPrazo`); coluna com mais cartões abaixo fica com o fim reto (só arredonda quando a rolagem chega ao último cartão); ao passar o mouse, cartão do Kanban sobe 2 px e linha da lista sobe 1 px com sombra leve (`.card-kanban:hover`, `.linha-os`); datas dd/mm e prazo curto ("7 dias", "Vencida 2d") para caber. Barra de cima: só "Buscar O.S." (sem Ctrl K).
 - **Cartão do Kanban (22/10/2026):** compacto, mais largo que alto, sem espaços sobrando. Linhas: **OS | tipologia** (invertido a pedido em 22/10) · selo ·
   **botão "Concluir"** (`.concluir-kanban`, no lugar dos três pontinhos): **só aparece com o mouse em cima do cartão** (escolha do usuário; em tela de toque fica sempre à mostra), texto pequeno com contorno fino, verde ao passar o mouse nele; recusados: círculo verde em destaque e ✓ sozinho (parecia "já concluída"); pede confirmação e finaliza a O.S.; não aparece
   em concluída/cancelada); referência; cliente; etiqueta verde **"📍 POLO ARIQUEMES"** (`.polo-kanban`, pequena e discreta, 9,5 px, 17 px de altura: fundo
@@ -77,6 +105,87 @@ sistema real. Roda no navegador com dados fictícios salvos em `localStorage`. F
   **Abas (22/10)**: Passo a passo · Geral (dados + partes "Datas" e "Importação") · **Cliente e contato** (partes "Cliente" e "Contato para a vistoria", `Subtitulo`) · Endereço · **Vistoria** (no lugar de Datas; **só consulta e coordenadas**: situação e data/hora da vistoria, aviso de que a vistoria é marcada no módulo de Rotas, endereço, polo e o campo de coordenadas do Maps; "Marcar vistoria" do passo a passo e do Início leva para /rotas) · Valores · PEPT · Linha do tempo; links antigos `?aba=datas` abrem a Vistoria; o formulário Editar/Nova O.S. segue as mesmas abas. Telefones com **botão WhatsApp** (verde, abre a conversa com a mensagem de apresentação) e **Ligar** (`Fone`).
   **Coordenadas no formato que o Google Maps copia** (22/10): mostradas e coladas como `9°52'45.8"S 63°02'23.5"W` (`textoGMS`/`lerCoordenadas`), numa **caixa só** no Editar/Nova O.S. (aba Endereço; saíram os campos Latitude/Longitude) e na aba Vistoria (`CoordenadasOS`; antes ficavam na Endereço): mostra as coordenadas, botão Abrir no Google Maps e campo para **colar as coordenadas do Maps** (números "-10.8775, -61.9512", vírgula decimal, graus 10°52'39"S 61°57'04"W ou o link do Maps; `lerCoordenadas` em lib/coordenadas.ts) com prévia e Salvar (`definirLocalizacao`).
   **Aba Documentos saiu; no lugar, aba PEPT (22/10)**: PEPT em aberto (tipo, pendência, desde/há N dias, regra da tipologia, botão Resolver), resumo (PEPTs registradas, dias parados, prazo efetivo) e histórico (tipo, pendência, início, fim, dias, resolvida por). **Pausar** abre sempre a mesma janela `PausarOS` (Kanban, Início, janela da O.S., passo a passo): **tipo obrigatório Documental ou De vistoria**, uma **caixa de texto livre para o motivo** (sem sugestões, pedido do usuário: simples) e o dia. Na aba PEPT o motivo é editável (salva ao sair da caixa, `editarPept`). **Fluxo da PEPT (23/10, como o usuário trabalha; lib/pept.ts):** abre PEPT → o prazo **para**; **cliente resolveu** (data do e-mail de "PEPT resolvida" da Caixa, automático, ou registrada à mão) → o prazo **volta a contar** desse dia e a PEPT fica **aberta "em análise"** (`resolvidaEm`, `resolucao`, `resolverPeptNaOS`); o usuário analisa: **Reabrir** (não resolveu tudo) → o prazo para de novo desde a reabertura (da resolução até a reabertura os dias contam; novo período `reabertaDe`, mesmo motivo/tipo) ou **Validar e finalizar** → encerra (`encerrarPeptNaOS`); **o prazo não muda ao validar** (se ainda pausada, o dia da validação vale como resolução). O prazo só para ao abrir/reabrir e sempre volta a contar quando o cliente resolve. **Uma tela só, APROVADA pelo usuário — não mudar** (`AcaoPept` em components/PeptJanelas.tsx): as opções **Cliente resolveu · Reabrir PEPT · Finalizar PEPT** lado a lado (as que não valem ficam apagadas; **a data em que o cliente resolveu é obrigatória: Reabrir e Finalizar só ficam liberados depois de registrá-la**, pedido de 23/10 — enquanto pausada, os botões Finalizar/Reabrir aparecem apagados com o aviso). No topo da tela fica **só a "Linha do tempo da PEPT"** (sem o texto do motivo, pedido de 23/10): a primeira linha é o **recebimento da O.S.** ("Recebida · O.S. recebida dd/mm · a PEPT pausa se aberta até dd/mm"), depois uma linha por vez (1ª abertura, 2ª reab. …: aberta/reaberta → cliente resolveu (e-mail) → em análise / reaberta / finalizada, dias parados; `periodosDaPept`), com "reaberta (Nª vez)" no título e, embaixo, a data ("Resolvida em" / "Reaberta em" / "Finalizada em"). Os botões **Cliente resolveu · Finalizar PEPT · Reabrir PEPT** ficam **só dentro da aba PEPT** (saíram do topo da janela em 23/10; no topo fica só "Pausar (PEPT)" quando não há PEPT aberta), e todos abrem essa tela. **PEPT finalizada → a O.S. vai para Em Andamento** se estava em Recebida (`etapaAoFinalizarPept`; etapas à frente não voltam).  arrastar para fora da coluna PEPT abre essa tela. A O.S. em análise continua na fase/coluna PEPT (`faseDe`), com selo "PEPT · em análise" e o prazo contando. Histórico da aba PEPT (23/10): **um período por linha** (Abertura/Reabertura + tipo | Pausada em → Cliente resolveu (e-mail/à mão) → Encerrada em, datas editáveis | situação e dias parados), a **pendência escondida em "Ver pendência"** (abre ao clicar); sem tabela larga com rolagem para o lado (`editarDatasPeptNaOS`). **Prazos da PEPT** (4 cartões na aba PEPT, `prazosDaPept`): "O.S. recebida em" (com o prazo da Caixa), "Prazo antes da PEPT" (o que valia quando ela começou) e "Prazo após a PEPT" (com os dias parados dela, contando as reaberturas como a mesma PEPT; em aberto = se finalizar hoje; A413 em aberto = Indeterminado). O "após" é o que passa a valer no "Vence" do cartão da O.S. (`prazoAtual`). **Datas editáveis** no histórico (abertura e finalização/reabertura) e "Aberta em" na PEPT em aberto: recalcula dias parados e prazo (`editarDatasPeptNaOS`). Registro em `os.pepts` (`Pept`: tipo, motivo, inicio, fim, dias, resolvidaPor manual/email/conclusao; lib/pept.ts: `abrirPept`, `fecharPept`, `peptsDaOS`, `resumoPept`); O.S. pausada antes do registro vira PEPT em aberto "Não informado" com a pendência lida da linha do tempo. O seletor "Mudar etapa" do rodapé **saiu** a pedido; a etapa muda pelo passo a passo, por Concluir/Pausar e arrastando no Kanban.
+- **Gmail em produção (12/11)**: a versão de produção tira os e-mails de teste (ids `em-…`) e, se existir `Dados/gmail.json`
+  ({ url, token, criarOs }), liga o Gmail sozinha em qualquer PC (só quando ainda não houver ligação). Primeira busca: últimos
+  **10 dias** (`desdeParaSincronizar`). O script que vale é o da conta **do usuário (endereço em Dados/gmail.json)** (onde chegam os e-mails da
+  Caixa), já publicado como App da Web desde 10/11; endereço e senha gravados em `Dados/gmail.json` em 12/11 (testado:
+  27 e-mails da Caixa nos últimos 10 dias). Há uma cópia sem implantação na conta luansantos95live: não usar.
+  `ferramentas/gmail-script/Code.gs` agora cria a própria senha (Propriedades do script, `mostrarSenha`) — vale para
+  publicações novas; o script publicado ainda usa a senha fixa no código.
+- **PEPTs reais (12/11, `Dados/pepts-reais.json` + `scripts/aplicar-pepts.ts`)**: OS-21 aberta 28/10 e **nunca resolvida** (corrigido: o registro antigo com resolvida/reaberta em 05/11 estava errado; `corrigir: 'v2'` faz a atualização substituir a PEPT no navegador uma vez); OS-24 aberta e resolvida 09/11 (em análise); OS-25 aberta 09/11.
+- **Regras de produção do Gmail (12/11)**: `config.gmail.ativoDesde` = 2026-11-12T16:54Z — e-mails anteriores só ficam
+  na caixa de entrada para consulta (não criam O.S., não mexem em PEPT; `emailInterage`). Daqui para frente: convocação vira
+  O.S. sozinha **só se for do polo ARIQUEMES** (`config.gmail.polos`; de outro polo o sistema ignora) e PEPT resolvida
+  mexe na PEPT. Vem de `Dados/gmail.json` (aplicado uma vez pela versão de produção). Saíram os botões "Simular novo
+  e-mail" e "Simular PEPT resolvida". **Numeração por técnico** (`importarOS`/`criarOS`): a próxima do Luan é OS-28, não OS-58.
+- **Financeiro, tabela (12/11)**: "Ordens de serviço do período" mostra **só as O.S. finalizadas no período** (pela data de
+  conclusão); as em aberto ficam só nos cartões de cima. Filtro de situação: Todas as finalizadas · A faturar · Faturadas.
+- **Fichas de Pesquisa (12/11)**: um bloco por técnico ("Minhas O.S." e, embaixo, "O.S. do RT <nome>"; técnico sem O.S.
+  não aparece), cada um com "N de M fichas fornecidas", barrinha e %; linhas em colunas fixas com cabeçalho (OS · Cliente ·
+  Tipologia · Polo · Etapa · Ficha), tudo alinhado; **controle mensal**: abre no mês atual (o período ainda pode ser trocado) (`BlocoFichas`, `COLUNAS` em pages/Fichas.tsx).
+- **Configurações preenchidas (12/11)**: empresa, contrato, edital, processo, RRT e perfis vêm de `Dados/config.json` (tirados
+  da NF de outubro; dados reais, fora do git). A produção aplica uma vez (chave `fluxocaixa-config-real` = `id` do arquivo) e só
+  nos campos vazios (ou nos nomes padrão "Luan"/"Marco (RT)"). Para reaplicar, mude o `id`. Endereço base das rotas não foi mexido.
+- **Financeiro, período (12/11)**: O.S. em aberto contam **no período que contém hoje**, qualquer que seja o prazo (`noPeriodoFinanceiro`; antes a OS-21 em PEPT, com prazo empurrado, saía do mês); finalizadas pela conclusão. "Potencial a faturar" = previsto total (todas as minhas + 40% das do RT), sem descontar o consolidado.
+- **Pasta automática da O.S. (12/11)**: Configurações › Backup e dados › **Pasta das O.S. no OneDrive**: o usuário escolhe uma vez
+  `OneDrive\LFX ARQUITETURA - CAIXA - ORDENS DE SERVIÇO` (handle no IndexedDB, chave `ordens`). Toda O.S. nova do Luan
+  (id que não é `pasta-…` nem exemplo `os-N`, sem `os.pasta`) ganha `<"1 - …">/<ano>/<MÊS da emissão>/OS-N - TIP - CIDADE - BAIRRO - RUA`
+  com OS.txt (`os.txtOriginal`, o .txt da Caixa; sem ele, a referência) e as subpastas DOCUMENTOS SIOPI/{OUTROS,PLS,ULTIMA RAE},
+  FOTOS VISTORIA, LAUDO/{LAUDO,MODELO DE REGRESSÃO,RAE}. Se já existir "OS-N …" no mês, só anota. Pasta do técnico achada pelo
+  prefixo "1 - " (luan) / "2 - " (rt; o RT fica de fora, `TECNICOS_COM_PASTA`). Regras em `lib/pastasOS.ts` (teste), gravação em
+  `store/pastasOS.ts` (`iniciarPastasOS` no Layout; faixa laranja "Reconectar pasta" se o Chrome pedir).
+- **Pastas automáticas sem clique (12/11, "faça acontecer sozinho" até o agente da versão web)**: `app/scripts/pastas-automaticas.ts`
+  lê o Gmail (Dados/gmail.json, convocações depois de `ativoDesde`, polo ARIQUEMES), vê quais referências já têm pasta (procura a ref
+  nos OS.txt de `Dados/pastas.json` › `tecnico`, meses a partir de `inicio` 2026-10) e cria as que faltam com o próximo número
+  (maior OS-N + 1, ordem de chegada = mesma regra do sistema). Log em `Dados/pastas-automaticas.log`. Roda a cada 5 min pela tarefa
+  do Windows "Fluxo Caixa - Pastas das OS" (`ferramentas/pastas-automaticas.vbs`, escondido), que o **usuário liga** com
+  `Ligar pastas automaticas.cmd` (o Claude não pode criar tarefa agendada) e desliga com `Desligar pastas automaticas.cmd`.
+  OS-28 (E005 Ariquemes) e OS-29 (G416 Jaru) criadas à mão em 12/11. Se o usuário criar O.S. à mão no sistema, a numeração pode
+  desencontrar.
+- **O.S. nova (12/11)**: O.S. criada pelo e-mail da Caixa ganha `os.nova` = selo azul **NOVA** e contorno azul no Kanban
+  (`.chip-nova`, `.card-nova`), selo na Lista, número azul no ícone de Ordens de Serviço e aviso no sininho ("O.S. nova: OS-N");
+  abrir a O.S. tira a marca. (O e-mail fica lido ao virar O.S., por isso o aviso vem da O.S.)
+- **Tipologia do .txt (12/11)**: `detectarTipologia` lê primeiro o código da linha **"Atividade:"/"Serviço:"** (o cadastro de
+  tipologias do sistema: E004, E005, E401…); só sem essa linha usa o código que aparece primeiro no texto. Antes, "Atividade: E005 -
+  ATIVIDADE EDITAL E005: ATIVIDADE EDITAL E401 + …" virava E401 (OS-28, corrigida no navegador pela atualização por `ref`).
+- **Etiqueta NOVA no topo do cartão (12/11)**: faixa azul "● NOVA · chegou pelo e-mail da Caixa" (`.faixa-nova`) em cima do cartão
+  do Kanban da O.S. criada sozinha; some ao abrir a O.S. As 2 O.S. mais recentes foram marcadas uma vez (`novasRecentes: 2`).
+- **Rota de 13/11, versão final (`rota-2026-11-13-v7`)**: saída de Monte Negro **09:00**; OS-26 11:00, OS-27 11:15 → (almoço em Jaru ~13:25–14:25) → OS-24 14:30, OS-29 14:45, OS-25 15:00 → OS-28 **16:40** (Ariquemes) → Monte Negro ~17:40 (v1–v6 substituídas).
+- **Rota de 13/11 (ROTA-1311)**: montada pelo Claude e colocada no navegador por atualização (`rota` em Dados/atualizacoes.json):
+  saída Monte Negro 08:00, OS-28 (Ariquemes) 09:00 → OS-26 12:50 e OS-27 13:05 (Machadinho) → OS-24 16:35, OS-29 16:50, OS-25 17:05
+  (Jaru) → volta ~19:45; 10 min por vistoria (`config.duracaoVistoria` = 10). Coordenadas exatas de OS-24/26/27 (PCI/RAE);
+  OS-25/28/29 aproximadas pelo bairro. Tira o rascunho automático "Sugestão com as O.S. em aberto".
+- **Mensagem de WhatsApp das rotas (12/11)**: texto padrão gravado no navegador por atualização (`configForcar.mensagemWhatsApp`, Dados/atualizacoes.json): agendar a vistoria "para amanhã, {data}, por volta das {hora}", avisando que o horário pode mudar por causa das obras na estrada. Editável em Configurações › Meu Perfil.
+- **OS-21, PEPT resolvida em 13/11 (e-mail da Caixa)**: no navegador ficou `diasPausado` 7 antigo + 15 da resolução = vence 04/12 (errado). Corrigido por atualização (`pept-os21-resolvida-2026-11-13`: diasPausado 15, PEPT resolvida 13/11 em análise) → **vence 27/11**. Teste em pept.test.ts com o caso (B438 recebida e pausada 28/10, resolvida 13/11 → 27/11).
+- **Marco sem O.S. (12/11)**: "por hora não tem nada cadastrado pro Marco" — as O.S. dele saíram de `Dados/os-reais.json`, a
+  produção tira as que estiverem no navegador uma vez (atualização `removerResp: 'rt'` em `Dados/atualizacoes.json`) e o
+  `importar-pastas.ts` só lê a pasta do Luan (para voltar, recolocar `['2 - <NOME DO RT> RT', 'rt']` em `TECNICOS`).
+- **Contador do ícone de E-mails (12/11)**: conta **todo e-mail da Caixa não aberto** (antes só O.S. nova e PEPT); o sininho continua só com O.S. nova e PEPT resolvida (`notificaveis`).
+- **E-mail só fica lido ao clicar (12/11)**: virar O.S. (`importarDoEmail`) não marca mais o e-mail como lido; "Conclusão da Ordem de Serviço" (sem anexo) é Aviso, não O.S. nova. Os e-mails que viraram O.S. desde `ativoDesde` voltaram a não lidos uma vez (`emailsNaoLidosDesde`).
+- **E-mails lidos (12/11)**: na aba E-mails, o e-mail já aberto fica **cinza** na lista (`.email-lido`); os novos seguem com bolinha verde e negrito.
+- **Não conclui com PEPT em aberto (12/11)**: pausada ou resolvida esperando validar, a O.S. não pode ser concluída (`podeConcluir` em lib/pept.ts; `mudarStatus` recusa; o botão Concluir some do cartão e fica apagado na janela com o motivo). Antes, concluir encerrava a PEPT sozinho — saiu.
+- **PEPT esperando validar (12/11)**: o cartão do Kanban ganha contorno **amarelo** fixo (`.card-validar`, #eab308) e o selo "Validar" também amarelo (`.chip-validar`) até a PEPT ser validada ou reaberta.
+- **Nº da Caixa no topo da janela da O.S. (16/11)**: na linha das etiquetas (prazo · tipologia · etapa), no extremo direito, aparece "Nº 7886.xxxx.xxxxxxxxx/2026.01.01" com ícone de copiar (`NumeroCaixa` em OsDetail.tsx); clicar copia.
+- **"Em aberto" = toda O.S. não finalizada (16/11)**: recebida, em andamento ou em PEPT (`naoFinalizada` em lib/passos.ts). Vale no cartão "O.S. em aberto" do Início e no filtro Fase › Em aberto da Lista (mesma contagem); Em andamento e Em PEPT continuam com as próprias contagens.
+- **Selo "Vence hoje" vermelho (16/11)**: no cartão "Prioridade agora" do Início o selo de prazo fica vermelho quando vence hoje ou já venceu (`corPrazo` em Painel.tsx); "Vence amanhã"/≤3 dias seguem laranja.
+- **Dados da O.S. no cartão "Prioridade agora" (19/11, aprovado pelo usuário)**: chip "Caixa 1158920" (nº curto, copia o completo) na linha do OS-N; abaixo da caixa "Agora", em **duas colunas** (para caber na altura fixa do Início): à esquerda "Contato da vistoria: Nome", telefone (liga) + chip verde **WhatsApp** (abre a conversa, sem mensagem) e rua, nº; à direita "Recebida em dd/mm", **"Ficou parada N dias em PEPT"** (só PEPTs **encerradas**; a em aberto não aparece porque não tem duração definida; sem datas, tipo nem motivo) e "Prazo final dd/mm" (já recalculado). Sem valor, sem matrícula. `components/DadosPrioridade.tsx`; cores `.prio-zap`/`.prio-pept` em index.css (claro e escuro). A tipologia na linha do OS-N é a **etiqueta colorida igual à das Ordens de Serviço** (`TipologiaChip`), em toda O.S.
+- **Menu lateral maior (19/11, pedido do usuário)**: texto dos itens 15 px (era 13,5), ícones 20 px (eram 17), altura 42 px, títulos GERAL/SISTEMA 11,5 px, "Recolher menu" 13,5 px; o texto não quebra linha (`.aba > span` com reticências). Largura do menu continua 236 px. Perfis do "Ver" (Minhas/Marco/Todas) também maiores: avatares 26 px (eram 20), ícone de Todas 24 px (era 17); recolhido, cada um tem 46 px de altura (cabe a coroinha).
+- **Foto de perfil (19/11)**: Configurações › Meu Perfil › "Foto de perfil" (Escolher/Trocar foto, Remover; `components/FotoPerfil.tsx`). A imagem é cortada em quadrado pelo meio e reduzida a 256 px JPEG (`reduzirFoto`), guardada em `responsaveis.luan.foto` (data URL, vai no backup/pasta). O `Avatar` (ui.tsx) e o botão do canto superior direito (`MenuUsuario`) mostram a foto no lugar da inicial; a coroinha continua. **Enquadramento**: ao escolher, abre "Ajustar foto" (arrastar + zoom 1–3× na barra ou na rodinha); "Ajustar enquadramento" reabre depois. Guarda `fotoOriginal` (até 800 px) e `fotoEnq` {zoom, x, y}. A foto **não tem contorno** (o contorno verde parecia um risco na coroa).
+- **Financeiro sem repasse (19/11, pedido do usuário)**: saiu tudo do repasse de 40% do RT ("Participação no RT", "Total consolidado", "Potencial a faturar" com 40%, "Seu repasse", coluna/linha "Sua parte", Origem "Meu/Participação RT", "Sua parte (40%)" na janela da O.S. e os campos de repasse em Configurações › Financeiro). Carteira = **RT Luan · RT Marco · Total da empresa**; cada RT mostra o próprio faturamento (finalizado), previsto, em aberto, a faturar e faturado, e a tabela só as O.S. dele; Total da empresa mostra Faturamento total, Faturamento RT Luan, Faturamento RT Marco, Em aberto e Deslocamento. A meta do mês agora é da empresa (finalizado total) e aparece no Total da empresa. As funções antigas (`repasseDe`, `painelMinhas`, `painelEquipe`) seguem em lib/faturamento.ts com testes, sem uso nas telas; `repasseRT`/`repasseBase` continuam no config só por compatibilidade.
+- **Sem "nota por O.S." (19/11, regra do usuário)**: a nota fiscal é **uma só, no fim de cada mês, com as O.S. finalizadas** (tela Fechamento do mês). Saíram do Financeiro os cartões "A faturar (sem nota)" e "Valores faturados" (no lugar, na visão de cada RT: **Deslocamento** e **Projeção de fechamento**), os indicadores iguais no Total da empresa, o filtro de situação (A faturar/Faturadas), as colunas Status e Faturada (botão Marcar), o detalhe "Nota fiscal" e as colunas Situacao/Faturada do CSV; a tabela segue mostrando só as finalizadas. Na janela da O.S. saíram a etiqueta "Faturada" e o campo Faturada com Marcar/Desmarcar. Os campos `faturada`/`faturadaEm` e `marcarFaturada` continuam no store só por compatibilidade. Não voltar a pôr nota por O.S.
+- **"Faturamento total" no lugar da Meta do mês (19/11)**: no Financeiro › Total da empresa (período Mês), o cartão do topo é "FATURAMENTO TOTAL R$ x" (finalizado da empresa no mês) e, no fim da linha, "Em aberto R$ y · N O.S. não finalizadas" = soma (serviço + deslocamento) de **todas as O.S. não finalizadas e não canceladas recebidas no mês ou em meses anteriores** (`emAbertoAte` em lib/faturamento.ts, com teste). Barra: finalizado × em aberto; rodapé com finalizado, em aberto e "no ritmo atual fecha em". Saiu a meta (texto, marcador, "faltam") e a seção Financeiro de Configurações (só tinha repasse e meta); `metaMensal` fica no config só por compatibilidade.
+- **Notas fiscais no "Últimos 6 meses" (19/11)**: no Financeiro › Total da empresa, botão **Notas fiscais** no cartão "Últimos 6 meses" abre a janela (`components/NotasFiscais.tsx`) com os 6 meses do gráfico: digitar o valor da nota de cada mês ou **Importar XML das notas** (vários de uma vez; NFS-e ABRASF ou padrão nacional: valor dos serviços, competência e número, `lerNotaXML` em lib/notasFiscais.ts com teste; notas do mesmo mês somam, mesmo número não entra duas vezes, `juntarNotas`). Guardado em `config.notasFiscais` ({mes, valor, numeros}). No gráfico, cada mês com nota ganha uma **linha laranja tracejada** na altura do valor, com o valor em cima (`.nf-marca` em index.css) e "Nota fiscal R$" no balão; só no Total da empresa (a nota é da empresa). PDF não é lido (só XML ou digitado).
+- **Número e tipologia nos cartões do Início (19/11)**: em "O.S. em aberto", "O.S. em andamento" e "O.S. em PEPT" cada linha é **OS-N · etiqueta da tipologia · nome · (prazo/passo/dias)** (`Bloco` em Painel.tsx); o nome encurta com reticências se faltar espaço. No cartão "Prioridade agora" o telefone não quebra linha e o espaço entre as linhas dos dados é 4 px, para caber em 1280 × 800 com o menu aberto.
+- **Etiqueta da tipologia antes do selo de prazo (19/11)**: na janela da O.S. a ordem é tipologia · prazo · etapa (era prazo · tipologia). Vale sempre: a tipologia vem antes do status de prazo.
+- **"Aplicar no meu sistema local" = ESTA pasta** (`OneDrive\FLUXO CAIXA`, o atalho abre `Dados\Fluxo_Caixa.html`): mudar `app/src` e rodar `cd app && npm run build:single`; pedir para fechar e abrir o atalho. Não confundir com as cópias em `OneDrive\CLAUDE\MIGRAÇÃO FLUXO CAIXA` (pedido de 19/11).
+- **Janela da O.S. (12/11)**: O.S. em PEPT (pausada ou resolvida esperando validar) abre direto na aba **PEPT**; as outras no Passo a passo.
+- **Passos da rota em sequência (13/11)**: as abas Selecionar → Montar → Agendar → Confirmar → Exportar abrem uma depois da outra; só se libera o passo seguinte pelo botão do rodapé do passo atual (`rota.etapa` = último liberado; rotas antigas sem o campo: criada → 5, algum confirmado → 4, algum agendado → 3, senão 1; `ir`, `liberado`, `abaBloqueada` em pages/Rota.tsx). Rascunho abre no passo liberado. "Concluir rota" tira a rota do Planejar (`escolher('')`) e o planejador volta a sugerir uma rota nova com as O.S. que sobraram.
+- **Concluir rota = vistorias feitas (13/11)**: `avancarRota` (confirmada → concluída) aplica `vistoriaFeitaPelaRota` (lib/rota.ts) a cada parada: vistoria feita no dia da rota e na hora combinada, passos Marcar/Fazer vistoria marcados, Recebida → Em Andamento; assim as O.S. não voltam ao planejador. Rotas já concluídas antes: o `merge` do store aplica `vistoriasDasRotasConcluidas`. Para refazer uma vistoria, desmarque o passo "Fazer vistoria" na O.S.
+- **Rotas (12/11)**: O.S. com a vistoria já feita (`vistoria.feita` ou passo Fazer vistoria marcado) não aparecem no planejador (`elegivelParaRota`).
+- **Ícone do Financeiro (12/11)**: **cifrão** (`DollarSign` do lucide), pedido do usuário (antes testado o gráfico subindo do FLUXO ARQ, `components/IconeFinanceiro.tsx`, que ficou sem uso).
+- **PEPT resolvida por e-mail (12/11)**: com o Gmail ligado (Configurações › Gmail, script do Google, só código, sem IA), o sistema busca os
+  e-mails ao abrir e a cada 5 min em qualquer tela (Layout); "PEPT resolvida" tira a O.S. da pausa, o cartão mostra
+  "Validar" e o Início ganha o alerta "PEPT da OS-x resolvida pelo cliente em dd/mm: confira e valide ou reabra".
 - Mudança visual: uma tela por vez, mostrando o resultado antes de seguir (mesma regra do FLUXO ARQ).
 
 ## Rodar
@@ -87,7 +196,7 @@ sistema real. Roda no navegador com dados fictícios salvos em `localStorage`. F
   Depois de mudar o código, rode `cd app && npm run build:single` para atualizar `dist/Fluxo_Caixa.html`.
 - Desenvolvimento: `INICIAR-FLUXO-CAIXA.bat` ou `cd app && npm install && npm run iniciar` (porta 5173).
   Os dados do `localhost:5173` e do arquivo local ficam separados (origens diferentes do navegador).
-- `npm test` (Vitest, 148 testes devem passar) · `npx tsc --noEmit` · `npm run build:single`.
+- `npm test` (Vitest, 152 testes devem passar) · `npx tsc --noEmit` · `npm run build:single`.
 - Requer Node.js LTS. Se faltar, peça para o usuário instalar em https://nodejs.org/pt.
 
 ## Stack e estrutura
@@ -98,7 +207,8 @@ lucide-react + Vitest 3.
 
 ```
 app/src/types.ts           tipos iguais ao sistema real (OS com as 7 abas de dados, Status, Tipologia, Rota, Config)
-app/src/data/seed.ts       dados de exemplo e CONFIG_PADRAO
+app/src/data/seed.ts       dados de exemplo e CONFIG_PADRAO (todas as O.S. em Ariquemes, uma por bairro em rodízio — pedido do usuário;
+                           `exemploParaAriquemes` migra no `merge` do store as O.S. de exemplo `os-N` salvas com outra cidade)
 app/src/store/useStore.ts  estado e ações (O.S., concluir, pausar/retomar, faturada, ficha, localização, rotas, backup)
 app/src/lib/               regras puras com testes em lib/__tests__
   os.ts            etapas, tipologias, polos, prazo efetivo (pausa), farol, montarOS, migrarOS (formato antigo)
@@ -145,14 +255,126 @@ replicar ou melhorar uma aba está em `docs/04-MOLDE-DE-REPLICACAO.md`.
   +5 dias"), Agenda de hoje, Sugestão de viagem e Chegaram da CAIXA.
 - Rotas: Roteirizador (mapa próprio sem internet, laço +/−, base) e Rotas (Rascunho → Confirmada →
   Concluída/Cancelada, distância por haversine × 1,3, velocidade média 30 km/h). Confirmar marca a vistoria.
+  **Módulo de Rotas reestruturado em 06/11/2026** (pedido do usuário: "estruture o módulo de rotas por inteiro conforme eu
+  expliquei": mapa que organiza a rota por bairro e proximidade da partida, paradas arrastáveis para cima/baixo, coordenadas
+  que geram a rota no Google Maps/Waze para copiar e abrir no celular; ele recusou a tela antiga de Roteirizador + lista + janela
+  e o mapa "muito horizontal, destoando do restante"; depois pediu: "os cards de cada O.S. mostrem sempre o campo de colocar a
+  coordenada", "todas as O.S. em aberto aparecem e eu seleciono quais vão incluir", "por padrão o sistema deve sugerir uma rota
+  com as O.S. em aberto e o usuário edita"). **Uma tela só** (`pages/Rota.tsx`): cabeçalho "Rotas" e o seletor `.seg seg-baixo`
+  **Planejar · Rotas salvas** (`?aba=rotas`). **Planejar** (`Planejador`) ocupa a altura toda até o rodapé (medida como o
+  Kanban): **painel à esquerda (430 px) + mapa grande à direita**; em tela estreita (< 1024 px) o painel fica em cima com
+  65% da altura (rola por dentro) e o mapa embaixo com 360 px, e a página rola. **Rota sugerida**: sem rota ativa do técnico, o sistema cria
+  sozinho um rascunho com **todas as O.S. em aberto** (elegíveis), já em ordem por bairro/proximidade da base (`sugerirRota`,
+  descrição "Sugestão com as O.S. em aberto"); o botão **Nova** sugere outra com as que não estão em nenhuma rota. Painel
+  (`PainelRota`, `key` = id da rota) **no visual do resto do sistema** (pedido de 06/11: "o design está diferente do restante,
+  deixe mais didático"; depois "o design tá ruim, a aba 4 tá cortada"): cabeçalho com código/situação/avatar/data, passos num
+  `.seg seg-linha seg-passos` (o seletor escuro das abas da O.S.; `.seg-passos` deixa as 5 abas encolherem para caber no painel
+  — letra 11,5px, rótulos curtos Selecionar · Montar · Agendar · Confirmar · Exportar), faixa `faixa-resumo` com a explicação do passo e, embaixo, a lista
+  sobre o **fundo das colunas do Kanban** (`.lista-rota` = `--kb-col`) com **cartões iguais aos do Kanban aprovado**
+  (`bloco card-kanban`, miolo `MioloOS`: OS | tipologia, cliente, etiqueta POLO, cidade em negrito · bairro · rua). **5 passos**
+  (`PASSOS`, com a dica de cada um; **Agendar e Confirmar são abas separadas** — pedido de 06/11 "adicione mais uma aba e separe
+  agendamento de confirmação"): rascunho abre em 1, rota criada abre em 5 (Exportar) se exportável, senão em 4 (Confirmar).
+  Abas bloqueadas (`abaBloqueada`): 4 Confirmar só depois de pelo menos um cliente agendado; 5 Exportar só com `exportavel`.
+  **1 Selecionar** = todas as O.S. em aberto do técnico, por cidade (sem "marcar todas": o usuário pediu para tirar), cartão com **caixa de marcar**
+  (clicar no cartão também marca; marcada = contorno verde `.card-rota.marcado` + chip "Na rota") e o **campo de coordenadas
+  sempre à mostra** (`CampoCoordenadas`: sem borda quando já tem coordenadas, pino verde; laranja e com borda quando falta; colar
+  outras salva ao sair/Enter, chip "salvar"/"não entendi", ícone Maps). **2 Montar** = cartão **Origem** destacado (`.card-origem`: faixa laranja à esquerda, fundo quente, ícone casa laranja, nome em
+  caixa alta grande — pedido de 06/11 "dê destaque para o card de origem"; `CampoOrigem`: nome do lugar +
+  coordenadas coladas do Maps, salva ao sair/Enter em `rota.partida` e refaz a ordem por bairro se o usuário ainda não arrastou;
+  link "base padrão" abre `TrocarBase`), Saída (dia/hora), cartões das paradas **agrupados por bairro** (etiqueta verde na primeira de cada bairro) com número + alça de
+  arrastar à esquerda, chip ~hora prevista, X e o campo de coordenadas; arrastar marca `rota.ordemManual` (adicionar O.S. deixa de reordenar sozinho); botão **Por bairro**
+  reordena e limpa a marca; rodapé **"Agendar →"** (só com todas as coordenadas). **3 Agendar** e **4 Confirmar** (fluxo pedido em 06/11: agendar →
+  **esperar os clientes confirmarem** → só então criar a rota → exportar; as duas abas mostram a mesma lista de cartões, cada uma
+  com a sua ação: a 3 só manda o horário, a 4 só marca a resposta do cliente) = uma linha por parada na ordem da rota: cliente, contato,
+  telefone, bairro, **hora combinada** (`parada.hora`, vem da hora prevista; mudar reagenda a vistoria com `agendar` quando a rota
+  já foi criada), botão **WhatsApp** com a mensagem de Configurações preenchida ({contato} {cliente} {endereco} {data} {hora}
+  {os}; clicar marca `parada.avisado`). Cada parada é um cartão `.card-agenda` em duas partes (redesenho de 06/11 "para o
+  usuário entender que é preciso confirmar se o cliente confirmou"): em cima quem/telefone/bairro e a hora; embaixo a **trilha**
+  `.trilha-agenda` **1 Agendar → 2 Cliente confirmou? → ✓ Confirmado** (passo atual em laranja, feitos em verde; o
+  "Confirmado" só aparece quando o cliente confirmou de fato — pedido de 06/11) e a faixa
+  `.acao-agenda` com o texto e a ação do momento. **Na aba 3 Agendar**: etapa 0 "Ainda não agendado" + botão **Agendar pelo WhatsApp** (marca
+  `parada.avisado`) + link "já agendei por telefone"; etapa 1 "Agendado para HH:MM. A resposta do cliente é marcada no passo Confirmar" + Reenviar + desfazer;
+  etapa 2 "Agendado e confirmado" + Reenviar. Faixa da aba 3: laranja "N sem agendar" ou verde "Todos agendados, siga para Confirmar";
+  rodapé **"Confirmar →"** (habilita com pelo menos um agendado). **Na aba 4 Confirmar**: etapa 0 "Ainda não agendado: volte ao passo
+  Agendar"; etapa 1 "Agendado. O cliente respondeu que o horário está bom?" + botão **Cliente confirmou** (marca `parada.confirmado`) + reenviar;
+  etapa 2 "Agendamento confirmado pelo cliente para HH:MM" + desfazer.
+  O campo de coordenadas dos cartões (`CampoCoordenadas`, `.campo-coord`) tem rótulo "Coordenadas do imóvel · clique para corrigir
+  o ponto da rota" / "cole do Google Maps…", borda tracejada (laranja sem coordenada) e ícone de lápis, para ficar claro que é editável. Faixa: laranja "N sem agendar · aguardando N confirmar" com o botão **"Confirmar só com os confirmados"** (tira da rota
+  quem não confirmou e cria), verde "Todos os agendamentos confirmados"; aviso de paradas sem coordenadas. Rodapé
+  **"Criar rota"** (só com todas as coordenadas e todos confirmados; = `avancarRota`: rascunho → confirmada, marca a vistoria de
+  cada parada no dia) e vai ao passo 5. Chips de status da rota: rascunho = "Planejando", confirmada = "Criada". Rotas salvas antes
+  dessa marca ganham agendado+confirmado no `merge` do store. **Exportável** (`exportavel`) = rota criada **e** todas as paradas
+  confirmadas (pedido de 06/11: "só exportar depois da rota confirmada e criada"): a aba 5 fica desabilitada (`.seg button:disabled`)
+  e o botão "Exportar →" do passo 4 também, com o motivo no title (`porQueNaoExporta`); desmarcar um cliente numa rota criada mostra
+  a faixa laranja "Rota criada, mas N ainda não confirmaram: exportação bloqueada". Rota criada abre no passo 5 se exportável, senão
+  no 4. **5 Exportar** = se não exportável mostra só o aviso com o motivo (volta ao 4); exportável: 3 cartões (paradas, km ida e volta "pelas ruas", tempo), **Google Maps · rota completa** (partida → paradas →
+  volta num link só; `linksGoogleMaps` divide em partes emendadas acima de 9 paradas, limite do Maps) com Copiar + Abrir, **"Copiar
+  roteiro em texto"** (`textoRoteiro`: paradas com hora e endereço + link), e **Waze** parada por parada (o Waze não aceita várias
+  paradas num link — explicado na tela); rodapé Concluir rota / Cancelar. Cabeçalho: as rotas ativas aparecem **pela data** ("07/11/2026 · 08:00 (N)", em
+  ordem de data, select de largura fixa quando há mais de uma; o código fica pequeno ao lado) — pedido de 06/11, "não pelos códigos".
+  **"Nova" só habilita se houver O.S. em aberto fora de rota** (`livres`); sem nenhuma, a dica diz para editar uma rota existente e a
+  sugestão automática também não cria rota vazia.
+  Rodapé comum: ← passo anterior, contagem · km · tempo, botão do próximo passo e a lixeira (Excluir pede confirmação). Mapa (`MapaOS` com
+  `children` = botões por cima: **Laço +** marca as O.S. do contorno, **Laço −** desmarca, **Partida**): pontos azuis = em aberto
+  (clicar marca), verdes numerados = na rota (clicar desmarca), caminho tracejado. Ordem automática: `ordemPorBairro` em
+  lib/rota.ts (termina um bairro antes de ir ao próximo, começando pelo mais perto da partida; dentro do bairro vai ao ponto
+  mais próximo). Links: `linkGoogleMaps` (partida → paradas na ordem → volta; sem coordenadas usa o endereço escrito) e
+  `linkWaze`. **Rotas salvas** (`ListaRotas`): filtros Status/Período, 3 números, lista por técnico; clicar abre a rota no mapa.
+  Saíram: Roteirizador antigo, janela `DetalheRota`, `CriarRota` e `DefinirLocalizacao`.
+  **Mapa real (06/11, "use um mapa de API free")**: `MapaOS` é **MapLibre GL** (`maplibre-gl` 5.24, vetorial, suave como o
+  Google Maps) com estilos gratuitos e sem chave: tema claro = **Liberty do OpenFreeMap** (`tiles.openfreemap.org/styles/liberty`),
+  tema escuro = **Eclipse do VersaTiles** (`tiles.versatiles.org/assets/styles/eclipse/style.json`); troca sozinho pelo
+  `data-theme` (`MutationObserver` + `setStyle`, e as camadas da rota/laço são recriadas no `style.load`). Recusados antes:
+  grade SVG, OpenStreetMap puro (não parece o Maps), Esri raster (ficou "errado"/travando), CARTO (passou a exigir chave).
+  **Como a biblioteca é carregada (importante)**: o Vite quebra o worker do MapLibre ao importar o pacote como módulo (o
+  `getWorkerUrl()` fica vazio e o mapa fica em branco, mesmo no 5.x; no 6.x o worker é um arquivo separado e também falha). Por
+  isso `MapaOS.tsx` importa `maplibre-gl/dist/maplibre-gl.js?raw` e o executa como `<script>` (função `maplibre()`, que devolve
+  `window.maplibregl`); só os **tipos** vêm de `import type … from 'maplibre-gl'`. Funciona no `localhost:5173` e no
+  `dist/Fluxo_Caixa.html` (testado). Não trocar por `import maplibregl from 'maplibre-gl'`. Marcadores são elementos DOM
+  (`.mk`, `.mk.sel`, `.mk-base` em index.css), tooltip = `Popup` no mouse, caminho da rota = fonte GeoJSON `rota` + camada de
+  linha tracejada, laço = fonte `laco` (fill + line; pointer events no contêiner, `map.unproject`, `dentroDoPoligono`).
+  Desempenho: marcadores só são redesenhados quando a chave em texto dos pontos muda (`chaveDesenho`), `pontos` memoizado na
+  tela; enquadramento (`fitBounds` sem animação) só quando o conjunto de pontos muda e quando o tamanho do contêiner muda
+  (`ResizeObserver`). Sem `altura`, o mapa ocupa a altura do pai (`h-full`). O StrictMode monta o mapa duas vezes: as chaves de
+  desenho são zeradas ao criar o mapa. Precisa de internet para as ruas; sem internet aparece um aviso e os pontos continuam.
+- **Caminho pelas ruas** (06/11, pedido: "não considerar linha reta"): `lib/trajeto.ts` usa o **OSRM público**
+  (`router.project-osrm.org`, grátis, sem chave, dados OpenStreetMap). `buscarTrajeto` (route: km, minutos por trecho e
+  linha GeoJSON) e `buscarMatriz` (table: distâncias partida ↔ todas as O.S. em aberto), com cache por URL e `fetch`
+  injetável nos testes. No Planejador: a matriz vira `dist` (`distanciaPelaMatriz`) passado a `ordemPorBairro`/`ordemOtimizada`
+  (parâmetro opcional; linha reta é o padrão), e a sugestão em rascunho não arrastada é reordenada quando a matriz chega; o
+  trajeto da rota atual (debounce 300 ms) dá km, horários (`horariosPorTempos` + `minutosPorParada`) e a linha cheia do
+  mapa (`MapaOS` prop `trajeto`; sem ele, tracejado reto). Sem internet volta à estimativa reta × 1,3 e o rodapé avisa
+  "em linha reta (sem internet)". A lista Rotas salvas continua com a estimativa reta (não busca).
 - Melhorias do laboratório que o real não tem: Financeiro com as visões Só minhas/Minha equipe/Geral,
   repasse de 40% e meta; Fechamento mensal (RRT e NF) em /financeiro/fechamento; abas Documentos e
   Histórico no detalhe; otimizar ordem e hora estimada nas rotas; notificações calculadas.
 - **Módulo E-mails da Caixa** (/emails, 20/10): caixa de entrada só com remetentes @caixa (`lib/emails.ts`,
   `ehDaCaixa`), contador de não lidos no ícone do menu, notificação no sininho e contador só para e-mail de O.S. nova e de PEPT resolvida (`notificaveis`; aviso, prazo e cancelamento não notificam), leitura
   em duas colunas e "Importar O.S." do anexo .txt (usa o leitor do SIOPI). No laboratório os e-mails são de
-  exemplo e há o botão "Simular novo e-mail"; no sistema real viria do Gmail conectado em Configurações.
-- **Nova OS** (20/10): sem a janela de escolha; abre direto a janela grande (1034 px) com as abas **Arquivo · Manual · E-mail** (`NovaOS.tsx`; Manual = `OsForm` com `topo`). Importar O.S.: Arquivo (primeiro a caixa para colar o texto, depois arrastar .txt) com pré-visualização e bloqueio de duplicadas; E-mail
+  exemplo e há o botão "Simular novo e-mail".
+  **Ponte Gmail → sistema (10/11, pedido "quando chegar uma O.S. por e-mail, mandar para a aba E-mails")**: o sistema não tem
+  servidor, então o Claude faz de carteiro. Skill `/caixa-emails` (`.claude/skills/caixa-emails/SKILL.md`, fora do git): busca no
+  Gmail do Luan (`do usuário (endereço em Dados/gmail.json)`) os e-mails de `@caixa.gov.br` (convocação de O.S. de `AGxxxx@caixa.gov.br` com o
+  .txt `CONVOCACAO PRESTACAO SERVICO.TXT` dentro do e-mail; PEPT resolvida de `siopi@caixa.gov.br`), baixa cada um em formato
+  RAW (base64url, o anexo vem dentro), salva os brutos no scratchpad e roda `node scripts/caixa-emails.ts <brutos> "<raiz>/Caixa de
+  entrada/emails.json"`. O script usa `lib/mime.ts` (`lerMime`, `emailDoGmail`: cabeçalhos, charset ISO-8859-1 do SIOPI, quoted-printable,
+  base64, multipart, anexo .txt sem os NUL) e só acrescenta ids novos (`gm-<id do Gmail>`). Na aba E-mails o botão **Importar e-mails**
+  (`importarEmails` no store → `lerArquivoCaixaDeEntrada` + `mesclarEmails` em lib/emails.ts) lê o `emails.json`, entra só o que
+  ainda não está no sistema (lido/importada/PEPT dos antigos ficam) e roda `aplicarPeptsResolvidas`. A pasta **"Caixa de entrada"
+  está no .gitignore** (dados reais de clientes — nunca no repositório, nos testes ou aqui). Os testes de `mime.test.ts` usam
+  dados fictícios no formato real da Caixa.
+  **Ligação automática (10/11, Google Apps Script)**: `ferramentas/gmail-script/Code.gs` roda na conta Google
+  `do usuário (endereço em Dados/gmail.json)` (projeto "Fluxo Caixa - Gmail"), publicado como App da Web (executar como Eu, acesso Qualquer
+  pessoa, protegido por `TOKEN`). `doGet(token, desde)` responde `{ ok, emails: Email[] }` com os e-mails `from:caixa.gov.br`
+  (anexo .txt via `getAttachments`, plano B pelo bruto). No sistema: `config.gmail = { url, token, criarOs }` (Configurações ›
+  Gmail, componente `Gmail` com Testar e buscar agora e o passo a passo), `sincronizarGmail` no store (`urlPonteGmail`,
+  `desdeParaSincronizar` = 2 dias antes da última busca ou 14 dias (a primeira busca demora ~20 s; o script só lê o e-mail bruto nas convocações), `lerRespostaPonte`, `receberEmails` que mescla, aplica PEPTs
+  e, com `criarOs`, chama `importarDoEmail` para cada .txt novo), `gmailUltimaSinc`/`gmailUltimoErro`. A aba E-mails busca ao
+  abrir e a cada 5 min (`Buscar no Gmail`; sem ligação mostra `Ligar ao Gmail`) e a faixa "Gmail ligado · última busca". O token
+  real fica só na conta Google e nas Configurações do navegador do usuário — nunca no repositório. Para gravar a ligação no
+  sistema real sem digitar: abrir `Fluxo_Caixa.html#/configuracoes?secao=gmail&url=<exec>&token=<senha>` (a seção Gmail grava,
+  limpa o endereço e já testa). No navegador ficam no máximo `MAX_EMAILS_GUARDADOS` (400) e-mails, os mais recentes.
+- **Nova OS** (20/10): sem a janela de escolha; abre direto a janela grande (1034 px) com as abas **Arquivo · Manual · E-mail** (`NovaOS.tsx`; Manual = `OsForm` com `topo`). **Altura fixa** `min(720px, calc(100vh - 48px))` nas três abas (prop `altura` de `ImportarOS` e `OsForm`, só na Nova OS — pedido de 10/11: a janela não pode mudar de tamanho ao trocar de aba; o conteúdo rola por dentro) e **sem barra de rolagem à mostra** (`semBarra` do `Modal` → `.rolagem-invisivel`, rola normalmente; pedido de 10/11). A janela de editar O.S. continua com altura livre. Importar O.S.: Arquivo (primeiro a caixa para colar o texto, depois arrastar .txt) com pré-visualização e bloqueio de duplicadas; E-mail
   só explicado (sem Gmail no laboratório).
 
 - **Processo real (dito pelo usuário em 20/10/2026):** não assinam laudo, não emitem nota, a Caixa não
@@ -161,7 +383,7 @@ replicar ou melhorar uma aba está em `docs/04-MOLDE-DE-REPLICACAO.md`.
   **Passo a passo do serviço Caixa** (20/10): O.S. recebida → Baixar as documentações → Analisar documentos →
   Abrir PEPT (se necessário) → Marcar vistoria → Fazer vistoria → Fazer avaliação → Preencher SIMIL → Baixar o
   laudo → Assinar → Enviar. É um checklist dentro da O.S. (aba "Passo a passo", a primeira; `lib/passos.ts`,
-  ação `marcarPasso`); as etapas do sistema real continuam e Fazer vistoria/Baixar laudo/Assinar/Enviar andam a
+  ação `marcarPasso`); **passos pela etapa (12/11)**: Em Andamento ou com PEPT → recebida, baixar e analisar documentos feitos (Abrir PEPT feito com o dia da 1ª abertura); Assinatura Pendente → tudo até antes de Assinar; Assinatura Concluída → falta só Enviar; as etapas do sistema real continuam e Fazer vistoria/Baixar laudo/Assinar/Enviar andam a
   etapa sozinhos. O Início usa o próximo passo (cartão Prioridade com "Feito: …", blocos "Documentos e agenda"
   e "Laudo e envio").
   **Prazo pela tipologia (22/10, confirmado pelo usuário):** A413 e E401 = 6 dias, B437 e B438 = 15 dias, **contados a partir do dia seguinte ao recebimento** (recebida 10/10, A413 → vence 16/10); `prazoDaTipologia` em lib/os.ts (dados de exemplo, Nova O.S., .txt sem prazo). O.S. salvas com o prazo antigo de 15 dias dos exemplos são corrigidas ao abrir (`corrigirPrazoAntigo`); prazo vindo da Caixa não é mexido.
@@ -232,3 +454,16 @@ replicar ou melhorar uma aba está em `docs/04-MOLDE-DE-REPLICACAO.md`.
   `claude/fluxogestor-dashboard-redesign-cxdnxz`
 - Figma (design system e Faturamento): https://www.figma.com/design/PjnAVzeTQMhPY4ylCJQTxL
 - Prints de todas as telas: `docs/screenshots/`
+
+## Amostragem (18/11/2026)
+
+Módulo novo no menu (ícone casa com lupa, logo depois de Fichas de Pesquisa; as Fichas de Pesquisa não mudaram):
+amostragens de dados de mercado para avaliação de imóveis (NBR 14653), trazido do `fluxo-frontend` (sistema novo).
+- Telas em `app/src/pages/amostragem/`, cálculo/catálogo/Excel em `app/src/lib/amostragem/` (iguais aos do sistema novo),
+  dados em `app/src/store/amostragens.ts`, no navegador, chave própria `fluxocaixa-amostragens` (as O.S. não mudam de lugar).
+- Assistente didático (do zero, importar Excel ou compor com dados de outras amostragens), abrangência Cidade | Bairro,
+  prazo de validade livre, planilha com jeito de Excel (colar bloco do Excel cria as linhas, Enter desce, arrastar
+  títulos reordena colunas, "+ Coluna", barra de linhas), dado com coleta vencida em amarelo, fonte obrigatória,
+  lista agrupada por cidade, Excel com nome/CNPJ/telefone de Configurações › Empresa e rodapé do FLUXO.
+- O ExcelJS vai embutido (import estático em `lib/amostragem/excel.ts`): o `Dados/Fluxo_Caixa.html` é um arquivo único
+  e não carrega pedaços à parte.
