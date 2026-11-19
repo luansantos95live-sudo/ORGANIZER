@@ -6,6 +6,7 @@ import { RotasPage } from './pages/Rota'
 import { Fechamento } from './pages/Fechamento'
 import { Faturamento } from './pages/Faturamento'
 import { Fichas } from './pages/Fichas'
+import { Amostragem, FichaAmostragem } from './pages/amostragem'
 import { EmailsPage } from './pages/Emails'
 import { ConfigPage } from './pages/Config'
 
@@ -23,6 +24,8 @@ export default function App() {
           <Route path="financeiro" element={<Faturamento />} />
           <Route path="financeiro/fechamento" element={<Fechamento />} />
           <Route path="fichas" element={<Fichas />} />
+          <Route path="amostragem" element={<Amostragem />} />
+          <Route path="amostragem/:id" element={<FichaAmostragem />} />
           <Route path="emails" element={<EmailsPage />} />
           <Route path="configuracoes" element={<ConfigPage />} />
           <Route path="faturamento" element={<Navigate to="/financeiro" replace />} />

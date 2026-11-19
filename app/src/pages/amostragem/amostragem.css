@@ -1,0 +1,711 @@
+/* Amostragem: peças próprias da tela (o resto vem de modelo/estilo.css) */
+
+.icone-tipo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--brand) 14%, var(--surface));
+  color: var(--verde-valor);
+}
+
+.tipo-ficha {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-height: 132px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  text-align: left;
+  transition:
+    border-color 0.12s,
+    box-shadow 0.12s;
+}
+.tipo-ficha:hover {
+  border-color: color-mix(in oklab, var(--brand) 55%, var(--border));
+  box-shadow: var(--anel);
+}
+.tipo-ficha[aria-pressed='true'] {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(58, 184, 30, 0.18);
+}
+
+.passo-ficha button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px 0 4px;
+  border-radius: 999px;
+  color: var(--muted);
+  background: var(--surface-2);
+  font-weight: 500;
+}
+.passo-ficha button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.passo-ficha .n {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 11px;
+  font-weight: 700;
+}
+.passo-ficha.ativo button {
+  background: var(--brand);
+  color: #fff;
+}
+.passo-ficha.ativo .n {
+  color: var(--verde-valor);
+}
+.passo-ficha.feito button {
+  color: var(--verde-valor);
+}
+
+.var-pilula {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 12.5px;
+  color: var(--text);
+  transition:
+    background 0.12s,
+    border-color 0.12s;
+}
+.var-pilula:hover:not(:disabled) {
+  border-color: color-mix(in oklab, var(--brand) 60%, var(--border));
+}
+.var-pilula[aria-pressed='true'] {
+  background: color-mix(in oklab, var(--brand) 16%, var(--surface));
+  border-color: color-mix(in oklab, var(--brand) 55%, var(--border));
+  font-weight: 500;
+}
+.var-pilula:disabled {
+  cursor: default;
+  opacity: 0.9;
+}
+.selo-rec {
+  display: inline-flex;
+  align-items: center;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 5px;
+  background: var(--laranja-soft);
+  color: var(--laranja-txt);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+/* Amarelo "a atualizar" (dado com coleta além da validade) */
+:root {
+  --amarelo-bg: #fff4c2;
+  --amarelo-borda: #f0cf4a;
+  --amarelo-txt: #866400;
+}
+:root[data-theme='dark'] {
+  --amarelo-bg: #3a3212;
+  --amarelo-borda: #8a7420;
+  --amarelo-txt: #f3d35a;
+}
+
+/* Cabeçalho da amostragem */
+.cab-amostra {
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--brand) 9%, var(--surface)) 0%,
+    var(--surface) 55%
+  );
+}
+.cab-amostra .barra-acoes {
+  border-top: 1px solid var(--border);
+  background: color-mix(in oklab, var(--surface-2) 55%, transparent);
+}
+
+/* Indicadores */
+.kpi-ficha {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+}
+.kpi-ficha .kpi-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: var(--brand-soft);
+  color: var(--verde-valor);
+}
+.kpi-ficha .v {
+  font-size: 19px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.2px;
+  line-height: 1.25;
+}
+.kpi-ficha .s {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.kpi-ficha.kpi-amarelo {
+  background: var(--amarelo-bg);
+  border-color: var(--amarelo-borda);
+}
+.kpi-ficha.kpi-amarelo .kpi-ic {
+  background: var(--amarelo-borda);
+  color: #fff;
+}
+.kpi-ficha.kpi-amarelo .v,
+.kpi-ficha.kpi-amarelo .s,
+.kpi-ficha.kpi-amarelo .card-tit {
+  color: var(--amarelo-txt);
+}
+
+/* Avisos em faixas coloridas */
+.aviso-ficha {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 9px 13px;
+  border-radius: 11px;
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  background: var(--surface);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.aviso-ficha svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.aviso-amarelo {
+  background: var(--amarelo-bg);
+  border-color: var(--amarelo-borda);
+  color: var(--amarelo-txt);
+}
+.aviso-vermelho {
+  background: var(--vermelho-soft);
+  border-color: color-mix(in oklab, var(--vermelho) 55%, transparent);
+  color: var(--vermelho);
+}
+.aviso-info {
+  color: var(--muted);
+}
+.aviso-ok {
+  background: var(--brand-soft);
+  border-color: color-mix(in oklab, var(--brand) 55%, transparent);
+  color: var(--verde-valor);
+  font-weight: 600;
+}
+.selo-atualizar,
+.legenda-amarelo {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 7px;
+  border-radius: 6px;
+  background: var(--amarelo-bg);
+  border: 1px solid var(--amarelo-borda);
+  color: var(--amarelo-txt);
+  font-size: 10.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Planilha de dados: colunas do tamanho do conteúdo, títulos quebram em duas linhas */
+.grade-ficha {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 12.5px;
+}
+.grade-ficha th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: left;
+  vertical-align: bottom;
+  padding: 6px 5px;
+  min-width: 52px;
+  max-width: 116px;
+  white-space: normal;
+  border-bottom: 1px solid var(--border);
+}
+.grade-ficha th.th-num {
+  text-align: right;
+}
+.grade-ficha th.col-obrig {
+  color: var(--text);
+}
+.grade-ficha th .grupo {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 9px;
+  font-weight: 500;
+  opacity: 0.75;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+.grade-ficha td {
+  padding: 2px 2px;
+  border-bottom: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
+  vertical-align: middle;
+}
+.grade-ficha tbody td {
+  background: var(--surface);
+}
+.grade-ficha tbody tr:nth-child(even) td {
+  background: color-mix(in oklab, var(--surface-2) 45%, var(--surface));
+}
+.grade-ficha tbody tr:hover td {
+  background: color-mix(in oklab, var(--brand) 6%, var(--surface));
+}
+.grade-ficha tr.inativo td {
+  opacity: 0.5;
+}
+.grade-ficha tbody tr.a-atualizar td,
+.grade-ficha tbody tr.a-atualizar:hover td {
+  background: var(--amarelo-bg);
+}
+.grade-ficha tbody tr.a-atualizar td.fixa {
+  box-shadow: inset 4px 0 0 var(--amarelo-borda);
+}
+.grade-ficha .fixa {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--surface);
+}
+.grade-ficha th.fixa {
+  z-index: 3;
+  background: var(--surface-2);
+}
+.grade-ficha .cel {
+  field-sizing: content;
+  min-width: 4ch;
+  max-width: 220px;
+  height: 28px;
+  padding: 0 6px;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  font-size: 12.5px;
+  outline: none;
+}
+.grade-ficha select.cel {
+  padding-right: 2px;
+  cursor: pointer;
+}
+.grade-ficha .cel.cel-longa {
+  min-width: 12ch;
+}
+.grade-ficha .cel.cel-data {
+  width: 118px;
+}
+.grade-ficha .cel:hover {
+  border-color: var(--border);
+}
+.grade-ficha .cel:focus {
+  border-color: var(--brand);
+  background: var(--campo);
+  box-shadow: 0 0 0 2px rgba(58, 184, 30, 0.15);
+}
+.grade-ficha .cel.falta {
+  border: 1px dashed var(--vermelho);
+  background: color-mix(in oklab, var(--vermelho) 7%, transparent);
+}
+.grade-ficha .cel.falta::placeholder {
+  color: var(--vermelho);
+  opacity: 0.8;
+}
+.grade-ficha .cel.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.grade-ficha .unit {
+  text-align: right;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  padding-right: 8px;
+  padding-left: 8px;
+}
+.grade-ficha .suspeito {
+  color: var(--vermelho);
+}
+.btn-atualizar {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 6px;
+  background: var(--amarelo-borda);
+  color: #3b2c00;
+  font-size: 10.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.btn-atualizar:hover {
+  filter: brightness(1.05);
+}
+/* Navegadores sem field-sizing: larguras fixas pequenas por tipo */
+@supports not (field-sizing: content) {
+  .grade-ficha .cel {
+    width: 110px;
+  }
+  .grade-ficha .cel.num {
+    width: 96px;
+  }
+  .grade-ficha .cel.cel-longa {
+    width: 190px;
+  }
+}
+
+.linha-amostra {
+  transition:
+    border-color 0.12s,
+    box-shadow 0.12s;
+}
+.linha-amostra:hover {
+  border-color: color-mix(in oklab, var(--brand) 45%, var(--border));
+  box-shadow: var(--anel);
+}
+
+/* Colunas: arrastar o título para reordenar, "+" para adicionar */
+.grade-ficha th.th-var {
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+.grade-ficha th.th-var:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: -2px;
+}
+.grade-ficha th .pega {
+  float: right;
+  margin-left: 2px;
+  opacity: 0;
+  color: var(--muted);
+  transition: opacity 0.12s;
+}
+.grade-ficha th.th-var:hover .pega {
+  opacity: 0.8;
+}
+.grade-ficha th.arrastando {
+  opacity: 0.45;
+  cursor: grabbing;
+}
+.grade-ficha th.alvo-antes {
+  box-shadow: inset 3px 0 0 var(--brand);
+}
+.grade-ficha th.alvo-depois {
+  box-shadow: inset -3px 0 0 var(--brand);
+}
+.grade-ficha th.th-mais {
+  min-width: 0;
+  width: 34px;
+  padding: 4px 3px;
+  vertical-align: middle;
+}
+.grade-ficha .btn-mais {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  border: 1px dashed color-mix(in oklab, var(--brand) 60%, var(--border));
+  color: var(--verde-valor);
+  background: var(--surface);
+  transition:
+    background 0.12s,
+    border-color 0.12s;
+}
+.grade-ficha .btn-mais:hover {
+  background: var(--brand-soft);
+  border-style: solid;
+}
+
+/* "+ Personalizada" em cada grupo */
+.var-pilula.var-nova {
+  border-style: dashed;
+  color: var(--verde-valor);
+}
+.var-pilula.var-nova[aria-pressed='true'] {
+  border-style: solid;
+}
+
+/* Lista por cidade: um card por cidade, com as amostragens em cards */
+.card-cidade {
+  padding: 0;
+  overflow: hidden;
+}
+.cab-cidade {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  color: var(--text);
+  text-align: left;
+  background: linear-gradient(90deg, color-mix(in oklab, var(--brand) 10%, var(--surface)) 0%, var(--surface) 70%);
+  border-bottom: 1px solid var(--border);
+}
+.cab-cidade[aria-expanded='false'] {
+  border-bottom-color: transparent;
+}
+.ic-cidade {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--brand);
+  color: #fff;
+}
+.cab-cidade .seta {
+  flex-shrink: 0;
+  color: var(--muted, currentColor);
+  transition: transform 0.15s;
+}
+.cab-cidade[aria-expanded='false'] .seta {
+  transform: rotate(-90deg);
+}
+.pilula-tipo,
+.pilula-total {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px 0 4px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 13px;
+  font-weight: 500;
+}
+.pilula-tipo .icone-tipo {
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+}
+.pilula-total {
+  padding: 0 12px;
+  background: var(--brand-soft);
+  border-color: transparent;
+  color: var(--verde-valor);
+  font-weight: 600;
+}
+.grade-amostras {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 12px;
+  padding: 16px 18px 18px;
+}
+.card-amostra {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  text-align: left;
+  transition: border-color 0.12s, box-shadow 0.12s, transform 0.12s;
+}
+.card-amostra:hover {
+  border-color: color-mix(in oklab, var(--brand) 50%, var(--border));
+  box-shadow: var(--anel);
+  transform: translateY(-1px);
+}
+.card-amostra .icone-tipo {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+}
+.barra-uso {
+  width: 150px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.barra-uso span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--brand);
+}
+.pilula-cidade,
+.pilula-os {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 500;
+}
+.pilula-cidade {
+  background: var(--brand-soft);
+  color: var(--verde-valor);
+}
+
+/* Compor amostragem */
+.resumo-compor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  padding: 8px 12px;
+  border-radius: 11px;
+  background: var(--brand-soft);
+  font-size: 13px;
+}
+
+/* Assistente didático */
+.barra-progresso {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.barra-progresso span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--brand);
+  transition: width 0.3s ease;
+}
+.explica {
+  display: flex;
+  gap: 10px;
+  padding: 10px 13px;
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--brand) 9%, var(--surface));
+  border: 1px solid color-mix(in oklab, var(--brand) 30%, var(--border));
+}
+.explica > svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--verde-valor);
+}
+.resumo-nova {
+  position: sticky;
+  top: 0;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.dica-nova {
+  padding: 9px 11px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.dica-nova b {
+  color: var(--text);
+}
+.tipo-ficha:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+@media (prefers-reduced-motion: reduce) {
+  .barra-progresso span {
+    transition: none;
+  }
+}
+
+/* Barra de linhas no fim da planilha (para colar do Excel) */
+.barra-linhas {
+  position: sticky;
+  left: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-top: 1px dashed var(--border);
+  background: color-mix(in oklab, var(--brand) 5%, var(--surface));
+}
+
+/* Orientação da planilha (rodapé) */
+.guia-planilha {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+.guia-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 9px;
+  background: var(--surface-2);
+  font-size: 12.5px;
+  color: var(--text);
+  line-height: 1.35;
+}
+.guia-item > svg {
+  flex-shrink: 0;
+  color: var(--verde-valor);
+}
+.guia-item.guia-destaque {
+  background: var(--brand-soft);
+  border: 1px solid color-mix(in oklab, var(--brand) 45%, transparent);
+  font-size: 13px;
+}
+.guia-item kbd {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  background: var(--surface);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+}
