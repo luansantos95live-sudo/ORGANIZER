@@ -6,6 +6,9 @@
 $ErrorActionPreference = 'Stop'
 $raiz = Split-Path -Parent $PSScriptRoot
 $html = Join-Path $raiz 'dist\Fluxo_Caixa.html'
+# Com as O.S. reais (Dados\Fluxo_Caixa.html) o atalho abre essa versao.
+$comReais = Join-Path $raiz 'Dados\Fluxo_Caixa.html'
+if (Test-Path $comReais) { $html = $comReais }
 if (-not (Test-Path $html)) { Write-Host "Nao achei $html. Abra o Abrir Fluxo Caixa.cmd uma vez (ele gera o sistema) e rode este arquivo de novo."; exit 1 }
 $url = ([Uri]$html).AbsoluteUri
 
@@ -30,7 +33,7 @@ foreach ($d in $destinos) {
   $a.TargetPath = $nav
   $a.Arguments = "--app=`"$url`""
   $a.WorkingDirectory = Split-Path -Parent $nav
-  $a.IconLocation = (Join-Path $PSScriptRoot 'fluxo.ico') + ',0'
+  $a.IconLocation = (Join-Path $PSScriptRoot 'fluxo-icone-v3.ico') + ',0'
   $a.Description = 'Fluxo Caixa: O.S. da Caixa (laboratorio local)'
   $a.Save()
   $atalhos += $arq
