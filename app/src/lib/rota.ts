@@ -51,8 +51,11 @@ export function horariosEstimados(saida: string, partida: Ponto, pontos: (Ponto 
   })
 }
 
+/** Distância entre dois pontos usada para ordenar: linha reta por padrão; pelo caminho real quando há matriz (lib/trajeto). */
+export type Distancia = (a: Ponto, b: Ponto) => number
+
 /** Ordem pelo vizinho mais próximo a partir da partida ("otimizar ordem"). Paradas sem coordenada vão para o fim. */
-export function ordemOtimizada<T>(partida: Ponto, itens: T[], pontoDe: (t: T) => Ponto | undefined): T[] {
+export function ordemOtimizada<T>(partida: Ponto, itens: T[], pontoDe: (t: T) => Ponto | undefined, dist: Distancia = distanciaKm): T[] {
   const com = itens.filter((i) => pontoDe(i))
   const sem = itens.filter((i) => !pontoDe(i))
   const out: T[] = []
@@ -62,7 +65,7 @@ export function ordemOtimizada<T>(partida: Ponto, itens: T[], pontoDe: (t: T) =>
     let melhor = 0
     let dMelhor = Infinity
     resto.forEach((it, i) => {
-      const d = distanciaKm(atual, pontoDe(it)!)
+      const d = dist(atual, pontoDe(it)!)
       if (d < dMelhor) { dMelhor = d; melhor = i }
     })
     const [esc] = resto.splice(melhor, 1)
@@ -71,6 +74,83 @@ export function ordemOtimizada<T>(partida: Ponto, itens: T[], pontoDe: (t: T) =>
   }
   return [...out, ...sem]
 }
+
+/**
+ * Ordem por bairro e proximidade (pedido do usuário em 06/11): agrupa as paradas por bairro; os bairros entram na
+ * ordem do mais perto do ponto atual (começando na partida), e dentro do bairro vai sempre à parada mais próxima.
+ * Assim a rota não fica pulando de um bairro para outro. Paradas sem coordenada vão para o fim.
+ */
+export function ordemPorBairro<T>(partida: Ponto, itens: T[], pontoDe: (t: T) => Ponto | undefined, bairroDe: (t: T) => string, dist: Distancia = distanciaKm): T[] {
+  const com = itens.filter((i) => pontoDe(i))
+  const sem = itens.filter((i) => !pontoDe(i))
+  const grupos = new Map<string, T[]>()
+  for (const it of com) {
+    const b = (bairroDe(it) || '').trim().toUpperCase()
+    grupos.set(b, [...(grupos.get(b) ?? []), it])
+  }
+  const out: T[] = []
+  let atual = partida
+  const restantes = [...grupos.values()]
+  while (restantes.length) {
+    // o próximo bairro é o que tem a parada mais perto de onde estamos
+    let melhor = 0
+    let dMelhor = Infinity
+    restantes.forEach((g, i) => {
+      for (const it of g) {
+        const d = dist(atual, pontoDe(it)!)
+        if (d < dMelhor) { dMelhor = d; melhor = i }
+      }
+    })
+    const [grupo] = restantes.splice(melhor, 1)
+    const ordenado = ordemOtimizada(atual, grupo, pontoDe, dist)
+    out.push(...ordenado)
+    atual = pontoDe(ordenado[ordenado.length - 1])!
+  }
+  return [...out, ...sem]
+}
+
+/** Link do Google Maps com a rota inteira (partida → paradas → volta), para abrir ou copiar para o celular. */
+export function linkGoogleMaps(partida: Ponto, destinos: string[], voltar = true) {
+  const origem = `${partida.lat},${partida.lng}`
+  if (!destinos.length) return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(origem)}`
+  const ultimo = voltar ? origem : destinos[destinos.length - 1]
+  const meio = voltar ? destinos : destinos.slice(0, -1)
+  let url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origem)}&destination=${encodeURIComponent(ultimo)}&travelmode=driving`
+  if (meio.length) url += `&waypoints=${encodeURIComponent(meio.join('|'))}`
+  return url
+}
+
+/**
+ * A rota completa no Google Maps aceita no máximo 9 paradas intermediárias por link. Com mais, divide em partes:
+ * cada parte começa onde a anterior terminou e a última volta à partida.
+ */
+export function linksGoogleMaps(partida: Ponto, destinos: string[], maxPorParte = 9): string[] {
+  if (destinos.length <= maxPorParte) return [linkGoogleMaps(partida, destinos)]
+  const partes: string[] = []
+  const origem = `${partida.lat},${partida.lng}`
+  let de = origem
+  for (let i = 0; i < destinos.length; i += maxPorParte) {
+    const trecho = destinos.slice(i, i + maxPorParte)
+    const ultima = i + maxPorParte >= destinos.length
+    const destino = ultima ? origem : trecho[trecho.length - 1]
+    const meio = ultima ? trecho : trecho.slice(0, -1)
+    let url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(de)}&destination=${encodeURIComponent(destino)}&travelmode=driving`
+    if (meio.length) url += `&waypoints=${encodeURIComponent(meio.join('|'))}`
+    partes.push(url)
+    de = trecho[trecho.length - 1]
+  }
+  return partes
+}
+
+/** Roteiro da rota em texto, para colar no WhatsApp: paradas na ordem com hora e endereço, e o link do Maps no fim. */
+export function textoRoteiro(cabecalho: string, paradas: { hora: string; nome: string; endereco: string }[], links: string[]) {
+  const linhas = paradas.map((p, i) => `${i + 1}. ${p.hora} · ${p.nome}\n   ${p.endereco}`)
+  const mapas = links.length === 1 ? `Google Maps: ${links[0]}` : links.map((l, i) => `Google Maps (parte ${i + 1}): ${l}`).join('\n')
+  return `${cabecalho}\n\n${linhas.join('\n')}\n\n${mapas}`
+}
+
+/** Link do Waze para um destino (o Waze só navega para um ponto por vez). */
+export const linkWaze = (p: Ponto) => `https://waze.com/ul?ll=${p.lat},${p.lng}&navigate=yes`
 
 /** Ponto dentro de um polígono (laço do roteirizador), pelo método do raio. */
 export function dentroDoPoligono(p: { x: number; y: number }, poligono: { x: number; y: number }[]) {
@@ -91,6 +171,9 @@ export const rotaAtiva = (r: Rota) => r.status === 'rascunho' || r.status === 'c
 export function elegivelParaRota(o: OS, rotas: Rota[], rotaAtualId?: string) {
   if (o.status !== 'recebida' && o.status !== 'em_andamento') return false
   if (TIPOLOGIAS_SEM_VISTORIA.includes(o.tipologia)) return false
+  // vistoria já feita (marcada como feita ou o passo "Fazer vistoria" marcado) não volta para a rota (corrigido em 12/11)
+  const passo = o.passos?.fazer_vistoria
+  if (o.vistoria?.feita || (passo && passo !== 'pulado' && passo !== 'desfeito')) return false
   return !rotas.some((r) => r.id !== rotaAtualId && rotaAtiva(r) && r.paradas.some((p) => p.osId === o.id))
 }
 
@@ -126,4 +209,34 @@ export function sugestaoDeViagem(lista: OS[], cidadeBase: string, rotas: Rota[] 
   }
   const melhor = [...porCidade.entries()].sort((a, b) => b[1].length - a[1].length)[0]
   return melhor && melhor[1].length >= 2 ? { cidade: melhor[0], os: melhor[1] } : null
+}
+
+/**
+ * Rota concluída = vistorias feitas (pedido de 13/11: depois de concluir a rota, as O.S. dela não ficam mais disponíveis
+ * para outra rota). Marca a vistoria como feita no dia da rota, na hora combinada, e os passos "Marcar vistoria" e
+ * "Fazer vistoria"; Recebida passa para Em Andamento. O.S. fechada ou já com a vistoria feita: nada muda (null).
+ */
+export function vistoriaFeitaPelaRota(o: OS, r: Pick<Rota, 'data' | 'hora'>, hora?: string): Partial<OS> | null {
+  if (o.status === 'concluida' || o.status === 'cancelada') return null
+  const passo = o.passos?.fazer_vistoria
+  const passoFeito = !!passo && passo !== 'pulado' && passo !== 'desfeito'
+  if (o.vistoria?.feita && passoFeito) return null
+  return {
+    status: o.status === 'recebida' ? 'em_andamento' : o.status,
+    vistoria: { data: o.vistoria?.data ?? r.data, hora: hora ?? o.vistoria?.hora ?? r.hora, duracao: o.vistoria?.duracao ?? 40, feita: true },
+    passos: { ...(o.passos ?? {}), marcar_vistoria: o.passos?.marcar_vistoria ?? r.data, fazer_vistoria: passoFeito ? passo : r.data },
+  }
+}
+
+/** Aplica `vistoriaFeitaPelaRota` às O.S. de todas as rotas concluídas (rotas concluídas antes desta regra). */
+export function vistoriasDasRotasConcluidas(os: OS[], rotas: Rota[]): OS[] {
+  const feitas = new Map<string, Partial<OS>>()
+  for (const r of rotas.filter((x) => x.status === 'concluida')) {
+    for (const p of r.paradas) {
+      const o = os.find((x) => x.id === p.osId)
+      const patch = o && vistoriaFeitaPelaRota(o, r, p.hora)
+      if (patch) feitas.set(o.id, patch)
+    }
+  }
+  return feitas.size ? os.map((o) => (feitas.has(o.id) ? { ...o, ...feitas.get(o.id) } : o)) : os
 }

@@ -218,6 +218,9 @@ export function alertas(lista: OS[], hoje = new Date()): Alerta[] {
       else if (falta <= 7) r.push({ nivel: 'atencao', os: o, ordem: 2 + falta / 10, texto: `PEPT da ${nome(o)} aberta há ${d} dias. ${falta === 1 ? 'Falta 1 dia' : `Faltam ${falta} dias`} para o prazo do COT (${LIMITE_PEPT} dias).` })
       continue
     }
+    // PEPT resolvida pelo cliente (e-mail da Caixa ou à mão), esperando você conferir: validar e finalizar ou reabrir.
+    const analise = peptAberta(o)
+    if (analise?.resolvidaEm) r.push({ nivel: 'atencao', os: o, ordem: 1.5, texto: `PEPT da ${nome(o)} resolvida pelo cliente em ${analise.resolvidaEm.split('-').reverse().slice(0, 2).join('/')}${analise.resolucao === 'email' ? ' (e-mail da Caixa)' : ''}: confira e valide ou reabra.` })
     const dp = differenceInCalendarDays(parseISO(prazoAtual(o, hoje)), hoje)
     if (dp < 0) r.push({ nivel: 'critico', os: o, ordem: 0 + dp / 1000, texto: `${nome(o)} venceu há ${-dp} ${dp === -1 ? 'dia' : 'dias'}.` })
     else if (dp <= 3) r.push({ nivel: 'atencao', os: o, ordem: 2 + dp / 10, texto: dp === 0 ? `${nome(o)} vence hoje.` : `${dp === 1 ? 'Falta 1 dia' : `Faltam ${dp} dias`} para a ${nome(o)} vencer.` })

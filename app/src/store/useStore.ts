@@ -2,14 +2,14 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { format } from 'date-fns'
 import type { Config, Escopo, OS, Origem, PassoKey, Responsavel, Rota, Status, Pept, TipoContato, TipoPept } from '../types'
-import { CONFIG_PADRAO, gerarSeed } from '../data/seed'
-import { ehDaCaixa, emailPeptResolvida, refPeptResolvida, emailSimulado, emailsExemplo, type Email } from '../lib/emails'
-import { lerSiopiTxt } from '../lib/siopi'
-import { STATUS_META, corrigirPrazoAntigo, migrarOS, montarOS, type NovaOSInput } from '../lib/os'
+import { CONFIG_PADRAO, exemploParaAriquemes, gerarSeed } from '../data/seed'
+import { emailInterage, desdeParaSincronizar, ehDaCaixa, emailPeptResolvida, refPeptResolvida, emailSimulado, emailsExemplo, lerArquivoCaixaDeEntrada, lerRespostaPonte, mesclarEmails, urlPonteGmail, type Email } from '../lib/emails'
+import { separarDocumento, lerSiopiTxt } from '../lib/siopi'
+import { poloDe, STATUS_META, corrigirPrazoAntigo, migrarOS, montarOS, type NovaOSInput } from '../lib/os'
 import { ETAPA_DO_PASSO, PASSO_LABEL, voltarParaPasso } from '../lib/passos'
-import { novoCodigoRota } from '../lib/rota'
+import { novoCodigoRota, vistoriaFeitaPelaRota, vistoriasDasRotasConcluidas } from '../lib/rota'
 import { completarColunas } from '../lib/kanban'
-import { ORIGEM_RESOLUCAO, TIPO_PEPT, abrirPept, editarDatasPeptNaOS, editarPeptNaOS, encerrarPeptNaOS, etapaAoFinalizarPept, peptAberta, reabrirPeptNaOS, resolverPeptNaOS } from '../lib/pept'
+import { ORIGEM_RESOLUCAO, TIPO_PEPT, abrirPept, editarDatasPeptNaOS, editarPeptNaOS, encerrarPeptNaOS, etapaAoFinalizarPept, peptAberta, podeConcluir, reabrirPeptNaOS, resolverPeptNaOS } from '../lib/pept'
 
 export interface Fechamento { extratoTotal?: number; extratoQtd?: number; dataRelatorio?: string; valorNF?: number }
 
@@ -28,6 +28,11 @@ interface State {
   marcarEmailLido: (id: string, lido?: boolean) => void
   marcarTodosEmailsLidos: () => void
   importarDoEmail: (id: string) => { ok: boolean; texto: string }
+  importarEmails: (json: string) => { ok: boolean; texto: string } // arquivo emails.json da Caixa de entrada (ponte Claude → sistema)
+  gmailUltimaSinc?: string // ISO da última sincronização com o script do Gmail
+  gmailUltimoErro?: string
+  sincronizarGmail: (fetchFn?: typeof fetch) => Promise<{ ok: boolean; texto: string }> // busca no script do Gmail (Configurações › Gmail)
+  receberEmails: (lista: Email[], criarOs: boolean) => { ok: boolean; texto: string; novos: number; criadas: number }
   simularEmail: () => void
   simularPeptResolvida: () => string
   aplicarPeptsResolvidas: () => void
@@ -66,6 +71,14 @@ interface State {
   marcarNotificacoesLidas: (ids: string[]) => void
   // config
   setConfig: (patch: Partial<Config>) => void
+  // Pasta de dados no OneDrive (10/11): nome da pasta lembrada e quando este navegador gravou por último; aviso para a tela
+  pastaDados?: { nome: string; salvoEm?: string }
+  pastaAviso?: { tipo: 'permissao' | 'erro' | 'ok' | 'gravando'; texto: string }
+  setPasta: (p: { pastaDados?: State['pastaDados']; pastaAviso?: State['pastaAviso'] }) => void
+  // pasta das O.S. no OneDrive (12/11): '1 - ORDENS DE SERVIÇO', onde o sistema cria a pasta de cada O.S. nova
+  pastaOS?: { nome: string }
+  pastaOSAviso?: { tipo: 'permissao' | 'erro' | 'ok'; texto: string }
+  setPastaOS: (p: { pastaOS?: State['pastaOS']; pastaOSAviso?: State['pastaOSAviso'] }) => void
   resetarDados: () => void
   restaurarDados: (d: { os: OS[]; rotas: Rota[]; config: Partial<Config>; fechamentos: Record<string, Fechamento> }) => void
 }
@@ -86,6 +99,53 @@ export const useStore = create<State>()(
       marcarEmailLido: (id, lido = true) => set((s) => ({ emails: s.emails.map((e) => (e.id === id ? { ...e, lido } : e)) })),
       marcarTodosEmailsLidos: () => set((s) => ({ emails: s.emails.map((e) => ({ ...e, lido: true })) })),
       simularEmail: () => set((s) => ({ emails: [emailSimulado(s.emails.length + 1), ...s.emails] })),
+      // Importar e-mails (10/11): o Claude lê o Gmail e salva emails.json na pasta "Caixa de entrada"; aqui entra no sistema.
+      importarEmails: (json) => {
+        const r = lerArquivoCaixaDeEntrada(json)
+        if (r.erro) return { ok: false, texto: r.erro }
+        return get().receberEmails(r.emails, false)
+      },
+      // junta e-mails recebidos (arquivo ou script), aplica as PEPTs e, se pedido, cria as O.S. dos .txt novos
+      receberEmails: (lista, criarOs) => {
+        const atuais = new Set(get().emails.map((e) => e.id))
+        const m = mesclarEmails(get().emails, lista)
+        set({ emails: m.emails })
+        get().aplicarPeptsResolvidas()
+        let criadas = 0
+        if (criarOs) {
+          const novosIds = new Set(m.emails.filter((e) => !atuais.has(e.id)).map((e) => e.id))
+          const { ativoDesde, polos } = get().config.gmail
+          for (const e of m.emails.filter((x) => novosIds.has(x.id) && x.anexo && !x.importadaId && ehDaCaixa(x.de) && emailInterage(x, ativoDesde))) {
+            // O.S. de outro polo: o sistema ignora (o e-mail fica na caixa de entrada)
+            const cidade = lerSiopiTxt(e.anexo!.texto).endereco.cidade
+            if (polos?.length && !polos.includes(poloDe(cidade))) continue
+            if (get().importarDoEmail(e.id).ok) criadas++
+          }
+        }
+        const daCaixa = lista.filter((e) => ehDaCaixa(e.de)).length
+        const texto = m.novos === 0
+          ? `Nenhum e-mail novo (${lista.length === 1 ? 'o 1 encontrado já estava' : `os ${lista.length} encontrados já estavam`} aqui).`
+          : `${m.novos} ${m.novos === 1 ? 'e-mail novo' : 'e-mails novos'} na caixa de entrada${criadas ? ` · ${criadas} ${criadas === 1 ? 'O.S. criada' : 'O.S. criadas'}` : ''}${daCaixa < lista.length ? ` (${lista.length - daCaixa} de fora da Caixa ficam escondidos)` : ''}.`
+        return { ok: true, texto, novos: m.novos, criadas }
+      },
+      // Ligação com o Gmail (10/11): busca no Google Apps Script publicado (Configurações › Gmail) e entra no sistema sozinho.
+      sincronizarGmail: async (fetchFn = fetch) => {
+        const { url, token, criarOs } = get().config.gmail
+        if (!url.trim()) return { ok: false, texto: 'Ligação com o Gmail não configurada (Configurações › Gmail).' }
+        try {
+          const resp = await fetchFn(urlPonteGmail(url, token, desdeParaSincronizar(get().gmailUltimaSinc)), { redirect: 'follow' })
+          if (!resp.ok) throw new Error(`o script respondeu ${resp.status}`)
+          const r = lerRespostaPonte(await resp.text())
+          if (r.erro) throw new Error(r.erro)
+          const res = get().receberEmails(r.emails, criarOs)
+          set({ gmailUltimaSinc: new Date().toISOString(), gmailUltimoErro: undefined })
+          return { ok: true, texto: res.texto }
+        } catch (e) {
+          const texto = `Não consegui falar com o script do Gmail: ${e instanceof Error ? e.message : String(e)}`
+          set({ gmailUltimoErro: texto })
+          return { ok: false, texto }
+        }
+      },
       simularPeptResolvida: () => {
         const o = get().os.find((x) => x.pausadoEm && x.status !== 'concluida' && x.status !== 'cancelada')
         if (!o) return 'Nenhuma O.S. em PEPT para simular.'
@@ -96,7 +156,7 @@ export const useStore = create<State>()(
       // A Caixa avisa por e-mail que a PEPT foi resolvida: a O.S. sai da pausa no dia do e-mail e o prazo volta a contar.
       aplicarPeptsResolvidas: () => {
         for (const e of get().emails) {
-          if (e.peptOsId || !ehDaCaixa(e.de)) continue
+          if (e.peptOsId || !ehDaCaixa(e.de) || !emailInterage(e, get().config.gmail.ativoDesde)) continue
           const ref = refPeptResolvida(e)
           if (!ref) continue
           const o = get().os.find((x) => x.referencia === ref)
@@ -112,14 +172,14 @@ export const useStore = create<State>()(
         const r = lerSiopiTxt(e.anexo.texto, get().config.prazoPadraoDias)
         if (!r.referencia) return { ok: false, texto: 'Não achei a referência da O.S. no anexo.' }
         const ja = get().os.find((o) => o.referencia === r.referencia)
-        if (ja) { set((s) => ({ emails: s.emails.map((x) => (x.id === id ? { ...x, importadaId: ja.id, lido: true } : x)) })); return { ok: true, texto: `Esta O.S. já estava no sistema (OS-${ja.numero}).` } }
+        if (ja) { set((s) => ({ emails: s.emails.map((x) => (x.id === id ? { ...x, importadaId: ja.id } : x)) })); return { ok: true, texto: `Esta O.S. já estava no sistema (OS-${ja.numero}).` } }
         get().importarOS([{
-          referencia: r.referencia, tipologia: r.tipologia, responsavel: 'luan', proponente: (r.proponente || r.contato || 'SEM NOME').toUpperCase(), documento: r.documento,
+          txtOriginal: e.anexo.texto, nova: true, referencia: r.referencia, tipologia: r.tipologia, responsavel: 'luan', proponente: (r.proponente || r.contato || 'SEM NOME').toUpperCase(), documento: r.documento,
           contato: (r.contato || r.proponente).toUpperCase(), telefone: r.telefone, endereco: r.endereco, matricula: r.matricula, valorServico: r.valorServico,
           valorDeslocamento: r.valorDeslocamento, emissao: r.emissao, prazo: r.prazo, descricao: r.descricao, importacao: r.importacao, status: 'recebida',
         }], 'email')
         const nova = get().os.find((o) => o.referencia === r.referencia)
-        set((s) => ({ emails: s.emails.map((x) => (x.id === id ? { ...x, importadaId: nova?.id, lido: true } : x)) }))
+        set((s) => ({ emails: s.emails.map((x) => (x.id === id ? { ...x, importadaId: nova?.id } : x)) }))
         return { ok: true, texto: `O.S. importada${nova ? ` (OS-${nova.numero})` : ''}.` }
       },
 
@@ -128,7 +188,7 @@ export const useStore = create<State>()(
       criarOS: (input, evento = 'O.S. criada manualmente') => {
         const s = get()
         const id = `os-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
-        const numero = s.os.reduce((m, o) => Math.max(m, o.numero), 0) + 1
+        const numero = s.os.filter((o) => o.responsavel === input.responsavel).reduce((m, o) => Math.max(m, o.numero), 0) + 1
         set({ os: [montarOS(input, id, numero, evento), ...s.os] })
         return id
       },
@@ -136,15 +196,17 @@ export const useStore = create<State>()(
       importarOS: (inputs, origem) => {
         const s = get()
         const existentes = new Set(s.os.map((o) => o.referencia))
-        let numero = s.os.reduce((m, o) => Math.max(m, o.numero), 0)
+        // numeração própria de cada técnico, como nas pastas do OneDrive (12/11)
+        const ultimo: Record<string, number> = {}
+        for (const o of s.os) ultimo[o.responsavel] = Math.max(ultimo[o.responsavel] ?? 0, o.numero)
         const novas: OS[] = []
         let ignoradas = 0
         const evento = origem === 'email' ? 'Importada automaticamente do e-mail da Caixa' : origem === 'texto' ? 'Importada colando o conteúdo do .txt da Caixa' : 'Importada do arquivo .txt da Caixa'
         for (const inp of inputs) {
           if (!inp.referencia || existentes.has(inp.referencia)) { ignoradas++; continue }
           existentes.add(inp.referencia)
-          numero++
-          novas.push(montarOS({ ...inp, origem }, `os-${Date.now().toString(36)}-${numero}`, numero, evento))
+          const numero = (ultimo[inp.responsavel] = (ultimo[inp.responsavel] ?? 0) + 1)
+          novas.push(montarOS({ ...inp, origem }, `os-${Date.now().toString(36)}-${inp.responsavel}-${numero}`, numero, evento))
         }
         if (novas.length) set({ os: [...novas, ...s.os] })
         return { criadas: novas.length, ignoradas }
@@ -168,12 +230,12 @@ export const useStore = create<State>()(
       mudarStatus: (id, status, evento) => {
         const o = get().os.find((x) => x.id === id)
         if (!o || o.status === status) return
+        // Não conclui com PEPT em aberto: primeiro valide (finalize) ou reabra (pedido de 12/11).
+        if (status === 'concluida' && !podeConcluir(o)) return
         const patch: Partial<OS> = { status }
         if (status === 'concluida') {
           patch.concluidaEm = hojeISO()
           patch.entregaEm = o.entregaEm ?? hojeISO()
-          // Concluir encerra a PEPT em aberto (fica no registro como encerrada pela conclusão).
-          if (peptAberta(o)) Object.assign(patch, encerrarPeptNaOS(o, hojeISO(), 'conclusao'))
         } else {
           patch.concluidaEm = undefined
           if (o.status === 'concluida') patch.faturada = false
@@ -338,7 +400,15 @@ export const useStore = create<State>()(
             if (o && o.status !== 'concluida' && o.status !== 'cancelada') s.agendar(o.id, r.data, p.hora ?? o.vistoria?.hora ?? r.hora)
           })
           s.atualizarRota(id, { status: 'confirmada' })
-        } else if (r.status === 'confirmada') s.atualizarRota(id, { status: 'concluida' })
+        } else if (r.status === 'confirmada') {
+          // Concluir a rota = vistorias feitas: as O.S. dela não voltam para outra rota (13/11)
+          r.paradas.forEach((p) => {
+            const o = get().os.find((x) => x.id === p.osId)
+            const patch = o && vistoriaFeitaPelaRota(o, r, p.hora)
+            if (patch) get().atualizarOS(o.id, patch, `Vistoria feita na rota ${r.codigo}`)
+          })
+          s.atualizarRota(id, { status: 'concluida' })
+        }
       },
 
       cancelarRota: (id) => get().atualizarRota(id, { status: 'cancelada' }),
@@ -351,12 +421,16 @@ export const useStore = create<State>()(
 
       setConfig: (patch) => set((s) => ({ config: { ...s.config, ...patch } })),
 
+      setPastaOS: (p) => set((s) => ({ pastaOS: 'pastaOS' in p ? p.pastaOS : s.pastaOS, pastaOSAviso: 'pastaOSAviso' in p ? p.pastaOSAviso : s.pastaOSAviso })),
+      setPasta: (p) => set((s) => ({ pastaDados: 'pastaDados' in p ? p.pastaDados : s.pastaDados, pastaAviso: 'pastaAviso' in p ? p.pastaAviso : s.pastaAviso })),
+
       restaurarDados: (d) =>
         set((s) => ({
           os: d.os.map((o) => migrarOS(o as unknown as Record<string, unknown>)),
           rotas: d.rotas,
           fechamentos: d.fechamentos,
-          config: mesclarConfig(d.config),
+          // Backup sem configurações (ex.: só as O.S. importadas das pastas): mantém as configurações deste navegador.
+          config: Object.keys(d.config ?? {}).length ? mesclarConfig(d.config) : s.config,
           escopo: s.escopo,
         })),
 
@@ -373,8 +447,15 @@ export const useStore = create<State>()(
         const p = (persisted ?? {}) as Partial<State>
         // O.S. salvas antes do registro de contato ganham o campo vazio; a etapa "devolvida" (que saiu) vira concluída.
         // O.S. de exemplo antigas com o prazo de 15 dias para todas as tipologias passam a usar o prazo da tipologia.
-        const os = p.os?.map((o) => corrigirPrazoAntigo({ ...o, contatos: o.contatos ?? [], status: (o.status as string) === 'devolvida' ? 'concluida' as const : o.status }))
-        return { ...current, ...p, ...(os ? { os } : {}), emails: p.emails ? p.emails.map((e) => (e.id === 'em-5' && /^Aviso: PEPT/.test(e.assunto) ? current.emails.find((x) => x.id === 'em-5') ?? e : e)) : current.emails, config: mesclarConfig(p.config ?? {}) }
+        // O.S. de exemplo salvas com outras cidades passam para Ariquemes (uma por bairro), e a rota de exemplo do RT sai da base.
+        // Nome do cliente salvo com o CPF na frente ("000.000.000-00 - NOME"): fica só o nome; o CPF vai para o documento.
+        const os = p.os?.map((o) => semDocumentoNoNome(exemploParaAriquemes(corrigirPrazoAntigo({ ...o, contatos: o.contatos ?? [], status: (o.status as string) === 'devolvida' ? 'concluida' as const : o.status }))))
+        const rotas = p.rotas?.map((r) => (r.id === 'rota-2' && r.partida.endereco.includes('Ji-Paran') ? { ...r, partida: { ...CONFIG_PADRAO.base }, descricao: 'Vistorias de amanhã' } : r))
+          // rota confirmada antes de existir a confirmação por cliente: as paradas contam como agendadas e confirmadas
+          .map((r) => (r.status === 'confirmada' || r.status === 'concluida' ? { ...r, paradas: r.paradas.map((x) => ({ ...x, avisado: x.avisado ?? true, confirmado: x.confirmado ?? true })) } : r))
+        // rotas concluídas antes da regra de 13/11: as O.S. delas ficam com a vistoria feita (saem do planejador)
+        const osFinal = os && rotas ? vistoriasDasRotasConcluidas(os, rotas) : os
+        return { ...current, ...p, ...(osFinal ? { os: osFinal } : {}), ...(rotas ? { rotas } : {}), emails: p.emails ? p.emails.map((e) => (e.id === 'em-5' && /^Aviso: PEPT/.test(e.assunto) ? current.emails.find((x) => x.id === 'em-5') ?? e : e)) : current.emails, config: mesclarConfig(p.config ?? {}) }
       },
     },
   ),
@@ -393,10 +474,18 @@ function mesclarConfig(c: Partial<Config>): Config {
     kanban: completarColunas(c.kanban),
     contrato: { ...CONFIG_PADRAO.contrato, ...(c.contrato ?? {}) },
     empresa: { ...CONFIG_PADRAO.empresa, ...(c.empresa ?? {}) },
+    gmail: { ...CONFIG_PADRAO.gmail, ...(c.gmail ?? {}) },
   }
 }
 
 /** O.S. visíveis no escopo atual. */
 export function filtrarEscopo(os: OS[], escopo: Escopo) {
   return escopo === 'todas' ? os : os.filter((o) => o.responsavel === escopo)
+}
+
+/** Tira o CPF/CNPJ da frente do nome do cliente e do contato (O.S. importadas antes de 12/11/2026). */
+function semDocumentoNoNome<T extends { proponente: string; contato: string; documento?: string }>(o: T): T {
+  const p = separarDocumento(o.proponente ?? ''), c = separarDocumento(o.contato ?? '')
+  if (!p.documento && !c.documento) return o
+  return { ...o, proponente: p.nome, contato: c.nome, documento: o.documento || p.documento || c.documento }
 }

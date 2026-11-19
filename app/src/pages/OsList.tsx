@@ -12,7 +12,8 @@ import { FarolChip, FiltroPeriodo, Modal, MultiSelect, StatusChip, TipologiaChip
 import { DetalheOS } from './OsDetail'
 import { intervalo, noPeriodoComPendencias, valorTotal, type Periodo } from '../lib/faturamento'
 import { PEPT_LIMITE, prazoIndeterminado, POLOS, TIPOLOGIA_ORDEM, brl, codigoOS, dataMedia, farolDe, poloDe, prazoAtual, pausaValida, temCoordenada } from '../lib/os'
-import { FASES, PASSOS, PASSO_LABEL, corPrazo, estadoPassos, faseDe, passosDaOS, proximoPasso, type Fase } from '../lib/passos'
+import { naoFinalizada, FASES, PASSOS, PASSO_LABEL, corPrazo, estadoPassos, faseDe, passosDaOS, proximoPasso, type Fase } from '../lib/passos'
+import { podeConcluir } from '../lib/pept'
 import { CORES_COLUNA, KANBAN_PADRAO, acaoAoSoltar, colunaDaOS, corColuna, tituloColuna, tituloPadrao } from '../lib/kanban'
 import { filtrarEscopo, useStore } from '../store/useStore'
 import type { KanbanColuna, OS, PassoKey, Status, Tipologia } from '../types'
@@ -87,11 +88,12 @@ export function OsList() {
   }, [base, tipologias, polos, origem, dia, ini, fim, pendencias, q, config])
   const contagem = useMemo(() => {
     const c = { todas: 0, aberto: 0, andamento: 0, pept: 0, finalizada: 0 } as Record<FiltroFase, number>
-    for (const o of filtradas) { const f = faseDe(o); c.todas++; if (f !== 'cancelada') c[f]++ }
+    // "Em aberto" conta todas as não finalizadas (16/11); andamento e PEPT continuam com a própria contagem
+    for (const o of filtradas) { const f = faseDe(o); c.todas++; if (f !== 'cancelada' && f !== 'aberto') c[f]++; if (naoFinalizada(o)) c.aberto++ }
     return c
   }, [filtradas])
   // "Todas" = as que ainda não foram finalizadas; as finalizadas ficam na aba delas.
-  const lista = fase === 'todas' ? filtradas : filtradas.filter((o) => faseDe(o) === fase)
+  const lista = fase === 'todas' ? filtradas : fase === 'aberto' ? filtradas.filter(naoFinalizada) : filtradas.filter((o) => faseDe(o) === fase)
 
   const chips: { label: string; limpar: () => void }[] = [
     ...tipologias.map((t) => ({ label: t, limpar: () => setTipologias(tipologias.filter((x) => x !== t)) })),
@@ -142,7 +144,7 @@ export function OsList() {
           <button className="btn btn-secondary" onClick={() => setConcluindo(null)}>Não</button>
           <button className="btn btn-primary" onClick={() => { if (concluindo) useStore.getState().mudarStatus(concluindo.id, 'concluida'); setConcluindo(null) }}><CircleCheck size={15} /> Concluir O.S.</button>
         </>}>
-        {concluindo && <p className="text-[13.5px]"><b>{concluindo.proponente}</b> será finalizada hoje{concluindo.pausadoEm ? ' (a PEPT em curso é encerrada)' : ''} e passa para o Financeiro como "a faturar".</p>}
+        {concluindo && <p className="text-[13.5px]"><b>{concluindo.proponente}</b> será finalizada hoje e passa para o Financeiro como "a faturar".</p>}
       </Modal>
       {abertaId && <DetalheOS id={abertaId} abaInicial={((sp.get('aba') === 'datas' ? 'vistoria' : sp.get('aba')) as 'vistoria' | null) ?? undefined} onClose={fecharDetalhe} />}
 
@@ -416,7 +418,7 @@ function Lista({ lista, cols, pagina, setPagina, abrir, editar }: { lista: OS[];
               return (
                 <tr key={o.id} onClick={() => abrir(o)} className={clsx('linha-os border-b border-border last:border-b-0 cursor-pointer', corPrazo(o) ? `prazo-${corPrazo(o)}` : 'hover:bg-[rgba(58,184,30,.05)]')}>
                   <td className="p-0 w-1"><span className="block w-1 h-9" style={{ background: f !== 'cancelada' ? COR_FASE[f] : 'var(--fraco)' }} /></td>
-                  {c('os') && <td className={clsx(td, 'font-bold whitespace-nowrap tnum')}>{codigoOS(o)}</td>}
+                  {c('os') && <td className={clsx(td, 'font-bold whitespace-nowrap tnum')}>{codigoOS(o)}{o.nova && <span className="chip chip-nova ml-1.5 !h-[18px] !text-[9.5px] !px-1.5 align-middle">NOVA</span>}</td>}
                   {c('numero') && <td className={clsx(td, 'tnum whitespace-nowrap text-muted')}>{o.referencia}</td>}
                   {c('tipologia') && <td className={td}><TipologiaChip t={o.tipologia} className="!h-[20px] !text-[10.5px] !px-1.5" /></td>}
                   {c('status') && <td className={td}><StatusChip status={o.status} className="!h-[22px] whitespace-nowrap" /></td>}
@@ -464,7 +466,7 @@ function seloKanban(o: OS): { txt: string; cls: string } | null {
     return { txt: `PEPT · ${d}d`, cls: 'bg-[var(--seg)] text-muted' }
   }
   // PEPT resolvida pelo cliente, esperando validar ou reabrir (o prazo já está contando)
-  if (faseDe(o) === 'pept') return { txt: 'PEPT · em análise', cls: 'chip-v' }
+  if (faseDe(o) === 'pept') return { txt: 'Validar', cls: 'chip-validar' } // PEPT resolvida pelo cliente: falta validar ou reabrir
   // Mesma regra de cor da lista (corPrazo): amarela com 3 dias ou menos, vermelha com 1 dia ou menos e vencida.
   const cor = corPrazo(o)
   if (cor === 'vermelho') return { txt: (farolDe(o).dias ?? 0) < 0 ? 'Vencida' : 'Urgente', cls: 'chip-r' }
@@ -532,17 +534,20 @@ function KanbanOS({ lista, colunas, abrir, concluir, soltar }: { lista: OS[]; co
                 const faixa = FAIXA_PRAZO[corPrazo(o) ?? ''] ?? 'transparent'
                 return (
                   <article key={o.id} draggable onDragStart={(e) => e.dataTransfer.setData('text/os', o.id)} onClick={() => abrir(o)}
-                    className={clsx("bloco card-kanban !rounded-[16px] relative overflow-hidden shrink-0 px-3 py-2.5 cursor-pointer active:cursor-grabbing", o.status === "concluida" ? "card-finalizada" : corPrazo(o) && `prazo-${corPrazo(o)}`)}>
+                    className={clsx("bloco card-kanban !rounded-[16px] relative overflow-hidden shrink-0 px-3 py-2.5 cursor-pointer active:cursor-grabbing", o.status === "concluida" ? "card-finalizada" : corPrazo(o) && `prazo-${corPrazo(o)}`, faseDe(o) === "pept" && !o.pausadoEm && "card-validar", o.nova && "card-nova")}>
                     <span className="absolute left-0 top-0 bottom-0 w-1" style={{ background: faixa }} />
+                    {/* O.S. criada sozinha pelo e-mail (12/11): etiqueta NOVA no topo do cartão, some ao abrir a O.S. */}
+                    {o.nova && <div className="faixa-nova -mx-3 -mt-2.5 mb-2 px-3 h-[22px] flex items-center gap-1.5 text-[10.5px] font-bold tracking-wide" title="O.S. nova, criada sozinha pelo e-mail da Caixa: clique para abrir">
+                      <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />NOVA<span className="font-medium opacity-85 tracking-normal">· chegou pelo e-mail da Caixa</span></div>}
                     <div className="flex items-center gap-2">
                       {/* número da O.S. primeiro, tipologia depois (pedido em 22/10) */}
-                      <b className="text-[13px] tnum px-2 h-[22px] inline-flex items-center rounded-md bg-[var(--surface-2)]">{codigoOS(o)}</b>
-                      <span className="w-px h-4 bg-[var(--border)]" />
-                      <TipologiaChip t={o.tipologia} className="!h-[22px] !text-[11.5px] !px-2" />
-                      <span className="ml-auto flex items-center gap-0.5">
-                        {sl && <span className={clsx('chip !h-[22px] !text-[11px] !px-2', sl.cls)}>{sl.txt}</span>}
+                      <b className="shrink-0 whitespace-nowrap text-[13px] tnum px-2 h-[22px] inline-flex items-center rounded-md bg-[var(--surface-2)]">{codigoOS(o)}</b>
+                      <span className="w-px h-4 shrink-0 bg-[var(--border)]" />
+                      <TipologiaChip t={o.tipologia} className="shrink-0 !h-[22px] !text-[11.5px] !px-2" />
+                      <span className="ml-auto min-w-0 flex items-center gap-0.5">
+                        {sl && <span className={clsx('chip min-w-0 truncate whitespace-nowrap !h-[22px] !text-[11px] !px-2', sl.cls)} title={sl.txt === 'Validar' ? 'PEPT resolvida pelo cliente: confira e valide ou reabra' : sl.txt}>{sl.txt}</span>}
                         {/* concluir a O.S. direto do cartão (pede confirmação); no lugar do menu de três pontinhos */}
-                        {o.status !== 'concluida' && o.status !== 'cancelada' && (
+                        {o.status !== 'concluida' && o.status !== 'cancelada' && podeConcluir(o) && (
                           <button type="button" className="concluir-kanban shrink-0 h-[22px] px-2 rounded-full text-[11px] font-semibold" title="Concluir O.S." aria-label={`Concluir ${codigoOS(o)}`}
                             draggable={false} onClick={(e) => { e.stopPropagation(); concluir(o) }}>Concluir</button>
                         )}

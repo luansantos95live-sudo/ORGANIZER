@@ -206,3 +206,7 @@ export function periodosDaPept(o: Pick<OS, 'pepts' | 'pausadoEm' | 'historico'>,
 export function etapaAoFinalizarPept(status: OS['status']): OS['status'] {
   return status === 'recebida' ? 'em_andamento' : status
 }
+
+/** Com PEPT em aberto (pausada ou resolvida esperando validar) a O.S. não pode ser concluída (pedido de 12/11/2026). */
+export const podeConcluir = (o: Pick<OS, 'pepts' | 'pausadoEm' | 'historico'>) => !peptAberta(o)
+export const MOTIVO_NAO_CONCLUI = 'A PEPT ainda está em aberto: valide (finalize) ou reabra a PEPT antes de concluir a O.S.'

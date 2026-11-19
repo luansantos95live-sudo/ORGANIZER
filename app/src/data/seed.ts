@@ -1,6 +1,6 @@
 import { addDays, format, subDays, subMonths } from 'date-fns'
 import type { Config, DocKey, OS, Origem, Responsavel, Rota, Status, Tipologia } from '../types'
-import { IMPORTACAO_VAZIA, POLOS, TIPOLOGIAS_COM_FICHA, TIPOLOGIAS_SEM_VISTORIA, centroDaCidade, prazoDaTipologia } from '../lib/os'
+import { IMPORTACAO_VAZIA, POLOS, TIPOLOGIAS_COM_FICHA, TIPOLOGIAS_SEM_VISTORIA, prazoDaTipologia } from '../lib/os'
 import { KANBAN_PADRAO } from '../lib/kanban'
 
 // Dados fictícios no formato do sistema real (docs/05-SISTEMA-REAL.md). Gerador determinístico: abre sempre igual.
@@ -15,17 +15,18 @@ function rng(seed: number) {
 /** Agência da Caixa que aparece no Nº da O.S. e em "Solicitante". */
 const AGENCIA: Record<string, string> = { ARIQUEMES: '1831', 'MONTE NEGRO': '1831', CACAULANDIA: '1831', 'JI-PARANA': '1823', 'OURO PRETO DO OESTE': '1823', JARU: '2976', CACOAL: '2783', 'ROLIM DE MOURA': '3564', 'PIMENTA BUENO': '2783' }
 
-const BAIRROS: Record<string, string[]> = {
-  ARIQUEMES: ['SETOR INSTITUCIONAL', 'SETOR 01', 'SETOR 02', 'JARDIM JORGE TEIXEIRA', 'BNH', 'MARECHAL RONDON', 'JARDIM PARANA', 'AREAS DE CHACARA', 'JARDIM RIO DE JANEIRO'],
-  'MONTE NEGRO': ['CENTRO', 'SETOR 02'],
-  CACAULANDIA: ['CENTRO'],
-  'JI-PARANA': ['CENTRO', 'NOVA BRASILIA', 'JARDIM DOS MIGRANTES', 'URUPA', 'DOIS DE ABRIL', 'TRIANON', 'CAPELASSO', 'CASA PRETA'],
-  'OURO PRETO DO OESTE': ['JARDIM TROPICAL', 'INCRA', 'CENTRO'],
-  JARU: ['SETOR 02', 'JARDIM DOS ESTADOS (EXPANSAO)', 'SETOR 05'],
-  CACOAL: ['CENTRO', 'VISTA ALEGRE', 'JARDIM CLODOALDO', 'NOVO CACOAL', 'TEIXEIRAO'],
-  'ROLIM DE MOURA': ['CENTRO', 'BEIRA RIO', 'CIDADE ALTA'],
-  'PIMENTA BUENO': ['CENTRO', 'PIONEIROS'],
-}
+/**
+ * Bairros de Ariquemes com o centro aproximado de cada um: as O.S. de exemplo ficam todas em Ariquemes, uma em cada
+ * bairro (em rodízio), para a rota por bairro ter o que organizar no mapa.
+ */
+const BAIRROS_ARIQUEMES: Array<[string, number, number]> = [
+  ['SETOR 01', -9.9075, -63.0375], ['SETOR 02', -9.9170, -63.0355], ['SETOR 03', -9.9215, -63.0300], ['SETOR 04', -9.9255, -63.0405],
+  ['SETOR 05', -9.9305, -63.0470], ['SETOR 06', -9.9360, -63.0410], ['SETOR 09', -9.9290, -63.0560], ['SETOR 10', -9.9405, -63.0540],
+  ['SETOR INSTITUCIONAL', -9.9120, -63.0320], ['BNH', -9.9225, -63.0485], ['JARDIM JORGE TEIXEIRA', -9.9330, -63.0285],
+  ['MARECHAL RONDON', -9.9265, -63.0650], ['JARDIM PARANA', -9.8985, -63.0575], ['JARDIM RIO DE JANEIRO', -9.8935, -63.0290],
+  ['JARDIM AMERICA', -9.9160, -63.0610], ['APOIO SOCIAL', -9.9055, -63.0480], ['AREAS DE CHACARA', -9.9420, -63.0745],
+  ['ROTA DO SOL', -9.9470, -63.0300], ['JARDIM DAS PALMEIRAS', -9.9020, -63.0240], ['COLONIAL', -9.8960, -63.0440],
+]
 
 const RUAS = ['TANCREDO NEVES', '13 DE MAIO', 'RIO AMAZONAS', 'AV. BRASIL', 'MANOEL FRANCO', 'CURITIBA', 'TRANSCONTINENTAL', 'PADRE ADOLFO', 'JAMARI', 'ALAGOAS', 'GOIANIA', 'MARECHAL RONDON', 'PIAUI', 'RIO BRANCO', 'PRESIDENTE VARGAS', 'CEREJEIRAS', 'BAHIA', 'MACHADINHO', 'CEARA', 'DOM PEDRO I', 'PASSARO PRETO', 'LARANJEIRAS', 'LIRIO']
 
@@ -61,9 +62,25 @@ export const CONFIG_PADRAO: Config = {
   polosAtendidos: ['ARIQUEMES', 'CACOAL', 'JI-PARANA'],
   contrato: { numero: '', edital: '', processo: '', rrt: '' },
   empresa: { fantasia: '', razao: '', cnpj: '', telefone: '', responsavel: '', municipio: '' },
+  gmail: { url: '', token: '', criarOs: false },
 }
 
 const d = (x: Date) => format(x, 'yyyy-MM-dd')
+
+/** O.S. de exemplo (id `os-N`, do gerador) que ficou salva no navegador com a cidade antiga: passa para Ariquemes, num bairro pelo número. */
+export function exemploParaAriquemes(o: OS): OS {
+  if (!/^os-\d+$/.test(o.id) || o.endereco.cidade === 'ARIQUEMES') return o
+  const [bairro, lat, lng] = BAIRROS_ARIQUEMES[(o.numero - 1) % BAIRROS_ARIQUEMES.length]
+  const temCoord = o.endereco.lat != null && o.endereco.lng != null
+  const semente = (o.numero * 7919) % 100 / 100 - 0.5 // deslocamento fixo por O.S., dentro do bairro
+  return {
+    ...o,
+    propriedade: 'ARIQUEMES/RO',
+    endereco: { ...o.endereco, cidade: 'ARIQUEMES', bairro, cep: `7687${o.numero % 10}-${String(o.numero * 37 % 1000).padStart(3, '0')}`, lat: temCoord ? +(lat + semente * 0.005).toFixed(5) : undefined, lng: temCoord ? +(lng - semente * 0.004).toFixed(5) : undefined },
+    valorDeslocamento: Math.min(o.valorDeslocamento, 20),
+    importacao: { ...o.importacao, localRetirada: '1831 - ARIQUEMES, RO', solicitante: '1831 - ARIQUEMES, RO' },
+  }
+}
 
 export function gerarSeed(hoje = new Date()): { os: OS[]; rotas: Rota[] } {
   const r = rng(20261009)
@@ -82,15 +99,15 @@ export function gerarSeed(hoje = new Date()): { os: OS[]; rotas: Rota[] } {
   function nova(responsavel: Responsavel, status: Status, datas: { emissao: Date; vistoria?: { data: Date; hora: string }; concluida?: Date; entrega?: Date }, extra: Partial<OS> = {}): OS {
     n++
     seq += 1 + Math.floor(r() * 9000)
-    // Luan atende mais o polo de Ariquemes; o RT, Ji-Paraná e Cacoal.
-    const polo = responsavel === 'luan' ? (r() < 0.75 ? 'ARIQUEMES' : pick(['JI-PARANA', 'CACOAL'])) : (r() < 0.55 ? 'JI-PARANA' : pick(['CACOAL', 'ARIQUEMES']))
-    const cidade = r() < 0.7 ? POLOS[polo][0] : pick(POLOS[polo])
-    const bairro = pick(BAIRROS[cidade])
+    // Todas as O.S. de exemplo ficam em Ariquemes, cada uma num bairro diferente (rodízio pelos bairros).
+    const polo = 'ARIQUEMES'
+    const cidade = POLOS[polo][0]
+    const [bairro, bLat, bLng] = BAIRROS_ARIQUEMES[(n - 1) % BAIRROS_ARIQUEMES.length]
     const [tipologia, faixa] = tipologiaSorteada()
-    const centro = centroDaCidade(cidade)
     const semCoord = n === 4 || n === 17 // duas O.S. sem localização, como no aviso do roteirizador
-    const lat = semCoord ? undefined : +(centro.lat + (r() - 0.5) * 0.045).toFixed(5)
-    const lng = semCoord ? undefined : +(centro.lng + (r() - 0.5) * 0.045).toFixed(5)
+    // ponto dentro do bairro (até ~300 m do centro dele)
+    const lat = semCoord ? undefined : +(bLat + (r() - 0.5) * 0.005).toFixed(5)
+    const lng = semCoord ? undefined : +(bLng + (r() - 0.5) * 0.005).toFixed(5)
     const desloc = cidade === POLOS[polo][0] ? entre(15, 20) : entre(120, 380)
     const nome = pick(NOMES)
     const contatoProprio = r() < 0.6
@@ -233,7 +250,7 @@ export function gerarSeed(hoje = new Date()): { os: OS[]; rotas: Rota[] } {
   const partida = { ...CONFIG_PADRAO.base }
   const rotas: Rota[] = [
     { id: 'rota-1', codigo: 'ROTA-27E9', responsavel: 'luan', status: 'rascunho', data: d(addDays(hoje, 1)), hora: '08:00', partida, velocidadeMedia: 30, descricao: 'Vistorias da semana', paradas: doLuan.map((o) => ({ osId: o.id })) },
-    { id: 'rota-2', codigo: 'ROTA-4B1C', responsavel: 'rt', status: 'confirmada', data: d(addDays(hoje, 1)), hora: '07:30', partida: { endereco: 'Centro, Ji-Paraná/RO', lat: -10.8777, lng: -61.9322 }, velocidadeMedia: 30, descricao: 'Ji-Paraná e região', paradas: doRT.map((o) => ({ osId: o.id, hora: o.vistoria?.hora })) },
+    { id: 'rota-2', codigo: 'ROTA-4B1C', responsavel: 'rt', status: 'confirmada', data: d(addDays(hoje, 1)), hora: '07:30', partida, velocidadeMedia: 30, descricao: 'Vistorias de amanhã', paradas: doRT.map((o) => ({ osId: o.id, hora: o.vistoria?.hora, avisado: true, confirmado: true })) },
     { id: 'rota-3', codigo: 'ROTA-9D03', responsavel: 'luan', status: 'concluida', data: d(subDays(hoje, 6)), hora: '08:00', partida, velocidadeMedia: 30, descricao: 'Ariquemes', paradas: os.filter((o) => o.responsavel === 'luan' && o.status === 'assinatura_pendente').slice(0, 2).map((o) => ({ osId: o.id })) },
   ]
   return { os, rotas }

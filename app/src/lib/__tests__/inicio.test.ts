@@ -144,3 +144,10 @@ describe('O.S. por tipologia', () => {
     expect(porTipologia([], '2026-10')).toEqual([])
   })
 })
+
+describe('alerta de PEPT resolvida', () => {
+  it('avisa quando o cliente resolveu e falta validar', () => {
+    const o = mk({ id: 'z', numero: 24, proponente: 'ZE', status: 'recebida', prazo: '2026-11-22', pepts: [{ id: 'p', motivo: 'x', inicio: '2026-11-09', resolvidaEm: '2026-11-09', resolucao: 'email' }] })
+    expect(alertas([o], HOJE).map((a) => a.texto)).toContain('PEPT da OS-24 (ZE) resolvida pelo cliente em 09/11 (e-mail da Caixa): confira e valide ou reabra.')
+  })
+})

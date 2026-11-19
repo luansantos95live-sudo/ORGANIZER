@@ -7,10 +7,10 @@ import { useStore } from '../store/useStore'
 import type { Origem, Responsavel, Tipologia } from '../types'
 import { Abas, Modal } from './ui'
 
-interface Linha { arquivo: string; r: RascunhoOS; marcada: boolean; origem: Origem }
+interface Linha { arquivo: string; r: RascunhoOS; marcada: boolean; origem: Origem; texto?: string }
 
 /** "Nova OS": abas Arquivo (colar o conteúdo ou arrastar .txt), Manual (formulário, aberto pela NovaOS) e E-mail. */
-export function ImportarOS({ open, onClose, onManual, abaInicial = 'arquivo' }: { open: boolean; onClose: () => void; onManual?: () => void; abaInicial?: 'arquivo' | 'email' }) {
+export function ImportarOS({ open, onClose, onManual, abaInicial = 'arquivo', altura }: { open: boolean; onClose: () => void; onManual?: () => void; abaInicial?: 'arquivo' | 'email'; /** altura fixa da janela (Nova OS: não muda ao trocar de aba) */ altura?: string }) {
   const config = useStore((s) => s.config)
   const escopo = useStore((s) => s.escopo)
   const existentes = useStore((s) => s.os)
@@ -34,7 +34,7 @@ export function ImportarOS({ open, onClose, onManual, abaInicial = 'arquivo' }: 
       ...atual,
       ...itens.map(({ arquivo, texto }) => {
         const r = lerSiopiTxt(texto, config.prazoPadraoDias)
-        return { arquivo, r, marcada: !duplicada(r) && !!r.referencia, origem }
+        return { arquivo, r, marcada: !duplicada(r) && !!r.referencia, origem, texto }
       }),
     ])
   }
@@ -54,8 +54,8 @@ export function ImportarOS({ open, onClose, onManual, abaInicial = 'arquivo' }: 
   const confirmar = () => {
     let criadas = 0, ignoradas = 0
     for (const origem of ['arquivo', 'texto'] as Origem[]) {
-      const inputs: NovaOSInput[] = escolhidas.filter((l) => l.origem === origem).map(({ r }) => ({
-        referencia: r.referencia, tipologia: r.tipologia, responsavel: resp, proponente: (r.proponente || r.contato || 'SEM NOME').toUpperCase(), documento: r.documento,
+      const inputs: NovaOSInput[] = escolhidas.filter((l) => l.origem === origem).map(({ r, texto }) => ({
+        txtOriginal: texto, referencia: r.referencia, tipologia: r.tipologia, responsavel: resp, proponente: (r.proponente || r.contato || 'SEM NOME').toUpperCase(), documento: r.documento,
         contato: (r.contato || r.proponente).toUpperCase(), telefone: r.telefone, endereco: r.endereco, matricula: r.matricula, valorServico: r.valorServico,
         valorDeslocamento: r.valorDeslocamento, emissao: r.emissao, prazo: r.prazo, descricao: r.descricao, importacao: r.importacao, status: 'recebida',
       }))
@@ -72,7 +72,7 @@ export function ImportarOS({ open, onClose, onManual, abaInicial = 'arquivo' }: 
   const fechar = () => { setLinhas([]); setColado(''); setResultado(null); setAba('arquivo'); onClose() }
 
   return (
-    <Modal open={open} onClose={fechar} title="Nova OS" width={1034}
+    <Modal open={open} onClose={fechar} title="Nova OS" width={1034} altura={altura} semBarra={!!altura}
       footer={linhas.length > 0 ? <>
         <label className="flex items-center gap-2 text-[13px] mr-auto">Técnico
           <select className="input input-sm" value={resp} onChange={(e) => setResp(e.target.value as Responsavel)}>

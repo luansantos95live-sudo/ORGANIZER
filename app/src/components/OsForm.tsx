@@ -20,7 +20,7 @@ const UFS = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', '
 type Modo = { tipo: 'criar' } | { tipo: 'editar'; os: OS }
 
 /** Formulário da O.S.: Geral (com a Importação no fim), Cliente e contato, Endereço, Datas e Valores. */
-export function OsForm({ open, modo, onClose, onSalvo, topo, largura = 760 }: { open: boolean; modo: Modo; onClose: () => void; onSalvo?: (id: string) => void; topo?: ReactNode; largura?: number }) {
+export function OsForm({ open, modo, onClose, onSalvo, topo, largura = 760, altura }: { open: boolean; modo: Modo; onClose: () => void; onSalvo?: (id: string) => void; topo?: ReactNode; largura?: number; /** altura fixa da janela (Nova OS: não muda ao trocar de aba) */ altura?: string }) {
   const config = useStore((s) => s.config)
   const escopo = useStore((s) => s.escopo)
   const todas = useStore((s) => s.os)
@@ -81,7 +81,7 @@ export function OsForm({ open, modo, onClose, onSalvo, topo, largura = 760 }: { 
 
   const titulo = modo.tipo === 'criar' ? 'Nova OS' : `Editar ${codigoOS(modo.os)}`
   return (
-    <Modal open={open} onClose={onClose} title={titulo} width={largura}
+    <Modal open={open} onClose={onClose} title={titulo} width={largura} altura={altura} semBarra={!!altura}
       footer={<>
         {tentou && temErro && <span className="text-[12.5px] text-[var(--vermelho)] mr-auto">Confira as abas marcadas.</span>}
         <button className="btn btn-secondary" onClick={onClose}>Cancelar</button>

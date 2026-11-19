@@ -3,7 +3,7 @@ import { ptBR } from 'date-fns/locale'
 import type { Config, DocKey, Importacao, OS, Origem, Pept, Responsavel, Status, TipoContato, Tipologia } from '../types'
 
 export type NovaOSInput = Pick<OS, 'referencia' | 'tipologia' | 'responsavel' | 'proponente' | 'contato' | 'telefone' | 'endereco' | 'valorServico' | 'valorDeslocamento' | 'emissao' | 'prazo'> &
-  Partial<Pick<OS, 'status' | 'origem' | 'mesReferencia' | 'propriedade' | 'descricao' | 'observacoes' | 'documento' | 'clienteTelefone' | 'clienteEmail' | 'whatsapp' | 'contatoEmail' | 'matricula' | 'importacao' | 'vistoria' | 'entregaEm' | 'concluidaEm'>>
+  Partial<Pick<OS, 'status' | 'origem' | 'mesReferencia' | 'propriedade' | 'descricao' | 'observacoes' | 'documento' | 'clienteTelefone' | 'clienteEmail' | 'whatsapp' | 'contatoEmail' | 'matricula' | 'importacao' | 'vistoria' | 'entregaEm' | 'concluidaEm' | 'txtOriginal' | 'nova'>>
 
 // ---------------------------------------------------------------- etapas (iguais ao sistema real)
 export const STATUS_META: Record<Status, { label: string; coluna: string; ordem: number; descricao: string }> = {
@@ -71,9 +71,10 @@ const TIPOLOGIA_ANTIGA: Record<string, Tipologia> = { C021: 'E005', M112: 'A413'
 export const normCidade = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().trim()
 
 export const POLOS: Record<string, string[]> = {
-  ARIQUEMES: ['ARIQUEMES', 'MONTE NEGRO', 'CACAULANDIA'],
+  // Jaru, Machadinho d'Oeste e Buritis são do polo Ariquemes, como no sistema real (corrigido em 12/11/2026).
+  ARIQUEMES: ['ARIQUEMES', 'MONTE NEGRO', 'CACAULANDIA', 'JARU', "MACHADINHO D'OESTE", 'MACHADINHO DOESTE', 'BURITIS'],
   CACOAL: ['CACOAL', 'ROLIM DE MOURA', 'PIMENTA BUENO'],
-  'JI-PARANA': ['JI-PARANA', 'OURO PRETO DO OESTE', 'JARU'],
+  'JI-PARANA': ['JI-PARANA', 'OURO PRETO DO OESTE'],
 }
 
 export function poloDe(cidade: string) {

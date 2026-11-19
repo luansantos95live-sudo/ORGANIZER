@@ -36,7 +36,10 @@ describe('identificação', () => {
   it('polo pela cidade, com ou sem acento', () => {
     expect(normCidade('Ji-Paraná')).toBe('JI-PARANA')
     expect(poloDe('Ji-Paraná')).toBe('JI-PARANA')
-    expect(poloDe('JARU')).toBe('JI-PARANA')
+    expect(poloDe('JARU')).toBe('ARIQUEMES')
+    expect(poloDe("Machadinho d'Oeste")).toBe('ARIQUEMES')
+    expect(poloDe('BURITIS')).toBe('ARIQUEMES')
+    expect(poloDe('OURO PRETO DO OESTE')).toBe('JI-PARANA')
     expect(poloDe('Monte Negro')).toBe('ARIQUEMES')
     expect(poloDe('Porto Velho')).toBe('OUTROS')
   })

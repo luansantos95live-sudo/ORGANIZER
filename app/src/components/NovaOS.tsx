@@ -15,10 +15,12 @@ export function NovaOS({ open, onClose }: { open: boolean; onClose: () => void }
   const topoManual = (
     <Abas abas={[{ id: 'arquivo' as const, label: 'Arquivo' }, { id: 'manual' as const, label: 'Manual' }, { id: 'email' as const, label: 'E-mail' }]} valor="manual" onChange={setAba} />
   )
+  // A janela tem altura fixa (pedido de 10/11): trocar de aba não muda o tamanho; o conteúdo rola por dentro.
+  const ALTURA = 'min(720px, calc(100vh - 48px))'
   return (
     <>
-      <ImportarOS open={open && aba !== 'manual'} onClose={fechar} onManual={() => setAba('manual')} abaInicial={aba === 'email' ? 'email' : 'arquivo'} />
-      <OsForm open={open && aba === 'manual'} modo={{ tipo: 'criar' }} onClose={fechar} onSalvo={(id) => nav(`/os/${id}`)} topo={topoManual} largura={1034} />
+      <ImportarOS open={open && aba !== 'manual'} onClose={fechar} onManual={() => setAba('manual')} abaInicial={aba === 'email' ? 'email' : 'arquivo'} altura={ALTURA} />
+      <OsForm open={open && aba === 'manual'} modo={{ tipo: 'criar' }} onClose={fechar} onSalvo={(id) => nav(`/os/${id}`)} topo={topoManual} largura={1034} altura={ALTURA} />
     </>
   )
 }

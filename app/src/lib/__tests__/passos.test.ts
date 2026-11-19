@@ -80,3 +80,20 @@ describe('cor da O.S. pelo prazo', () => {
     expect(corPrazo(mk({ status: 'cancelada' }), d)).toBeNull()
   })
 })
+
+describe('passos pela etapa (pedido de 12/11)', () => {
+  const feitos = (o: OS) => Object.entries(estadoPassos(o, H)).filter(([, e]) => e.estado !== 'pendente').map(([k]) => k)
+  it('Em Andamento: documentos baixados e analisados', () => {
+    expect(proximoPasso(mk({ status: 'em_andamento' }), H).key).toBe('marcar_vistoria')
+    expect(feitos(mk({ status: 'em_andamento' }))).toEqual(['recebida', 'baixar_docs', 'analisar_docs'])
+  })
+  it('com PEPT: documentos feitos e Abrir PEPT feito com o dia da primeira abertura', () => {
+    const o = mk({ pausadoEm: '2026-11-05', pepts: [{ id: 'a', motivo: 'x', inicio: '2026-10-28', fim: '2026-11-05' }, { id: 'b', motivo: 'x', inicio: '2026-11-05' }] })
+    expect(estadoPassos(o, H).pept).toEqual({ estado: 'feito', em: '2026-10-28' })
+    expect(estadoPassos(o, H).analisar_docs.estado).toBe('feito')
+  })
+  it('Assinatura Pendente: tudo até antes de Assinar; Assinatura Concluída: falta só Enviar', () => {
+    expect(proximoPasso(mk({ status: 'assinatura_pendente' }), H).key).toBe('assinar')
+    expect(proximoPasso(mk({ status: 'assinatura_concluida' }), H).key).toBe('enviar')
+  })
+})

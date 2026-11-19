@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { lerEndereco, lerSiopiTxt, lerValor } from '../siopi'
+import { detectarTipologia, lerEndereco, lerSiopiTxt, lerValor, separarDocumento } from '../siopi'
 
 const TXT = `ORDEM DE SERVIÇO - AVALIAÇÃO DE IMÓVEL
 Referência.: 7886.1831.00012345/2026.09.10.01.01
@@ -90,5 +90,41 @@ Solicitante: 1831 - ARIQUEMES, RO`
     expect(x.documento).toBe('000.000.000-00')
     expect(x.importacao).toMatchObject({ codProduto: '0173', codLinha: '0067', codFonte: '0030', livro: '15751', solicitante: '1831 - ARIQUEMES, RO' })
     expect(x.avisos).toEqual([])
+  })
+})
+
+describe('.txt de convocação da Caixa (data da O.S. e prazo em dias)', () => {
+  it('lê "Data da Ordem de Serviço" e "N Dia(s) corridos"', () => {
+    const conv = `Referência: Ordem de Serviço - 7886.2976.009990001/2026.01.01
+Data da Ordem de Serviço......: 28/10/2026
+Prazo de execução.............:  15 Dia(s) corridos. Recusas conforme motivos
+Valor previsto do Serviço.....: R$ 914,00
+Valor previsto do Deslocamento: R$ 73,50`
+    const r = lerSiopiTxt(conv)
+    expect(r.emissao).toBe('2026-10-28')
+    expect(r.prazo).toBe('2026-11-12')
+    expect(r.valorServico).toBe(914)
+    expect(r.avisos.join(' ')).not.toContain('Data de recebimento')
+  })
+})
+
+describe('nome do cliente sem o CPF', () => {
+  it('separa CPF ou CNPJ do nome', () => {
+    expect(separarDocumento('000.000.000-00 - CLIENTE DE EXEMPLO')).toEqual({ nome: 'CLIENTE DE EXEMPLO', documento: '000.000.000-00' })
+    expect(separarDocumento('00.000.000/0001-00 - EMPRESA EXEMPLO')).toEqual({ nome: 'EMPRESA EXEMPLO', documento: '00.000.000/0001-00' })
+    expect(separarDocumento('CLIENTE SEM CPF')).toEqual({ nome: 'CLIENTE SEM CPF', documento: '' })
+  })
+  it('o leitor do .txt guarda só o nome', () => {
+    const r = lerSiopiTxt(['Referência: Ordem de Serviço - 7886.2976.009990002/2026.01.01', 'Cliente .: 000.000.000-00 - CLIENTE DE EXEMPLO', 'Data da Ordem de Serviço......: 11/11/2026'].join('\n'))
+    expect(r.proponente.toUpperCase()).toBe('CLIENTE DE EXEMPLO')
+    expect(r.documento).toBe('000.000.000-00')
+  })
+})
+
+describe('tipologia pela linha "Atividade" (12/11)', () => {
+  it('E005 cuja descrição cita E401 continua E005', () => {
+    expect(detectarTipologia('Assunto .: ATIVIDADES VINCULADAS\nAtividade: E005  - ATIVIDADE EDITAL E005: ATIVIDADE EDITAL E401 + ATIVIDADE EDIT')).toBe('E005')
+    expect(detectarTipologia('Atividade: G416  - NOVA VISTORIA P/ VERIF.CORRECAO DE PENDENCIAS')).toBe('G416')
+    expect(detectarTipologia('Serviço: B438 - Análise de Proposta')).toBe('B438')
   })
 })

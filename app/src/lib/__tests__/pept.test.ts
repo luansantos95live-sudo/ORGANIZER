@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { abrirPept, editarDatasPeptNaOS, encerrarPeptNaOS, etapaAoFinalizarPept, fecharPept, motivoDoHistorico, peptAberta, peptEmAnalise, peptsDaOS, periodosDaPept, prazosDaPept, reabrirPeptNaOS, resolverPeptNaOS, resumoPept, ultimaFinalizada } from '../pept'
+import { abrirPept, editarDatasPeptNaOS, encerrarPeptNaOS, etapaAoFinalizarPept, fecharPept, motivoDoHistorico, peptAberta, peptEmAnalise, peptsDaOS, periodosDaPept, prazosDaPept, reabrirPeptNaOS, resolverPeptNaOS, resumoPept, ultimaFinalizada , podeConcluir } from '../pept'
 import type { OS } from '../../types'
+import { prazoAtual } from '../os'
 
 // sem data de recebimento: os testes de registro não dependem da regra dos 2 dias (ela tem testes próprios abaixo)
 const mk = (extra: Partial<OS> = {}) => ({ id: 'x', status: 'em_andamento', tipologia: 'E401', prazo: '2026-10-30', diasPausado: 0, historico: [], ...extra }) as OS
@@ -164,5 +165,28 @@ describe('PEPT finalizada: a O.S. volta para Em Andamento', () => {
     expect(etapaAoFinalizarPept('recebida')).toBe('em_andamento')
     expect(etapaAoFinalizarPept('em_andamento')).toBe('em_andamento')
     expect(etapaAoFinalizarPept('assinatura_pendente')).toBe('assinatura_pendente')
+  })
+})
+
+describe('concluir com PEPT em aberto (pedido de 12/11)', () => {
+  it('só conclui sem PEPT em aberto', () => {
+    expect(podeConcluir({ pepts: [], historico: [] })).toBe(true)
+    expect(podeConcluir({ pausadoEm: '2026-11-09', pepts: [{ id: 'a', motivo: 'x', inicio: '2026-11-09' }], historico: [] })).toBe(false)
+    // resolvida pelo cliente, esperando validar: ainda não pode
+    expect(podeConcluir({ pepts: [{ id: 'a', motivo: 'x', inicio: '2026-11-09', resolvidaEm: '2026-11-09' }], historico: [] })).toBe(false)
+    // validada (finalizada): pode
+    expect(podeConcluir({ pepts: [{ id: 'a', motivo: 'x', inicio: '2026-11-09', resolvidaEm: '2026-11-09', fim: '2026-11-10' }], historico: [] })).toBe(true)
+  })
+})
+
+describe('B438 com PEPT aberta no dia do recebimento e resolvida depois (13/11, OS-21)', () => {
+  it('o prazo fica parado enquanto pausada e volta a contar no dia da resolução: vence 27/11', () => {
+    const o = { tipologia: 'B438', emissao: '2026-10-28', prazo: '2026-11-12', diasPausado: 0, pausadoEm: '2026-10-28',
+      pepts: [{ id: 'p1', tipo: 'documental', motivo: 'x', inicio: '2026-10-28' }] } as unknown as OS
+    // pausada: faltam os mesmos 15 dias (se resolvesse hoje)
+    expect(prazoAtual(o, new Date(2026, 10, 10))).toBe('2026-11-24')
+    const r = resolverPeptNaOS(o, '2026-11-13', 'email')!
+    expect(r.diasPausado).toBe(15)
+    expect(prazoAtual({ ...o, ...r }, new Date(2026, 10, 13))).toBe('2026-11-27')
   })
 })

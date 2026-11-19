@@ -44,21 +44,27 @@ export function estadoPassos(o: OS, hojeStr: string): Record<PassoKey, { estado:
   const ordem = lista.map((p) => p.key)
   let ate = 'recebida' as PassoKey
   const temVist = lista.some((p) => p.key === 'fazer_vistoria')
+  // PEPT aberta agora ou já registrada: o passo "Abrir PEPT" fica feito, com o dia da primeira abertura.
+  const inicioPept = [...(o.pepts ?? [])].map((p) => p.inicio).sort()[0] ?? o.pausadoEm
+  const temPept = !!inicioPept
   if (o.status === 'concluida') ate = 'enviar'
   else if (o.status === 'assinatura_concluida') ate = 'assinar'
   else if (o.status === 'assinatura_pendente') ate = 'baixar_laudo'
+  // Em Andamento ou com PEPT (pedido de 12/11): os documentos já foram baixados e analisados.
+  else if (o.status === 'em_andamento' || temPept) ate = 'analisar_docs'
   // A etapa garante; a vistoria só sugere (um passo desfeito à mão vence a sugestão).
   const iEtapa = ordem.indexOf(ate)
-  if (iEtapa === 0 && temVist && o.vistoria && (o.vistoria.feita || o.vistoria.data < hojeStr)) ate = 'fazer_vistoria'
-  else if (iEtapa === 0 && temVist && o.vistoria) ate = 'marcar_vistoria'
+  const antesDaVistoria = iEtapa < ordem.indexOf('marcar_vistoria') || ordem.indexOf('marcar_vistoria') < 0
+  if (antesDaVistoria && temVist && o.vistoria && (o.vistoria.feita || o.vistoria.data < hojeStr)) ate = 'fazer_vistoria'
+  else if (antesDaVistoria && temVist && o.vistoria) ate = 'marcar_vistoria'
   const iAte = ordem.indexOf(ate)
   for (const [i, p] of lista.entries()) {
     const marcado = o.passos?.[p.key]
-    if (marcado === DESFEITO && (i > iEtapa || p.key === 'pept')) r[p.key] = p.key === 'pept' && o.pausadoEm ? { estado: 'feito', em: o.pausadoEm } : { estado: 'pendente' }
+    if (marcado === DESFEITO && (i > iEtapa || p.key === 'pept')) r[p.key] = p.key === 'pept' && inicioPept ? { estado: 'feito', em: inicioPept } : { estado: 'pendente' }
     else if (marcado === DESFEITO) r[p.key] = { estado: 'feito' }
     else if (marcado === 'pulado') r[p.key] = { estado: 'pulado' }
     else if (marcado) r[p.key] = { estado: 'feito', em: marcado }
-    else if (p.key === 'pept') r[p.key] = o.pausadoEm ? { estado: 'feito', em: o.pausadoEm } : { estado: i < iAte ? 'pulado' : 'pendente' }
+    else if (p.key === 'pept') r[p.key] = inicioPept ? { estado: 'feito', em: inicioPept } : { estado: i < iAte ? 'pulado' : 'pendente' }
     else if (p.key === 'recebida') r[p.key] = { estado: 'feito', em: o.emissao }
     else if (i <= iAte) r[p.key] = { estado: 'feito', em: p.key === 'enviar' ? o.concluidaEm : undefined }
     else r[p.key] = { estado: 'pendente' }
@@ -117,6 +123,9 @@ export type Fase = 'aberto' | 'andamento' | 'pept' | 'finalizada' | 'cancelada'
 export const FASES: { id: Exclude<Fase, 'cancelada'>; label: string }[] = [
   { id: 'aberto', label: 'Em aberto' }, { id: 'andamento', label: 'Em andamento' }, { id: 'pept', label: 'Em PEPT' }, { id: 'finalizada', label: 'Finalizadas' },
 ]
+/** Em aberto (16/11): toda O.S. ainda não finalizada (recebida, em andamento ou em PEPT); cancelada não entra. */
+export const naoFinalizada = (o: Pick<OS, 'status' | 'pausadoEm'> & { pepts?: OS['pepts'] }) => { const f = faseDe(o); return f !== 'finalizada' && f !== 'cancelada' }
+
 export function faseDe(o: Pick<OS, 'status' | 'pausadoEm'> & { pepts?: OS['pepts'] }): Fase {
   if (o.status === 'cancelada') return 'cancelada'
   if (o.status === 'concluida') return 'finalizada'

@@ -1,4 +1,4 @@
-import { format } from 'date-fns'
+import { addDays, format, parse } from 'date-fns'
 import type { Importacao, OS, Tipologia } from '../types'
 import { IMPORTACAO_VAZIA, TIPOLOGIAS, prazoDaTipologia } from './os'
 
@@ -79,8 +79,16 @@ export function lerCidadeUf(linha: string | undefined) {
 
 /** Tipologia pelo código que vier no texto (ex.: B438); sem código, pelas palavras do serviço. */
 export function detectarTipologia(texto: string): Tipologia {
-  const cod = (Object.keys(TIPOLOGIAS) as Tipologia[]).find((c) => new RegExp(`\\b${c}\\b`).test(texto))
-  if (cod) return cod
+  // 1º) o código logo depois de "Atividade:" ou "Serviço:" (12/11: "Atividade: E005 - ATIVIDADE EDITAL E005: ATIVIDADE EDITAL
+  // E401 + …" era lido como E401, porque a descrição cita outras atividades)
+  const linha = texto.match(/(?:Atividade|Servi[cç]o)\s*\.*\s*:\s*([A-Z]\d{3})\b/i)?.[1]?.toUpperCase()
+  if (linha && linha in TIPOLOGIAS) return linha as Tipologia
+  // 2º) o código que aparece primeiro no texto
+  const achados = (Object.keys(TIPOLOGIAS) as Tipologia[])
+    .map((c) => ({ c, i: texto.search(new RegExp(`\\b${c}\\b`)) }))
+    .filter((x) => x.i >= 0)
+    .sort((a, b) => a.i - b.i)
+  if (achados.length) return achados[0].c
   const t = texto.toLowerCase()
   if (/reedi[cç][aã]o/.test(t)) return 'G402'
   if (/rean[aá]lise/.test(t)) return 'G014'
@@ -93,6 +101,15 @@ export function detectarTipologia(texto: string): Tipologia {
   return 'A413'
 }
 
+/**
+ * No .txt de convocação o cliente vem como "000.000.000-00 - NOME DO CLIENTE" (CPF ou CNPJ antes do nome).
+ * Separa o documento do nome, para o cartão mostrar só o nome (pedido de 12/11/2026).
+ */
+export function separarDocumento(texto: string): { nome: string; documento: string } {
+  const m = texto.match(/^\s*(\d{3}\.?\d{3}\.?\d{3}-?\d{2}|\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2})\s*[-–]\s*(.+)$/)
+  return m ? { nome: m[2].trim(), documento: m[1] } : { nome: texto.trim(), documento: '' }
+}
+
 export function lerSiopiTxt(texto: string, prazoDias = 12, hoje = new Date()): RascunhoOS {
   const avisos: string[] = []
   const refMatch = texto.match(REFERENCIA_RE)
@@ -101,7 +118,8 @@ export function lerSiopiTxt(texto: string, prazoDias = 12, hoje = new Date()): R
 
   // Data de recebimento: rótulo do arquivo; senão a data embutida no formato antigo da referência; senão hoje.
   let emissao = format(hoje, 'yyyy-MM-dd')
-  const dataTxt = campo(texto, 'Data (?:de )?(?:emiss[aã]o|recebimento)')?.match(/(\d{2})\/(\d{2})\/(\d{4})/)
+  // "Data de emissão", "Data de recebimento" ou, no .txt de convocação da Caixa, "Data da Ordem de Serviço".
+  const dataTxt = campo(texto, 'Data (?:de |da )?(?:emiss[aã]o|recebimento|ordem de servi[çc]o)')?.match(/(\d{2})\/(\d{2})\/(\d{4})/)
   const dataRef = referencia.match(/\/(\d{4})\.(\d{2})\.(\d{2})\.\d{2}\.\d{2}$/)
   if (dataTxt) emissao = `${dataTxt[3]}-${dataTxt[2]}-${dataTxt[1]}`
   else if (dataRef) emissao = `${dataRef[1]}-${dataRef[2]}-${dataRef[3]}`
@@ -109,7 +127,11 @@ export function lerSiopiTxt(texto: string, prazoDias = 12, hoje = new Date()): R
   // Prazo: o do arquivo; senão o prazo da tipologia (cadastro); senão o prazo padrão.
   const tipologia = detectarTipologia(texto)
   const prazoTxt = campo(texto, 'Prazo')?.match(/(\d{2})\/(\d{2})\/(\d{4})/)
-  const prazo = prazoTxt ? `${prazoTxt[3]}-${prazoTxt[2]}-${prazoTxt[1]}` : prazoDaTipologia(tipologia, emissao, prazoDias)
+  // No .txt de convocação o prazo vem em dias: "Prazo de execução....: 15 Dia(s) corridos" (conta a partir da data da O.S.).
+  const prazoDiasTxt = campo(texto, 'Prazo(?: de execu[çc][ãa]o)?')?.match(/^(\d{1,3})\s*dia/i)
+  const prazo = prazoTxt ? `${prazoTxt[3]}-${prazoTxt[2]}-${prazoTxt[1]}`
+    : prazoDiasTxt ? format(addDays(parse(emissao, 'yyyy-MM-dd', new Date()), Number(prazoDiasTxt[1])), 'yyyy-MM-dd')
+      : prazoDaTipologia(tipologia, emissao, prazoDias)
 
   const end = lerEndereco(campo(texto, 'Endere[cç]o'))
   const cid = lerCidadeUf(campo(texto, 'Cidade/UF'))
@@ -120,8 +142,9 @@ export function lerSiopiTxt(texto: string, prazoDias = 12, hoje = new Date()): R
   const valorDeslocamento = lerValor(campo(texto, 'Valor previsto do Deslocamento'))
   if (!valorServico) avisos.push('Valor previsto do serviço não encontrado.')
 
-  const proponente = campo(texto, 'Proponente') ?? campo(texto, 'Cliente') ?? campo(texto, 'Nome do contato') ?? ''
-  const contato = campo(texto, 'Nome do contato') ?? proponente
+  const cliente = separarDocumento(campo(texto, 'Proponente') ?? campo(texto, 'Cliente') ?? campo(texto, 'Nome do contato') ?? '')
+  const proponente = cliente.nome
+  const contato = separarDocumento(campo(texto, 'Nome do contato') ?? proponente).nome
   if (!end.bairro) avisos.push('Bairro não identificado no endereço; confira antes de salvar.')
 
   const importacao: Importacao = {
@@ -140,7 +163,7 @@ export function lerSiopiTxt(texto: string, prazoDias = 12, hoje = new Date()): R
     referencia,
     tipologia,
     proponente: maiusculaInicial(proponente),
-    documento: campo(texto, 'CPF/CNPJ') ?? campo(texto, 'CPF') ?? campo(texto, 'CNPJ') ?? '',
+    documento: campo(texto, 'CPF/CNPJ') ?? campo(texto, 'CPF') ?? campo(texto, 'CNPJ') ?? cliente.documento,
     contato: maiusculaInicial(contato),
     telefone: campo(texto, 'Telefone contato') ?? campo(texto, 'Telefone') ?? '',
     endereco: { ...end, cidade: cid.cidade, uf: cid.uf, cep: cepFmt },
