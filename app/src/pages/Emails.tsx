@@ -1,8 +1,8 @@
 import clsx from 'clsx'
 import { differenceInCalendarDays, format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Play, CheckCheck, Download, ExternalLink, FileText, Mail, MailOpen, Plus } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { Play, CheckCheck, Download, ExternalLink, FileText, FolderInput, Mail, MailOpen, RefreshCw, Settings } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { PageHeader } from '../components/ui'
 import { caixaDeEntrada, TIPO_EMAIL, tipoEmail, type Email } from '../lib/emails'
@@ -22,11 +22,38 @@ export function EmailsPage() {
   const marcarLido = useStore((s) => s.marcarEmailLido)
   const marcarTodos = useStore((s) => s.marcarTodosEmailsLidos)
   const importar = useStore((s) => s.importarDoEmail)
-  const simular = useStore((s) => s.simularEmail)
-  const simularPept = useStore((s) => s.simularPeptResolvida)
+  const importarEmails = useStore((s) => s.importarEmails)
+  const gmail = useStore((s) => s.config.gmail)
+  const sincronizarGmail = useStore((s) => s.sincronizarGmail)
+  const ultimaSinc = useStore((s) => s.gmailUltimaSinc)
+  const ultimoErro = useStore((s) => s.gmailUltimoErro)
+  const [sincronizando, setSincronizando] = useState(false)
   const [sp, setSp] = useSearchParams()
   const [filtro, setFiltro] = useState<'todos' | 'nao_lidos'>('todos')
   const [aviso, setAviso] = useState<string | null>(null)
+  const [avisoImportacao, setAvisoImportacao] = useState<{ ok: boolean; texto: string } | null>(null)
+  const arquivoRef = useRef<HTMLInputElement>(null)
+  // Importar e-mails (10/11): o arquivo emails.json que o Claude monta a partir do Gmail (pasta "Caixa de entrada")
+  const aoEscolherArquivo = async (f: File | undefined) => {
+    if (f) setAvisoImportacao(importarEmails(await f.text()))
+    if (arquivoRef.current) arquivoRef.current.value = ''
+  }
+  // Ligação com o Gmail (10/11): com o script configurado, busca ao abrir e a cada 5 minutos enquanto a tela estiver aberta
+  const ligado = !!gmail.url.trim()
+  const sincronizar = async (mostrar = true) => {
+    if (!ligado || sincronizando) return
+    setSincronizando(true)
+    const r = await sincronizarGmail()
+    setSincronizando(false)
+    if (mostrar || !r.ok) setAvisoImportacao(r)
+  }
+  useEffect(() => {
+    if (!ligado) return
+    void sincronizar(false)
+    const t = setInterval(() => void sincronizar(false), 5 * 60 * 1000)
+    return () => clearInterval(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ligado])
   const lista = caixaDeEntrada(todos)
   const naoLidos = lista.filter((e) => !e.lido).length
   const visiveis = filtro === 'nao_lidos' ? lista.filter((e) => !e.lido) : lista
@@ -44,11 +71,29 @@ export function EmailsPage() {
     <>
       <PageHeader title="E-mails da Caixa" subtitle={<>Só os e-mails de endereços <b>@caixa</b> que chegam no seu Gmail.{naoLidos ? <> <b className="text-[var(--text)]">{naoLidos} não {naoLidos === 1 ? 'lido' : 'lidos'}</b>.</> : ''}</>}
         actions={<>
-          <button className="btn btn-secondary" onClick={() => simular()} title="Só no laboratório: cria um e-mail da Caixa para testar a notificação"><Plus size={15} /> Simular novo e-mail</button>
-          <button className="btn btn-secondary" onClick={() => setAviso(simularPept())} title="Só no laboratório: a Caixa avisa que a PEPT de uma O.S. pausada foi resolvida"><Plus size={15} /> Simular PEPT resolvida</button>
+          {ligado
+            ? <button className="btn btn-primary" disabled={sincronizando} onClick={() => sincronizar(true)} title="Busca agora os e-mails novos da Caixa no seu Gmail (o sistema também busca sozinho a cada 5 minutos)"><RefreshCw size={15} className={clsx(sincronizando && 'animate-spin')} /> {sincronizando ? 'Buscando…' : 'Buscar no Gmail'}</button>
+            : <Link to="/config?secao=gmail" className="btn btn-secondary" title="Ligue o sistema ao seu Gmail para os e-mails da Caixa entrarem sozinhos"><Settings size={15} /> Ligar ao Gmail</Link>}
+          <label className={clsx('btn cursor-pointer', ligado ? 'btn-secondary' : 'btn-primary')} title="Escolha o arquivo emails.json da pasta 'Caixa de entrada' (o Claude monta esse arquivo a partir do seu Gmail). Só entram os e-mails que ainda não estão aqui.">
+            <FolderInput size={15} /> Importar e-mails
+            <input ref={arquivoRef} type="file" accept=".json,application/json" className="sr-only" onChange={(e) => aoEscolherArquivo(e.target.files?.[0])} />
+          </label>
           <button className="btn btn-secondary" disabled={!naoLidos} onClick={marcarTodos}><CheckCheck size={15} /> Marcar todos como lidos</button>
         </>} />
 
+      {ligado && (
+        <p className={clsx('mb-2 text-[12.5px] flex items-center gap-1.5', ultimoErro ? 'text-[var(--laranja-txt)]' : 'text-muted')}>
+          <RefreshCw size={12} className={clsx(sincronizando && 'animate-spin')} />
+          {ultimoErro
+            ? ultimoErro
+            : ultimaSinc ? <>Gmail ligado · última busca {format(parseISO(ultimaSinc), "dd/MM 'às' HH:mm")} · o sistema busca sozinho a cada 5 min{gmail.criarOs ? ' · O.S. criadas automaticamente' : ''}</> : 'Gmail ligado · buscando os e-mails da Caixa…'}
+        </p>
+      )}
+      {avisoImportacao && (
+        <p className={clsx('mb-3 rounded-lg px-3 py-2 text-[13px] font-semibold', avisoImportacao.ok ? 'bg-[rgba(58,184,30,.12)] text-[var(--verde-valor)]' : 'bg-[var(--laranja-soft)] text-[var(--laranja-txt)]')}>
+          {avisoImportacao.texto}
+        </p>
+      )}
       <div className="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-3 items-start">
         <section className="bloco overflow-hidden">
           <div className="flex gap-1 p-2 border-b border-border">
@@ -62,7 +107,7 @@ export function EmailsPage() {
                 const t = tipoEmail(e)
                 return (
                   <li key={e.id}>
-                    <button onClick={() => abrir(e)} className={clsx('w-full text-left px-4 py-3 border-b border-border flex gap-3 hover:bg-[rgba(58,184,30,.06)]', aberto?.id === e.id && 'bg-[var(--brand-soft)]')}>
+                    <button onClick={() => abrir(e)} className={clsx('w-full text-left px-4 py-3 border-b border-border flex gap-3 hover:bg-[rgba(58,184,30,.06)]', aberto?.id === e.id ? 'bg-[var(--brand-soft)]' : e.lido && 'email-lido')}>
                       <span className={clsx('mt-1.5 w-2 h-2 rounded-full shrink-0', e.lido ? 'bg-transparent' : 'bg-[var(--brand)]')} aria-label={e.lido ? undefined : 'não lido'} />
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center gap-2">

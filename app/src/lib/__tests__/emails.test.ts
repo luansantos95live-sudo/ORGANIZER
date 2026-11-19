@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { caixaDeEntrada, ehDaCaixa, emailsExemplo, notificaveis, tipoEmail } from '../emails'
+import { emailInterage } from '../emails'
 import { refPeptResolvida, emailPeptResolvida, tipoEmail as tipoEmail2, notificaveis as notificaveis2 } from '../emails'
 import { lerSiopiTxt } from '../siopi'
 
@@ -37,5 +38,20 @@ describe('PEPT resolvida por e-mail', () => {
     expect(tipoEmail2({ assunto: 'Aviso: PEPT', corpo: 'texto' })).toBe('pept')
     expect(refPeptResolvida({ assunto: 'Aviso: PEPT', corpo: 'sem número' })).toBeNull()
     expect(refPeptResolvida({ assunto: 'Ordem de Serviço 7886.1831.00099101/2026', corpo: 'Segue a O.S.' })).toBeNull()
+  })
+})
+
+describe('e-mails antigos não mexem no sistema (12/11)', () => {
+  it('só os que chegaram depois de ligar o Gmail', () => {
+    expect(emailInterage({ recebidoEm: '2026-11-10T10:00:00.000Z' }, '2026-11-12T16:00:00Z')).toBe(false)
+    expect(emailInterage({ recebidoEm: '2026-11-12T17:00:00.000Z' }, '2026-11-12T16:00:00Z')).toBe(true)
+    expect(emailInterage({ recebidoEm: '2026-11-10T10:00:00.000Z' })).toBe(true)
+  })
+})
+
+describe('conclusão da O.S. é aviso (12/11)', () => {
+  it('não vira "O.S. nova"', () => {
+    expect(tipoEmail({ assunto: 'Conclusão da Ordem de Serviço 7886.3114.001234272/2026.01.01' })).toBe('aviso')
+    expect(tipoEmail({ assunto: 'Convocação de Ordem da Serviço 7886.1831.001260581/2026.01.01', anexo: { nome: 'a.txt', texto: 'x' } })).toBe('os')
   })
 })

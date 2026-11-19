@@ -1,2 +1,9 @@
 # cópias compactadas do projeto (ficam só no OneDrive)
 *.zip
+
+# e-mails reais da Caixa (ponte Gmail -> sistema): dados de clientes, nunca no repositorio
+Caixa de entrada/
+app/Caixa de entrada/
+
+# dados reais sincronizados pelo OneDrive (Configuracoes > Backup > Pasta de dados)
+Dados/

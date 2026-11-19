@@ -45,6 +45,7 @@ export function tipoEmail(e: Pick<Email, 'assunto' | 'anexo'> & { corpo?: string
   if (/^aviso/.test(t)) return 'aviso'
   if (/cancel/.test(t)) return 'cancelamento'
   if (/prazo|prorroga/.test(t)) return 'prazo'
+  if (/conclus[aã]o/.test(t) && !e.anexo) return 'aviso' // "Conclusão da Ordem de Serviço" (12/11)
   if (e.anexo || /ordem de servi|o\.s\./.test(t)) return 'os'
   return 'aviso'
 }
@@ -104,6 +105,73 @@ export function emailSimulado(n: number, hoje = new Date()): Email {
   }
 }
 
+/**
+ * Arquivo "Caixa de entrada" (emails.json) que o Claude monta a partir do Gmail (scripts/caixa-emails.ts) e o usuário
+ * importa na aba E-mails. É uma lista de Email; aceita também { emails: [...] }. Devolve só os itens válidos.
+ */
+export function lerArquivoCaixaDeEntrada(json: string): { emails: Email[]; erro?: string } {
+  let dados: unknown
+  try { dados = JSON.parse(json) } catch { return { emails: [], erro: 'Este arquivo não é um JSON válido.' } }
+  const lista = Array.isArray(dados) ? dados : dados && typeof dados === 'object' && Array.isArray((dados as { emails?: unknown }).emails) ? (dados as { emails: unknown[] }).emails : null
+  if (!lista) return { emails: [], erro: 'O arquivo não tem a lista de e-mails (esperava emails.json da Caixa de entrada).' }
+  const texto = (v: unknown) => (typeof v === 'string' ? v : '')
+  const emails: Email[] = []
+  for (const it of lista) {
+    if (!it || typeof it !== 'object') continue
+    const e = it as Record<string, unknown>
+    if (!texto(e.id) || !texto(e.de) || !texto(e.recebidoEm)) continue
+    const anexo = e.anexo && typeof e.anexo === 'object' && texto((e.anexo as Record<string, unknown>).texto) ? { nome: texto((e.anexo as Record<string, unknown>).nome) || 'anexo.txt', texto: texto((e.anexo as Record<string, unknown>).texto) } : undefined
+    emails.push({ id: texto(e.id), de: texto(e.de), nome: texto(e.nome) || texto(e.de).split('@')[0].toUpperCase(), assunto: texto(e.assunto), corpo: texto(e.corpo), recebidoEm: texto(e.recebidoEm), lido: e.lido === true, ...(anexo ? { anexo } : {}) })
+  }
+  return { emails }
+}
+
+/**
+ * Ligação com o Gmail pelo Google Apps Script (10/11): o script publicado responde em JSON com os e-mails da Caixa.
+ * `desde` (ISO) limita a busca; vai como segundos desde 1970 (`after:` do Gmail). Sem `desde`, o script usa os últimos 30 dias.
+ */
+export function urlPonteGmail(url: string, token: string, desde?: string): string {
+  const base = url.trim()
+  if (!base) return ''
+  const p = new URLSearchParams()
+  if (token.trim()) p.set('token', token.trim())
+  const ms = desde ? Date.parse(desde) : NaN
+  if (!isNaN(ms)) p.set('desde', String(Math.floor(ms / 1000)))
+  const q = p.toString()
+  return q ? `${base}${base.includes('?') ? '&' : '?'}${q}` : base
+}
+
+/** A partir de quando buscar na próxima sincronização: 2 dias antes da última (o id repete, não duplica); sem última, os últimos 10 dias (pedido de 12/11). */
+export function desdeParaSincronizar(ultima: string | undefined, agora = new Date()): string {
+  const ms = ultima ? Date.parse(ultima) : NaN
+  const folga = isNaN(ms) ? agora.getTime() - 10 * 24 * 3600 * 1000 : ms - 2 * 24 * 3600 * 1000
+  return new Date(folga).toISOString()
+}
+
+/** Resposta do script: { ok: true, emails: [...] } ou { ok: false, erro: '...' } (ou a lista direta). */
+export function lerRespostaPonte(json: string): { emails: Email[]; erro?: string } {
+  try {
+    const d = JSON.parse(json) as { ok?: boolean; erro?: string }
+    if (d && typeof d === 'object' && !Array.isArray(d) && d.ok === false) return { emails: [], erro: d.erro || 'O script do Gmail recusou o pedido.' }
+  } catch { return { emails: [], erro: 'A resposta do script não é um JSON válido (confira o endereço publicado).' } }
+  return lerArquivoCaixaDeEntrada(json)
+}
+
+/** Quantos e-mails ficam guardados no navegador (os mais antigos saem; o Gmail continua com todos). */
+export const MAX_EMAILS_GUARDADOS = 400
+
+/**
+ * Junta os e-mails importados aos que já estão no sistema: só entram ids novos (lido/importada/PEPT dos antigos ficam).
+ * Guarda no máximo `maximo` e-mails, os mais recentes, para o armazenamento do navegador não estourar.
+ */
+export function mesclarEmails(atuais: Email[], novos: Email[], maximo = MAX_EMAILS_GUARDADOS): { emails: Email[]; novos: number } {
+  const ids = new Set(atuais.map((e) => e.id))
+  const entram = novos.filter((e) => !ids.has(e.id) && (ids.add(e.id), true))
+  const todos = [...entram, ...atuais]
+  const emails = todos.length > maximo ? [...todos].sort((a, b) => b.recebidoEm.localeCompare(a.recebidoEm)).slice(0, maximo) : todos
+  return { emails, novos: entram.length }
+}
+
 /** Notificam: O.S. nova e PEPT resolvida (aviso, prazo e cancelamento não notificam). */
 export const notificaveis = (lista: Email[]) => caixaDeEntrada(lista).filter((e) => !e.lido && (tipoEmail(e) === 'os' || tipoEmail(e) === 'pept'))
 
@@ -115,3 +183,9 @@ export function emailPeptResolvida(ref: string, cliente: string, cidade: string,
     recebidoEm: hoje.toISOString(), lido: false,
   }
 }
+
+/**
+ * E-mail que mexe no sistema (cria O.S., resolve PEPT): só os que chegaram depois de ligar o Gmail (pedido de 12/11).
+ * Os anteriores ficam na caixa de entrada só para consulta. Sem data de corte, todos mexem.
+ */
+export const emailInterage = (e: Pick<Email, 'recebidoEm'>, ativoDesde?: string) => !ativoDesde || e.recebidoEm >= ativoDesde

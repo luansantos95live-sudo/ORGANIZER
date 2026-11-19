@@ -16,4 +16,9 @@ if not exist "dist\Fluxo_Caixa.html" (
   call npm run build:single
   popd
 )
-start "" chrome --app="%~dp0dist\Fluxo_Caixa.html"
+rem Com as O.S. reais (Dados\Fluxo_Caixa.html, gerado junto quando existe Dados\os-reais.json) abre essa versao.
+if exist "Dados\Fluxo_Caixa.html" (
+  start "" chrome --app="%~dp0Dados\Fluxo_Caixa.html"
+) else (
+  start "" chrome --app="%~dp0dist\Fluxo_Caixa.html"
+)
