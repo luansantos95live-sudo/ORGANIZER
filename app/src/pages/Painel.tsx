@@ -91,7 +91,8 @@ export function Painel() {
       <NovaOS open={novaOpen} onClose={() => setNovaOpen(false)} />
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 xl:grid-rows-[auto_auto_1fr] gap-4 flex-1 min-h-0">
-        <Prioridade lista={porPrazo(ativas)} hojeStr={hojeStr} mensagem={config.mensagemWhatsApp} />
+        <Prioridade lista={porPrazo(ativas)} hojeStr={hojeStr} mensagem={config.mensagemWhatsApp}
+          emDia={{ nome: config.responsaveis.luan.curto, finalizadas: finalizadas.length, mes: format(hoje, 'MMMM', { locale: ptBR }), pept: pept.length }} />
 
         <Bloco cor="var(--laranja-txt)" fundo="var(--laranja-soft)" Icone={Inbox} rotulo="O.S. em aberto" numero={emAberto.length} para="/os?visao=lista&fase=aberto&periodo=todos"
           itens={emAberto.slice(0, 3).map((o) => ({ os: o, direita: prazoTxt(o) }))} vazio="Nenhuma O.S. em aberto." />
@@ -161,7 +162,7 @@ export function Painel() {
  * Bloco grande em destaque: a prioridade número 1 (a O.S. mais urgente agora), o que falta nela e as ações
  * para destravar: ligar, WhatsApp, pedir pausa (PEPT) e o próximo passo. As setas passam para a próxima.
  */
-function Prioridade({ lista, hojeStr, mensagem }: { lista: OS[]; hojeStr: string; mensagem: string }) {
+function Prioridade({ lista, hojeStr, mensagem, emDia }: { lista: OS[]; hojeStr: string; mensagem: string; emDia: { nome: string; finalizadas: number; mes: string; pept: number } }) {
   const marcarPasso = useStore((s) => s.marcarPasso)
   const voltarPasso = useStore((s) => s.voltarPasso)
   const [i, setI] = useState(0)
@@ -171,9 +172,29 @@ function Prioridade({ lista, hojeStr, mensagem }: { lista: OS[]; hojeStr: string
   const base = 'heroi md:col-span-2 xl:row-span-2 rounded-[22px] p-6 flex flex-col gap-5 text-white min-h-[300px] bg-[linear-gradient(160deg,#10241A_0%,#173B26_100%)] shadow-[0_12px_32px_-18px_rgba(16,36,26,.6)]'
   if (!lista.length) {
     return (
-      <article className={base}>
-        <span className="text-[12.5px] font-bold uppercase tracking-[.06em] opacity-70">Prioridade agora</span>
-        <div className="my-auto"><div className="text-[26px] font-bold leading-tight">Tudo em dia</div><p className="text-[14px] opacity-70 mt-1">Nenhuma O.S. esperando por você agora.</p></div>
+      // Tudo em dia (23/11, pedido do usuário: "uma saudação mais legal, tipo parabéns, com um design mais bonito")
+      <article className={base + ' relative overflow-hidden'}>
+        {/* enfeites: anéis de brilho à direita e confetes */}
+        <span aria-hidden className="emdia-anel" style={{ width: 420, height: 420, right: -120, top: -90 }} />
+        <span aria-hidden className="emdia-anel" style={{ width: 280, height: 280, right: -50, top: -20 }} />
+        {[['#7be05c', '12%', '68%', 8, 0], ['#f0c94a', '78%', '22%', 7, 1], ['#7be05c', '86%', '64%', 6, 2], ['#9cd3ff', '64%', '12%', 5, 3], ['#f39a8e', '70%', '78%', 6, 4], ['#f0c94a', '52%', '84%', 5, 5]].map(([cor, x, y, t, i]) => (
+          <span key={i as number} aria-hidden className="emdia-confete" style={{ background: cor as string, left: x as string, top: y as string, width: t as number, height: t as number, animationDelay: `${(i as number) * 0.35}s` }} />
+        ))}
+        <span className="relative text-[12.5px] font-bold uppercase tracking-[.06em] opacity-70">Prioridade agora</span>
+        <div className="relative my-auto flex flex-wrap items-center gap-5">
+          <div className="emdia-selo shrink-0 w-[76px] h-[76px] rounded-full flex items-center justify-center"><CircleCheck size={40} strokeWidth={2.2} /></div>
+          <div className="min-w-0">
+            <div className="emdia-rotulo text-[13px] font-bold uppercase tracking-[.08em]">Tudo em dia</div>
+            <div className="text-[30px] font-bold tracking-[-0.02em] leading-tight mt-0.5">Parabéns, {emDia.nome}!</div>
+            <p className="emdia-texto text-[16px] mt-1">Você está com todas as demandas em dia.</p>
+            <p className="emdia-nota text-[13.5px] mt-0.5">Nenhuma O.S. esperando por você agora. Aproveite o respiro.</p>
+            <div className="flex flex-wrap gap-2 mt-4">
+              {emDia.finalizadas > 0 && <span className="emdia-chip"><Check size={14} strokeWidth={3} />{emDia.finalizadas} {emDia.finalizadas === 1 ? 'O.S. finalizada' : 'O.S. finalizadas'} em {emDia.mes}</span>}
+              {emDia.pept > 0 && <Link to="/os?visao=lista&fase=pept" className="emdia-chip emdia-chip-pept"><PauseCircle size={14} />{emDia.pept} em PEPT aguardando o cliente</Link>}
+              <Link to="/os" className="emdia-chip emdia-chip-link"><FileText size={14} />Ver ordens de serviço</Link>
+            </div>
+          </div>
+        </div>
       </article>
     )
   }
