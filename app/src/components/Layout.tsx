@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { Bell, ClipboardList, Mail, Moon, PanelLeftClose, Search, Settings, Sun, UserRound, Users } from 'lucide-react'
+import { Bell, ClipboardList, Mail, Moon, PanelLeftClose, Search, Settings, Sun, UserRound } from 'lucide-react'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { differenceInCalendarDays, format, parseISO } from 'date-fns'
@@ -9,7 +9,7 @@ import { iniciarPasta, reconectarPasta } from '../store/pastaSync'
 import { iniciarPastasOS, reconectarPastaOS } from '../store/pastasOS'
 import { Avatar, Dica, Segmented, StatusChip, useFora } from './ui'
 import { Logo, LogoCompleta } from './Logo'
-import { IconeAmostragem, IconeAnotacoes, IconeConfig, IconeEmails, IconeFichas, IconeFinanceiro, IconeInicio, IconeOS, IconeRotas } from './IconesMenu'
+import { IconeAmostragem, IconeAnotacoes, IconeConfig, IconeTodas, IconeEmails, IconeFichas, IconeFinanceiro, IconeInicio, IconeOS, IconeRotas } from './IconesMenu'
 import { PostIt } from './PostIt'
 import { caixaDeEntrada, notificaveis, tipoEmail } from '../lib/emails'
 import type { Escopo, OS } from '../types'
@@ -130,7 +130,7 @@ export function Layout() {
                 <span className="block text-[#b9c0b6]">Escolha uma opção e todas as telas do sistema passam a mostrar só essas ordens de serviço.</span>
                 <span className="flex gap-2 mt-2"><Avatar resp="luan" size={16} /><span><b>Minhas</b> — as O.S. que estão no seu nome.</span></span>
                 <span className="flex gap-2 mt-1"><Avatar resp="rt" size={16} /><span><b>{config.responsaveis.rt.curto}</b> — as O.S. que estão no nome do {config.responsaveis.rt.curto}.</span></span>
-                <span className="flex gap-2 mt-1"><Users size={16} strokeWidth={1.75} className="shrink-0" /><span><b>Todas</b> — as duas juntas, para ver o trabalho de todos.</span></span>
+                <span className="flex gap-2 mt-1"><IconeTodas size={16} strokeWidth={1.75} className="shrink-0" /><span><b>Todas</b> — as duas juntas, para ver o trabalho de todos.</span></span>
                 <span className="block mt-2 pt-2 border-t border-white/10 text-[#b9c0b6]">A opção em verde é a que está valendo agora.</span>
               </Dica>
             </div>
@@ -138,7 +138,7 @@ export function Layout() {
               // perfis maiores (19/11): avatares 20 → 26 px e ícone de Todas 17 → 24 px
               { value: 'luan' as Escopo, label: 'Minhas', icone: <Avatar resp="luan" size={26} /> },
               { value: 'rt' as Escopo, label: config.responsaveis.rt.curto, icone: <Avatar resp="rt" size={26} /> },
-              { value: 'todas' as Escopo, label: 'Todas', icone: <Users strokeWidth={1.75} style={{ width: 24, height: 24 }} /> },
+              { value: 'todas' as Escopo, label: 'Todas', icone: <IconeTodas strokeWidth={1.75} style={{ width: 24, height: 24 }} /> }, // ícone novo (23/11)
             ]).map((e) => (
               <button key={e.value} type="button" className="aba w-full text-left" aria-current={escopo === e.value ? 'page' : undefined}
                 onClick={() => setEscopo(e.value)} {...comDica(e.label)}>

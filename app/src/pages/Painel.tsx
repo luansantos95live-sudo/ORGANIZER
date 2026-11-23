@@ -1,7 +1,7 @@
 import clsx from 'clsx'
 import { differenceInCalendarDays, format, isSameDay, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { AlertTriangle, CalendarPlus, Check, CircleCheck, Inbox, ChevronLeft, ChevronRight, FileText, MessageCircle, PauseCircle, Phone, Plus, type LucideIcon } from 'lucide-react'
+import { AlertTriangle, CalendarPlus, Check, Circle, CircleCheck, Inbox, ChevronLeft, ChevronRight, FileText, MessageCircle, PauseCircle, Phone, Plus, type LucideIcon } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { CaixaPrioridade, DadosPrioridade } from '../components/DadosPrioridade'
@@ -163,7 +163,10 @@ export function Painel() {
  */
 function Prioridade({ lista, hojeStr, mensagem }: { lista: OS[]; hojeStr: string; mensagem: string }) {
   const marcarPasso = useStore((s) => s.marcarPasso)
+  const voltarPasso = useStore((s) => s.voltarPasso)
   const [i, setI] = useState(0)
+  // passo escolhido na trilha (23/11): clicar num passo seleciona; sem escolha, vale o passo atual da O.S.
+  const [escolha, setEscolha] = useState<{ os: string; passo: PassoKey } | null>(null)
   const [pedindo, setPedindo] = useState(false)
   const base = 'heroi md:col-span-2 xl:row-span-2 rounded-[22px] p-6 flex flex-col gap-5 text-white min-h-[300px] bg-[linear-gradient(160deg,#10241A_0%,#173B26_100%)] shadow-[0_12px_32px_-18px_rgba(16,36,26,.6)]'
   if (!lista.length) {
@@ -178,13 +181,16 @@ function Prioridade({ lista, hojeStr, mensagem }: { lista: OS[]; hojeStr: string
   const o = lista[k]
   const f = farolDe(o)
   const pp = proximoPasso(o, hojeStr)
-  const marcarVistoria = pp.key === 'marcar_vistoria' && !o.vistoria
+  const estados = estadoPassos(o, hojeStr)
+  const sel: PassoKey | null = escolha?.os === o.id ? escolha.passo : pp.key
+  const selFeito = !!sel && estados[sel].estado !== 'pendente'
+  const marcarVistoria = sel === 'marcar_vistoria' && !selFeito && !o.vistoria
   const fone = telefoneWhats(o.whatsapp || o.telefone)
   const texto = mensagem.replace('{contato}', o.contato || o.proponente).replace('{cliente}', o.proponente).replace('{endereco}', enderecoLinha(o))
     .replace('{data}', o.vistoria ? dataMedia(o.vistoria.data) : '').replace('{hora}', o.vistoria?.hora ?? '').replace('{os}', codigoOS(o))
   // vencida ou vencendo hoje: vermelha (pedido de 16/11)
   const corPrazo = f.farol === 'late' || f.dias === 0 ? 'bg-[#e2665c] text-white' : f.farol === 'urgent' || f.farol === 'warn' ? 'bg-[#f0b46e] text-[#2b1a05]' : 'bg-white/15 text-white'
-  const mudar = (n: number) => { setI((k + n + lista.length) % lista.length); setPedindo(false) }
+  const mudar = (n: number) => { setI((k + n + lista.length) % lista.length); setPedindo(false); setEscolha(null) }
   const botao = 'h-10 px-4 rounded-full font-semibold flex items-center gap-2 border border-white/30 text-white hover:bg-white/10'
   return (
     <article className={base}>
@@ -208,17 +214,21 @@ function Prioridade({ lista, hojeStr, mensagem }: { lista: OS[]; hojeStr: string
         </div>
       </div>
       <div className="rounded-2xl bg-white/[.08] px-4 py-3 text-[14px] leading-relaxed">
-        <div className="text-[12px] font-bold uppercase tracking-[.06em] opacity-60">Agora</div>
-        <div className="text-[18px] font-bold leading-tight mt-0.5">{pp.label}</div>
-        {/* trilha do serviço: feitos com ✓, o atual em destaque, os próximos apagados */}
+        <div className="text-[12px] font-bold uppercase tracking-[.06em] opacity-60">{sel === pp.key ? 'Agora' : 'Passo escolhido'}</div>
+        <div className="text-[18px] font-bold leading-tight mt-0.5">{sel ? passosDaOS(o).find((p) => p.key === sel)?.label ?? pp.label : pp.label}</div>
+        {/* trilha do serviço (23/11): cada passo é clicável e fica em destaque quando escolhido; feitos com ✓, pendentes apagados */}
         <ol className="flex flex-wrap gap-1 mt-3" aria-label="Passos do serviço">
           {passosDaOS(o).filter((p) => !p.opcional).map((p) => {
-            const e = estadoPassos(o, hojeStr)[p.key].estado
-            const atual = p.key === pp.key
+            const e = estados[p.key].estado
+            const escolhido = p.key === sel
             return (
-              <li key={p.key} title={p.label} className={'px-2 h-6 rounded-full text-[11px] font-semibold flex items-center gap-1 ' +
-                (atual ? 'bg-[#7be05c] text-[#0d2214]' : e === 'pendente' ? 'bg-white/[.06] text-white/45' : 'bg-white/15 text-white/85')}>
-                {e !== 'pendente' && !atual && <Check size={11} strokeWidth={3} />}{CURTO[p.key]}
+              <li key={p.key}>
+                <button type="button" title={`${p.label}${e === 'pendente' ? ' (a fazer)' : ' (feito)'}`} aria-pressed={escolhido}
+                  onClick={() => setEscolha({ os: o.id, passo: p.key })}
+                  className={'px-2 h-6 rounded-full text-[11px] font-semibold flex items-center gap-1 transition ' +
+                    (escolhido ? 'bg-[#7be05c] text-[#0d2214]' : e === 'pendente' ? 'bg-white/[.06] text-white/45 hover:bg-white/[.12] hover:text-white/75' : 'bg-white/15 text-white/85 hover:bg-white/25')}>
+                  {e !== 'pendente' && <Check size={11} strokeWidth={3} />}{CURTO[p.key]}
+                </button>
               </li>
             )
           })}
@@ -233,7 +243,10 @@ function Prioridade({ lista, hojeStr, mensagem }: { lista: OS[]; hojeStr: string
           <div className="flex flex-wrap gap-2">
             {marcarVistoria
               ? <Link to="/rotas" className="h-10 px-4 rounded-full bg-[#7be05c] text-[#0d2214] font-bold flex items-center gap-2 hover:brightness-105"><CalendarPlus size={16} />Marcar vistoria</Link>
-              : pp.key && <button type="button" onClick={() => marcarPasso(o.id, pp.key!, 'feito')} className="h-10 px-4 rounded-full bg-[#7be05c] text-[#0d2214] font-bold flex items-center gap-2 hover:brightness-105"><Check size={16} />Feito</button>}
+              // "Feito" só quando o passo escolhido já está feito (clicar desfaz); senão "Fazer" (clicar marca como feito) — 23/11
+              : sel && (selFeito
+                ? <button type="button" title="Passo já feito: clique para desfazer" onClick={() => { voltarPasso(o.id, sel); setEscolha({ os: o.id, passo: sel }) }} className="h-10 px-4 rounded-full bg-[#7be05c] text-[#0d2214] font-bold flex items-center gap-2 hover:brightness-105"><Check size={16} />Feito</button>
+                : <button type="button" title="Marcar este passo como feito" onClick={() => { marcarPasso(o.id, sel, 'feito'); setEscolha(null) }} className="h-10 px-4 rounded-full bg-[#7be05c] text-[#0d2214] font-bold flex items-center gap-2 hover:brightness-105"><Circle size={16} strokeWidth={2.5} />Fazer</button>)}
             <Link to={`/os/${o.id}`} className={botao}><FileText size={16} />Abrir O.S.</Link>
             {o.telefone && <a href={`tel:${o.telefone.replace(/\D/g, '')}`} className={botao}><Phone size={16} />Ligar</a>}
             {fone && <a href={`https://wa.me/${fone}?text=${encodeURIComponent(texto)}`} target="_blank" rel="noreferrer" className={botao}><MessageCircle size={16} />WhatsApp</a>}

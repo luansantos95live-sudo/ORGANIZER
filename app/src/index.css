@@ -133,7 +133,7 @@ body {
 .lateral .marca small { color: #7f877d; font-size: 11.5px; letter-spacing: .01em; }
 /* Menu lateral maior (19/11, pedido do usuário): texto 13,5 → 15 px, ícones 17 → 20 px, títulos 10,5 → 11,5 px. */
 .lat-sec { padding: 16px 12px 6px; font-size: 11.5px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: #646b62; user-select: none; }
-.aba { position: relative; display: flex; align-items: center; gap: 12px; height: 42px; padding: 0 12px; border-radius: 9px; font-size: 15px; font-weight: 500; letter-spacing: .003em; color: #aeb4ab; transition: background .15s, color .15s; }
+.aba { position: relative; display: flex; align-items: center; gap: 12px; height: 42px; padding: 0 12px; border-radius: 9px; font-size: 15.75px /* +5% a pedido (23/11): era 15px */; font-weight: 500; letter-spacing: .003em; color: #aeb4ab; transition: background .15s, color .15s; }
 .aba svg { width: 22px; height: 22px; flex: none; } /* +10% a pedido (23/11): era 20px */
 .aba > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .aba:hover { background: rgba(255, 255, 255, .06); color: #fff; }
