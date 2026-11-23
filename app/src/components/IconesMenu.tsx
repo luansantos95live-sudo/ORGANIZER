@@ -98,12 +98,16 @@ export const IconeEmails = (p: Props) => (
   </Base>
 )
 
-/** Anotações: post-it com a ponta dobrada em verde. */
+/** Anotações (modelo do usuário, 23/11): dois post-its, o de trás em verde e o da frente com linhas e a ponta dobrada verde. */
 export const IconeAnotacoes = (p: Props) => (
   <Base {...p}>
-    <path d="M14.5 20.5H5.5a2 2 0 0 1-2-2v-13a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2v9Z" />
-    <path d="M20.5 14.5H16a1.5 1.5 0 0 0-1.5 1.5v4.5" stroke={VERDE} />
-    <path d="M7.5 8.5h9M7.5 12h5.5" />
+    <path d="M7.4 7.7 5.9 7.9a2 2 0 0 0-1.7 2.3l1.3 8.6a2 2 0 0 0 2.3 1.7l7.9-1.1a2 2 0 0 0 1.5-1.1" stroke={VERDE} />
+    <g transform="rotate(-3 14 11)">
+      <path d="M9.4 3.8h8.8a2 2 0 0 1 2 2v7.4l-4.4 4.3H9.4a2 2 0 0 1-2-2V5.8a2 2 0 0 1 2-2Z" />
+      <path d="M20.2 13.2h-2.9a1.5 1.5 0 0 0-1.5 1.5v2.8" />
+      <path d="M19 14.2h-1.6a.6.6 0 0 0-.6.6v1.7Z" fill={VERDE} stroke="none" />
+      <path d="M10.2 7.4h7M10.2 9.9h6.4M10.2 12.4h3.4" />
+    </g>
   </Base>
 )
 
