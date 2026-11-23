@@ -9,6 +9,7 @@ import { poloDe, STATUS_META, corrigirPrazoAntigo, migrarOS, montarOS, type Nova
 import { ETAPA_DO_PASSO, PASSO_LABEL, voltarParaPasso } from '../lib/passos'
 import { novoCodigoRota, vistoriaFeitaPelaRota, vistoriasDasRotasConcluidas } from '../lib/rota'
 import { completarColunas } from '../lib/kanban'
+import { comPostitsPadrao, editarPostit, novoPostit, removerItem, semCoresRepetidas } from '../lib/anotacoes'
 import { ORIGEM_RESOLUCAO, TIPO_PEPT, abrirPept, editarDatasPeptNaOS, editarPeptNaOS, encerrarPeptNaOS, etapaAoFinalizarPept, peptAberta, podeConcluir, reabrirPeptNaOS, resolverPeptNaOS } from '../lib/pept'
 
 export interface Fechamento { extratoTotal?: number; extratoQtd?: number; dataRelatorio?: string; valorNF?: number }
@@ -58,6 +59,9 @@ interface State {
   toggleDoc: (id: string, doc: keyof OS['docs']) => void
   marcarFaturada: (id: string, faturada: boolean) => void
   marcarFicha: (id: string, fornecida: boolean) => void
+  novoLembrete: (texto?: string, cor?: string) => string
+  editarLembrete: (itemId: string, patch: { texto?: string; cor?: string }) => void
+  apagarLembrete: (itemId: string) => void
   definirLocalizacao: (id: string, lat: number, lng: number) => void
   // rotas
   criarRota: (osIds: string[], dados?: Partial<Rota>) => string
@@ -360,6 +364,16 @@ export const useStore = create<State>()(
       marcarFicha: (id, fornecida) =>
         get().atualizarOS(id, { fichaFornecida: fornecida }, fornecida ? 'Ficha de pesquisa fornecida' : 'Ficha de pesquisa marcada como pendente'),
 
+      // Anotações (23/11): checklist livre por O.S.; não entra na linha do tempo
+      // Post-its (23/11): quadro simples de lembretes, sem O.S.; ficam no config (vão no backup e na pasta do OneDrive)
+      novoLembrete: (texto = '', cor) => {
+        const lista = novoPostit(get().config.lembretes, texto, cor)
+        set((s) => ({ config: { ...s.config, lembretes: lista } }))
+        return lista[0].id
+      },
+      editarLembrete: (itemId, patch) => set((s) => ({ config: { ...s.config, lembretes: editarPostit(s.config.lembretes, itemId, patch) } })),
+      apagarLembrete: (itemId) => set((s) => ({ config: { ...s.config, lembretes: removerItem(s.config.lembretes, itemId) } })),
+
       definirLocalizacao: (id, lat, lng) => {
         const o = get().os.find((x) => x.id === id)
         if (!o) return
@@ -475,6 +489,7 @@ function mesclarConfig(c: Partial<Config>): Config {
     contrato: { ...CONFIG_PADRAO.contrato, ...(c.contrato ?? {}) },
     empresa: { ...CONFIG_PADRAO.empresa, ...(c.empresa ?? {}) },
     gmail: { ...CONFIG_PADRAO.gmail, ...(c.gmail ?? {}) },
+    ...((p) => ({ ...p, lembretes: semCoresRepetidas(p.lembretes) }))(comPostitsPadrao(c)), // 4 post-its padrão uma vez só; quadro sem cores repetidas (23/11)
   }
 }
 

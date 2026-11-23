@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { Bell, DollarSign, ClipboardList, FileSearch, House, Mail, Moon, PanelLeftClose, Route, Search, Settings, Sun, UserRound, Users } from 'lucide-react'
+import { Bell, ClipboardList, Mail, Moon, PanelLeftClose, Search, Settings, Sun, UserRound, Users } from 'lucide-react'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { differenceInCalendarDays, format, parseISO } from 'date-fns'
@@ -9,7 +9,8 @@ import { iniciarPasta, reconectarPasta } from '../store/pastaSync'
 import { iniciarPastasOS, reconectarPastaOS } from '../store/pastasOS'
 import { Avatar, Dica, Segmented, StatusChip, useFora } from './ui'
 import { Logo, LogoCompleta } from './Logo'
-import { IconeCasaLupa } from './IconeCasaLupa'
+import { IconeAmostragem, IconeAnotacoes, IconeConfig, IconeEmails, IconeFichas, IconeFinanceiro, IconeInicio, IconeOS, IconeRotas } from './IconesMenu'
+import { PostIt } from './PostIt'
 import { caixaDeEntrada, notificaveis, tipoEmail } from '../lib/emails'
 import type { Escopo, OS } from '../types'
 import { STATUS_META, cap, codigoOS, enderecoLinha, farolDe, temEquipe } from '../lib/os'
@@ -17,16 +18,18 @@ import { STATUS_META, cap, codigoOS, enderecoLinha, farolDe, temEquipe } from '.
 // Menu igual ao do sistema real, na ordem dele, com os grupos da lateral do FLUXO ARQ.
 const GRUPOS = [
   { titulo: 'Geral', itens: [
-    { to: '/', label: 'Início', icon: House, end: true },
-    { to: '/os', label: 'Ordens de Serviço', icon: ClipboardList },
-    { to: '/rotas', label: 'Rotas', icon: Route },
-    { to: '/financeiro', label: 'Financeiro', icon: DollarSign },
-    { to: '/fichas', label: 'Fichas de Pesquisa', icon: FileSearch },
-    { to: '/amostragem', label: 'Amostragem', icon: IconeCasaLupa }, // 18/11/2026
-    { to: '/emails', label: 'E-mails da Caixa', icon: Mail },
+    // ícones do menu (23/11): modelos do usuário, todos no mesmo quadro e traço (components/IconesMenu.tsx)
+    { to: '/', label: 'Início', icon: IconeInicio, end: true },
+    { to: '/os', label: 'Ordens de Serviço', icon: IconeOS },
+    { to: '/rotas', label: 'Rotas', icon: IconeRotas },
+    { to: '/financeiro', label: 'Financeiro', icon: IconeFinanceiro },
+    { to: '/fichas', label: 'Fichas de Pesquisa', icon: IconeFichas },
+    { to: '/amostragem', label: 'Amostragem', icon: IconeAmostragem }, // 18/11/2026
+    { to: '/emails', label: 'E-mails da Caixa', icon: IconeEmails },
+    { to: '/anotacoes', label: 'Anotações', icon: IconeAnotacoes }, // 23/11/2026
   ] },
   { titulo: 'Sistema', itens: [
-    { to: '/configuracoes', label: 'Configurações', icon: Settings },
+    { to: '/configuracoes', label: 'Configurações', icon: IconeConfig },
   ] },
 ]
 const NAV = GRUPOS.flatMap((g) => g.itens)
@@ -53,6 +56,17 @@ export function Layout() {
     return () => clearInterval(t)
   }, [gmailLigado, sincronizarGmail])
   const recolhido = config.menuRecolhido
+  // Dica do menu recolhido (23/11): aparece na hora ao passar o mouse (a dica nativa do navegador, `title`, demorava ~1 s).
+  // Fica fixa na tela, ao lado do item, para não ser cortada pela rolagem do menu.
+  const [dica, setDica] = useState<{ texto: string; x: number; y: number } | null>(null)
+  useEffect(() => { if (!recolhido) setDica(null) }, [recolhido])
+  const comDica = (texto: string) => recolhido ? {
+    'aria-label': texto,
+    onMouseEnter: (e: React.MouseEvent<HTMLElement>) => { const r = e.currentTarget.getBoundingClientRect(); setDica({ texto, x: r.right + 10, y: r.top + r.height / 2 }) },
+    onMouseLeave: () => setDica(null),
+    onFocus: (e: React.FocusEvent<HTMLElement>) => { const r = e.currentTarget.getBoundingClientRect(); setDica({ texto, x: r.right + 10, y: r.top + r.height / 2 }) },
+    onBlur: () => setDica(null),
+  } : {}
   // Pasta de dados no OneDrive (10/11): ao abrir, lê o arquivo da pasta lembrada; se o Chrome pedir confirmação, mostra a faixa
   const pastaAviso = useStore((s) => s.pastaAviso)
   const pastaDados = useStore((s) => s.pastaDados)
@@ -96,7 +110,7 @@ export function Layout() {
             <Fragment key={g.titulo}>
               <div className="lat-sec">{g.titulo}</div>
               {g.itens.map((n) => (
-                <NavLink key={n.to} to={n.to} end={n.end} className="aba relative" title={recolhido ? n.label : undefined}>
+                <NavLink key={n.to} to={n.to} end={n.end} className="aba relative" {...comDica(n.label)}>
                   <n.icon strokeWidth={1.75} />
                   <span>{n.label}</span>
                   {n.to === '/os' && osNovas > 0 && <b className="absolute top-0.5 left-7 min-w-[16px] h-4 px-1 rounded-full bg-[#2563eb] text-white text-[10px] font-bold leading-4 text-center not-italic" aria-label={`${osNovas} O.S. novas`} title={`${osNovas} O.S. nova(s) criada(s) pelo e-mail`}>{osNovas}</b>}
@@ -127,13 +141,13 @@ export function Layout() {
               { value: 'todas' as Escopo, label: 'Todas', icone: <Users strokeWidth={1.75} style={{ width: 24, height: 24 }} /> },
             ]).map((e) => (
               <button key={e.value} type="button" className="aba w-full text-left" aria-current={escopo === e.value ? 'page' : undefined}
-                onClick={() => setEscopo(e.value)} title={recolhido ? e.label : undefined}>
+                onClick={() => setEscopo(e.value)} {...comDica(e.label)}>
                 <div className="w-[26px] flex justify-center shrink-0">{e.icone}</div>
                 <span>{e.label}</span>
               </button>
             ))}
           </div>}
-          <button className="lat-recolher" onClick={() => setConfig({ menuRecolhido: !recolhido })} title={recolhido ? 'Expandir menu' : undefined}>
+          <button className="lat-recolher" onClick={() => setConfig({ menuRecolhido: !recolhido })} {...comDica('Expandir menu')}>
             <PanelLeftClose strokeWidth={1.75} />
             <span>Recolher menu</span>
           </button>
@@ -145,9 +159,7 @@ export function Layout() {
         <header className="topo-app h-[61px] sticky top-0 z-20 flex items-center gap-3 px-4 md:px-6">
           {equipe && <div className="md:hidden"><Segmented value={escopo} onChange={setEscopo} options={opcoesEscopo} /></div>}
           <div className="ml-auto flex items-center gap-2">
-            <button className="ic-btn" onClick={() => setBusca(true)}>
-              <Search strokeWidth={1.75} /> <span className="hidden sm:inline">Buscar O.S.</span>
-            </button>
+            {/* botão "Buscar O.S." saiu da barra de cima a pedido (23/11); a busca continua no Ctrl+K */}
             <button className="ic-btn" title="Alternar tema" aria-label="Alternar tema" onClick={() => setConfig({ tema: config.tema === 'claro' ? 'escuro' : 'claro' })}>
               {config.tema === 'claro' ? <Moon strokeWidth={1.75} /> : <Sun strokeWidth={1.75} />}
             </button>
@@ -185,6 +197,8 @@ export function Layout() {
         </nav>
       </div>
       {busca && <CommandBar onClose={() => setBusca(false)} />}
+      {dica && <div className="dica-lateral" role="tooltip" style={{ left: dica.x, top: dica.y }}>{dica.texto}</div>}
+      <PostIt />
     </div>
   )
 }

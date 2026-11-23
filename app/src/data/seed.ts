@@ -2,6 +2,7 @@ import { addDays, format, subDays, subMonths } from 'date-fns'
 import type { Config, DocKey, OS, Origem, Responsavel, Rota, Status, Tipologia } from '../types'
 import { IMPORTACAO_VAZIA, POLOS, TIPOLOGIAS_COM_FICHA, TIPOLOGIAS_SEM_VISTORIA, prazoDaTipologia } from '../lib/os'
 import { KANBAN_PADRAO } from '../lib/kanban'
+import { POSTITS_PADRAO } from '../lib/anotacoes'
 
 // Dados fictícios no formato do sistema real (docs/05-SISTEMA-REAL.md). Gerador determinístico: abre sempre igual.
 function rng(seed: number) {
@@ -45,6 +46,8 @@ const DOC_KEYS: DocKey[] = ['matricula', 'escritura', 'planta', 'siopi', 'pci', 
 export const CONFIG_PADRAO: Config = {
   tema: 'escuro',
   kanban: KANBAN_PADRAO,
+  lembretes: POSTITS_PADRAO, // quadro de Anotações já com 4 post-its, um de cada cor (23/11)
+  postitsPadrao: true,
   menuRecolhido: true,
   // Vazios ou genéricos de propósito: o repositório é público. Preencha em Configurações.
   responsaveis: {

@@ -129,6 +129,9 @@ export interface OS {
   rrt: boolean
 }
 
+/** Post-it do quadro de Anotações (23/11): só texto e cor, sem O.S. */
+export interface ItemAnotacao { id: string; texto: string; criadaEm: string; cor?: string }
+
 export type StatusRota = 'rascunho' | 'confirmada' | 'concluida' | 'cancelada'
 
 export interface Parada {
@@ -200,6 +203,8 @@ export interface NotaFiscal {
 
 export interface Config {
   tema: 'claro' | 'escuro'
+  postitsPadrao?: boolean // os 4 post-its padrão já foram colocados (uma vez só)
+  lembretes?: ItemAnotacao[] // post-its do quadro de Anotações e do botão flutuante (23/11), sem O.S.
   notasFiscais?: NotaFiscal[] // notas fiscais dos meses anteriores, digitadas ou importadas do XML (Financeiro › Últimos 6 meses)
   kanban: KanbanColuna[] // colunas do Kanban, na ordem; ocultas não aparecem
   menuRecolhido: boolean // menu lateral só com ícones, como no FLUXO ARQ

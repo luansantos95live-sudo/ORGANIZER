@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { startOfMonth } from 'date-fns'
-import { Check, MapPin, Search, Tag } from 'lucide-react'
+import { Building2, Check, MapPin, Search, Tag } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Avatar, Empty, FiltroPeriodo, Filtro, MultiSelect, PageHeader, StatusChip, TipologiaChip } from '../components/ui'
@@ -21,11 +21,17 @@ export function Fichas() {
   const [busca, setBusca] = useState('')
   const [tipologias, setTipologias] = useState<Tipologia[]>([])
   const [polos, setPolos] = useState<string[]>([])
+  const [cidades, setCidades] = useState<string[]>([])
   const [periodo, setPeriodo] = useState<Periodo>('mes') // controle mensal (12/11): abre no mês atual
   const [ref, setRef] = useState(() => startOfMonth(new Date()))
   const [especifico, setEspecifico] = useState({ ini: '', fim: '' })
   const [situacao, setSituacao] = useState<Situacao>('todas')
   const { ini, fim } = intervalo(periodo, ref, especifico)
+
+  // A ficha tem de ser fornecida da mesma cidade de origem da O.S. (23/11): por isso a coluna e o filtro de Cidade.
+  const opcoesCidade = useMemo(() => [...new Set(filtrarEscopo(todas, escopo)
+    .filter((o) => TIPOLOGIAS_COM_FICHA.includes(o.tipologia) && o.endereco.cidade)
+    .map((o) => o.endereco.cidade))].sort().map((c) => ({ value: c, label: c })), [todas, escopo])
 
   const base = useMemo(() => {
     const t = busca.trim().toLowerCase()
@@ -33,10 +39,11 @@ export function Fichas() {
       .filter((o) => TIPOLOGIAS_COM_FICHA.includes(o.tipologia) && o.status !== 'cancelada')
       .filter((o) => !tipologias.length || tipologias.includes(o.tipologia))
       .filter((o) => !polos.length || polos.includes(poloDe(o.endereco.cidade)))
+      .filter((o) => !cidades.length || cidades.includes(o.endereco.cidade))
       .filter((o) => noIntervalo(o, ini, fim))
       .filter((o) => !t || [o.referencia, codigoOS(o), o.proponente].join(' ').toLowerCase().includes(t))
       .sort((a, b) => b.numero - a.numero)
-  }, [todas, escopo, tipologias, polos, ini, fim, busca])
+  }, [todas, escopo, tipologias, polos, cidades, ini, fim, busca])
   const naSituacao = (o: OS) => (situacao === 'todas' ? true : situacao === 'fornecidas' ? !!o.fichaFornecida : !o.fichaFornecida)
   // Um bloco por técnico (12/11): as minhas primeiro e, embaixo, as de cada RT; técnico sem O.S. não aparece.
   const grupos = (Object.keys(config.responsaveis) as Responsavel[])
@@ -56,6 +63,7 @@ export function Fichas() {
         </Filtro>
         <Filtro label="Tipologia"><MultiSelect rotuloVazio="Todas as tipologias" icon={<Tag />} largura={190} opcoes={TIPOLOGIAS_COM_FICHA.map((t) => ({ value: t, label: `${t} - ${TIPOLOGIAS[t]}` }))} valor={tipologias} onChange={setTipologias} /></Filtro>
         <Filtro label="Polo"><MultiSelect rotuloVazio="Todos os polos" icon={<MapPin />} largura={160} opcoes={Object.keys(POLOS).map((p) => ({ value: p, label: p }))} valor={polos} onChange={setPolos} /></Filtro>
+        <Filtro label="Cidade"><MultiSelect rotuloVazio="Todas as cidades" icon={<Building2 />} largura={190} opcoes={opcoesCidade} valor={cidades} onChange={setCidades} /></Filtro>
         <Filtro label="Período"><FiltroPeriodo periodo={periodo} setPeriodo={setPeriodo} data={ref} setData={setRef} especifico={especifico} setEspecifico={setEspecifico} /></Filtro>
         <Filtro label="Situação">
           <select className="input w-[150px]" value={situacao} onChange={(e) => setSituacao(e.target.value as Situacao)}>
@@ -80,8 +88,8 @@ export function Fichas() {
   )
 }
 
-/** Colunas fixas: marcar · OS · cliente · tipologia · polo · etapa · ficha (tudo alinhado de uma linha para a outra). */
-const COLUNAS = 'grid grid-cols-[24px_64px_minmax(0,1fr)_64px_120px_140px_84px] items-center gap-x-4'
+/** Colunas fixas: marcar · OS · cliente · tipologia · cidade de origem · etapa · ficha (tudo alinhado de uma linha para a outra). */
+const COLUNAS = 'grid grid-cols-[24px_64px_minmax(0,1fr)_64px_160px_140px_84px] items-center gap-x-4'
 
 function BlocoFichas({ resp, titulo, base, lista, abrir, marcar }: {
   resp: Responsavel; titulo: string; base: OS[]; lista: OS[]; abrir: (id: string) => void; marcar: (id: string, v: boolean) => void
@@ -100,9 +108,9 @@ function BlocoFichas({ resp, titulo, base, lista, abrir, marcar }: {
         <span className="text-[12px] font-semibold tnum text-[var(--verde-valor)] w-[38px] text-right">{Math.round(pct)}%</span>
       </header>
       <div className="overflow-x-auto">
-        <div className="min-w-[640px]">
+        <div className="min-w-[680px]">
           <div className={clsx(COLUNAS, 'px-5 pt-2 pb-1 text-[10.5px] font-semibold uppercase tracking-wide text-muted')}>
-            <span /><span>OS</span><span>Cliente</span><span>Tipologia</span><span>Polo</span><span>Etapa</span><span className="text-right">Ficha</span>
+            <span /><span>OS</span><span>Cliente</span><span>Tipologia</span><span>Cidade</span><span>Etapa</span><span className="text-right">Ficha</span>
           </div>
           {lista.length === 0 ? <p className="px-5 py-4 text-[13px] text-muted">Nenhuma ficha nessa situação.</p> : (
             <ul className="flex flex-col gap-1 px-2 pb-2">
@@ -117,7 +125,7 @@ function BlocoFichas({ resp, titulo, base, lista, abrir, marcar }: {
                   <button className="tnum font-bold text-[13px] text-left hover:text-[var(--verde-valor)]" onClick={() => abrir(o.id)}>{codigoOS(o)}</button>
                   <button className="font-medium text-[13.5px] truncate text-left hover:text-[var(--verde-valor)]" title={o.proponente} onClick={() => abrir(o.id)}>{o.proponente}</button>
                   <span><TipologiaChip t={o.tipologia} /></span>
-                  <span className="text-[12.5px] text-muted truncate">{poloDe(o.endereco.cidade)}</span>
+                  <span className="text-[12.5px] font-medium truncate" title={`${o.endereco.cidade || '-'} · polo ${poloDe(o.endereco.cidade)}`}>{o.endereco.cidade || '-'}</span>
                   <span><StatusChip status={o.status} className="!h-[22px]" /></span>
                   <span className={clsx('text-[12px] font-semibold text-right', o.fichaFornecida ? 'text-[var(--verde-valor)]' : 'text-muted')}>{o.fichaFornecida ? 'Fornecida' : 'Pendente'}</span>
                 </li>

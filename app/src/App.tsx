@@ -9,6 +9,7 @@ import { Fichas } from './pages/Fichas'
 import { Amostragem, FichaAmostragem } from './pages/amostragem'
 import { EmailsPage } from './pages/Emails'
 import { ConfigPage } from './pages/Config'
+import { Anotacoes } from './pages/Anotacoes'
 
 // Endereços iguais aos do sistema real (/dashboard/os, /dashboard/rotas, /dashboard/faturamento, /dashboard/fichas,
 // /dashboard/configuracoes). Os endereços antigos do laboratório redirecionam.
@@ -27,6 +28,7 @@ export default function App() {
           <Route path="amostragem" element={<Amostragem />} />
           <Route path="amostragem/:id" element={<FichaAmostragem />} />
           <Route path="emails" element={<EmailsPage />} />
+          <Route path="anotacoes" element={<Anotacoes />} />
           <Route path="configuracoes" element={<ConfigPage />} />
           <Route path="faturamento" element={<Navigate to="/financeiro" replace />} />
           <Route path="fechamento" element={<Navigate to="/financeiro/fechamento" replace />} />

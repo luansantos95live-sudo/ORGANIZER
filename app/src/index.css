@@ -134,7 +134,7 @@ body {
 /* Menu lateral maior (19/11, pedido do usuário): texto 13,5 → 15 px, ícones 17 → 20 px, títulos 10,5 → 11,5 px. */
 .lat-sec { padding: 16px 12px 6px; font-size: 11.5px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: #646b62; user-select: none; }
 .aba { position: relative; display: flex; align-items: center; gap: 12px; height: 42px; padding: 0 12px; border-radius: 9px; font-size: 15px; font-weight: 500; letter-spacing: .003em; color: #aeb4ab; transition: background .15s, color .15s; }
-.aba svg { width: 20px; height: 20px; flex: none; }
+.aba svg { width: 22px; height: 22px; flex: none; } /* +10% a pedido (23/11): era 20px */
 .aba > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .aba:hover { background: rgba(255, 255, 255, .06); color: #fff; }
 .aba[aria-current="page"] { background: rgba(58, 184, 30, .17); color: #fff; font-weight: 600; box-shadow: inset 0 0 0 1px rgba(58, 184, 30, .22); }
@@ -575,3 +575,55 @@ tr.prazo-amarelo:hover, tr.prazo-vermelho:hover, tr.prazo-cinza:hover, tr.prazo-
 .nf-marca { height: 0; border-top: 2px dashed var(--laranja-txt); z-index: 1; }
 .nf-marca-txt { position: absolute; left: 50%; bottom: 3px; transform: translateX(-50%); white-space: nowrap; font-size: 10.5px; font-weight: 700; color: var(--laranja-txt); background: var(--surface); padding: 0 4px; border-radius: 4px; line-height: 15px; }
 .nf-marca-legenda { display: inline-block; width: 14px; height: 0; border-top: 2px dashed var(--laranja-txt); }
+
+/* Post-it flutuante (23/11): botão verde do sistema no canto inferior direito, em todas as telas; o "ticket" tem a ponta dobrada. */
+.postit-botao { width: 54px; height: 54px; border-radius: 16px 16px 6px 16px; display: flex; align-items: center; justify-content: center; background: var(--brand); color: #fff; box-shadow: 0 10px 24px -10px rgba(58, 184, 30, .85), 0 2px 6px rgba(0, 0, 0, .18); transition: transform .15s, background .15s; }
+.postit-botao::after { content: ''; position: absolute; right: 0; bottom: 0; width: 14px; height: 14px; border-radius: 0 0 6px 0; background: linear-gradient(135deg, #2b8f16 50%, transparent 50%); }
+.postit-botao:hover { transform: translateY(-2px); background: #33a51a; }
+.postit-botao.aberto { background: #2b8f16; }
+.pi-amarelo { --pi: #fde68a; --pi-dobra: #f2cf4f; }
+.pi-verde { --pi: #bbf0b0; --pi-dobra: #8fdc7f; }
+.pi-azul { --pi: #bfdcfb; --pi-dobra: #8fbff2; }
+.pi-rosa { --pi: #fbc9e4; --pi-dobra: #f29dcb; }
+.pi-laranja { --pi: #fed2a8; --pi-dobra: #f7b170; }
+.pi-lilas { --pi: #ddd0fb; --pi-dobra: #bea8f4; }
+.pi-turquesa { --pi: #a9ece3; --pi-dobra: #72d6c8; }
+.pi-salmao { --pi: #fbbcb2; --pi-dobra: #f39385; }
+.pi-lima { --pi: #e2f59a; --pi-dobra: #c7e35c; }
+.pi-areia { --pi: #ece0c6; --pi-dobra: #d6c49c; }
+
+/* Quadro de post-its (23/11, tela Anotações): quadrados coloridos, levemente tortos, escreve direto neles. */
+.quadro-postits { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 22px; padding: 6px 4px 20px; }
+.postit { position: relative; display: flex; flex-direction: column; aspect-ratio: 1; padding: 14px 14px 10px; background: var(--pi); color: #2a2e27;
+  border-radius: 3px 3px 18px 3px; box-shadow: 0 1px 2px rgba(0, 0, 0, .12), 0 12px 20px -12px rgba(0, 0, 0, .45);
+  transform: rotate(var(--rot, 0deg)); transition: transform .15s, box-shadow .15s; }
+.postit::after { content: ''; position: absolute; right: 0; bottom: 0; width: 18px; height: 18px; border-radius: 0 0 18px 0;
+  background: linear-gradient(135deg, var(--pi-dobra) 50%, transparent 50%); pointer-events: none; }
+.postit:hover, .postit:focus-within { transform: rotate(0deg) translateY(-3px); box-shadow: 0 2px 4px rgba(0, 0, 0, .14), 0 18px 28px -14px rgba(0, 0, 0, .5); z-index: 1; }
+.postit-texto { flex: 1; min-height: 0; width: 100%; resize: none; border: 0; outline: none; background: transparent; color: inherit;
+  font: inherit; font-size: 15px; line-height: 1.4; font-weight: 500; }
+.postit-texto::placeholder { color: rgba(42, 46, 39, .45); }
+.postit-x { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; border-radius: 6px; display: flex; align-items: center; justify-content: center;
+  color: rgba(42, 46, 39, .6); opacity: 0; transition: opacity .15s, background .15s; }
+.postit-x:hover { background: rgba(0, 0, 0, .08); color: #b42318; }
+.postit:hover .postit-x, .postit:focus-within .postit-x { opacity: 1; }
+.postit-cores { display: flex; flex-wrap: wrap; gap: 4px; padding-top: 6px; opacity: 0; transition: opacity .15s; }
+.postit:hover .postit-cores, .postit:focus-within .postit-cores { opacity: 1; }
+.postit-cor { width: 14px; height: 14px; border-radius: 50%; background: var(--pi); border: 1.5px solid rgba(0, 0, 0, .25); }
+.postit-cor.ativa { border: 2px solid #2a2e27; }
+.postit-cor:disabled { opacity: .25; cursor: not-allowed; }
+@media (hover: none) { .postit-x, .postit-cores { opacity: 1; } }
+.postit-vazio { aspect-ratio: 1; border: 2px dashed var(--border); border-radius: 6px; color: var(--muted, #8a9286); display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 6px; font-size: 13px; font-weight: 600; transition: border-color .15s, color .15s; }
+.postit-vazio:hover { border-color: var(--brand); color: var(--verde-valor); }
+/* post-it rápido do botão flutuante */
+.postit-rapido { width: 270px; aspect-ratio: auto; height: 250px; transform: rotate(-1deg); box-shadow: 0 2px 4px rgba(0, 0, 0, .15), 0 22px 40px -16px rgba(0, 0, 0, .55); }
+.postit-rapido:hover, .postit-rapido:focus-within { transform: rotate(-1deg); }
+
+/* Dica do menu lateral recolhido (23/11): aparece na hora, ao lado do ícone, com uma setinha. */
+.dica-lateral { position: fixed; z-index: 60; transform: translateY(-50%); pointer-events: none; white-space: nowrap;
+  background: #0e1410; color: #fff; font-size: 13px; font-weight: 600; padding: 6px 10px; border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, .1); box-shadow: 0 8px 20px -8px rgba(0, 0, 0, .6); animation: dica-entra .08s ease-out; }
+.dica-lateral::before { content: ''; position: absolute; left: -5px; top: 50%; width: 8px; height: 8px; background: #0e1410;
+  border-left: 1px solid rgba(255, 255, 255, .1); border-bottom: 1px solid rgba(255, 255, 255, .1); transform: translateY(-50%) rotate(45deg); }
+@keyframes dica-entra { from { opacity: 0; transform: translate(-3px, -50%); } to { opacity: 1; transform: translate(0, -50%); } }
