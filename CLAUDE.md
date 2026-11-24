@@ -142,6 +142,9 @@ sistema real. Roda no navegador com dados fictícios salvos em `localStorage`. F
   `store/pastasOS.ts` (`iniciarPastasOS` no Layout; faixa laranja "Reconectar pasta" se o Chrome pedir).
   **24/11**: a faixa "Escolher a pasta das O.S." foi feita e **desfeita a pedido** ("o agente já serve pra isso"): a versão web
   cria as pastas pelo agente; nesta versão local, se faltar pasta, cria-se direto no OneDrive (as da OS-30 e OS-31 foram criadas assim).
+  **Depois (24/11), desligada de vez no navegador**: o Layout não chama mais `iniciarPastasOS` nem mostra a faixa "Pastas das O.S.", e a
+  seção "Pasta das O.S. no OneDrive" saiu das Configurações (o Chrome tinha guardado a pasta NOVEMBRO e pedia confirmação toda vez).
+  `store/pastasOS.ts` e `lib/pastasOS.ts` ficam só como referência das regras de nome. A "Pasta de dados no OneDrive" (backup/sincronia) continua.
 - **E-mails em abas (24/11)**: Todos · **O.S. recebidas** · **O.S. finalizadas** · **PEPT resolvidas** · **Notificações gerais**
   (`GRUPOS_EMAIL`/`grupoEmail` em lib/emails.ts; "Conclusão da Ordem de Serviço" sem anexo é o tipo `finalizada`, etiqueta `.chip-fin`;
   cancelamento, prazo e aviso vão para Notificações gerais), cada uma com o total e um ponto verde se houver não lido; **Não lidos** filtra

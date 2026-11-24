@@ -6,7 +6,6 @@ import { copiar } from '../lib/clipboard'
 import { lerBackup, montarBackup } from '../lib/backup'
 import { suportaPasta } from '../lib/pastaDados'
 import { conectarPasta, desconectarPasta, gravarAgora, reconectarPasta } from '../store/pastaSync'
-import { conectarPastaOS, desconectarPastaOS, reconectarPastaOS } from '../store/pastasOS'
 import { POLOS } from '../lib/os'
 import { Avatar, Field, PageHeader } from '../components/ui'
 import { FotoPerfil } from '../components/FotoPerfil'
@@ -291,38 +290,6 @@ function PastaOneDrive() {
   )
 }
 
-/** Pasta "1 - ORDENS DE SERVIÇO" do OneDrive (12/11): o sistema cria nela a pasta de cada O.S. nova. */
-function PastaOrdens() {
-  const pasta = useStore((s) => s.pastaOS)
-  const aviso = useStore((s) => s.pastaOSAviso)
-  const [ocupado, setOcupado] = useState(false)
-  const rodar = async (f: () => Promise<unknown>) => { setOcupado(true); try { await f() } finally { setOcupado(false) } }
-  const suporta = suportaPasta()
-  return (
-    <div className="rounded-[12px] border border-[var(--brand)] px-4 py-3 flex flex-col gap-2">
-      <h3 className="card-tit">Pasta das O.S. no OneDrive <span className="suave">cria a pasta de cada O.S. nova</span></h3>
-      <p className="text-[13px] leading-relaxed">
-        Escolha a pasta <b>1 - ORDENS DE SERVIÇO</b> (a que tem as pastas dos técnicos). Toda O.S. nova sua ganha a pasta
-        <b> técnico › ano › mês › OS-nº - tipologia - cidade - bairro - rua</b>, com o OS.txt e as subpastas DOCUMENTOS SIOPI,
-        FOTOS VISTORIA e LAUDO. Pastas que já existem não são mexidas.
-      </p>
-      {!suporta && <p className="text-[12.5px] text-[var(--laranja-txt)]">Este navegador não deixa o sistema criar pastas. Abra o Fluxo Caixa no Chrome ou no Edge.</p>}
-      <div className="flex flex-wrap items-center gap-2">
-        {pasta
-          ? <>
-              <span className="chip chip-v !h-7">Pasta: {pasta.nome}</span>
-              {aviso?.tipo === 'permissao' && <button className="btn btn-primary btn-sm" disabled={ocupado} onClick={() => rodar(reconectarPastaOS)}>Reconectar pasta</button>}
-              <button className="btn btn-secondary btn-sm" disabled={ocupado || !suporta} onClick={() => rodar(conectarPastaOS)}>Trocar pasta</button>
-              <button className="btn btn-ghost btn-sm" disabled={ocupado} onClick={() => rodar(desconectarPastaOS)}>Desconectar</button>
-            </>
-          : <button className="btn btn-primary" disabled={ocupado || !suporta} onClick={() => rodar(conectarPastaOS)}>Escolher a pasta das O.S.</button>}
-      </div>
-      {aviso && <p className={clsx('rounded-lg px-3 py-2 text-[13px]', aviso.tipo === 'ok' ? 'chip-v' : 'bg-[var(--laranja-soft)] text-[var(--laranja-txt)]')}>{aviso.texto}</p>}
-      <p className="text-[11.5px] text-muted">Ao abrir o sistema, o Chrome pode pedir para confirmar o uso da pasta: é só clicar em Reconectar e Permitir.</p>
-    </div>
-  )
-}
-
 function Indisponivel({ texto, botao }: { texto: string; botao?: string }) {
   return (
     <div className="rounded-[12px] border border-dashed border-border px-5 py-6">
@@ -364,7 +331,6 @@ function Backup() {
   return (
     <div className="flex flex-col gap-4">
       <PastaOneDrive />
-      <PastaOrdens />
       <h3 className="card-tit mt-2">Backup manual</h3>
       <p className="text-[13px] text-muted">Os dados ficam neste navegador. Para levar a outro computador sem a pasta do OneDrive, exporte ou copie o backup e, no outro, importe ou cole.</p>
       <div className="flex flex-wrap gap-2">

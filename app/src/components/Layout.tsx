@@ -6,7 +6,6 @@ import { differenceInCalendarDays, format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { useStore } from '../store/useStore'
 import { iniciarPasta, reconectarPasta } from '../store/pastaSync'
-import { iniciarPastasOS, reconectarPastaOS } from '../store/pastasOS'
 import { Avatar, Dica, Segmented, StatusChip, useFora } from './ui'
 import { Logo, LogoCompleta } from './Logo'
 import { IconeAmostragem, IconeAnotacoes, IconeConfig, IconeTodas, IconeEmails, IconeFichas, IconeFinanceiro, IconeInicio, IconeOS, IconeRotas } from './IconesMenu'
@@ -71,9 +70,7 @@ export function Layout() {
   const pastaAviso = useStore((s) => s.pastaAviso)
   const pastaDados = useStore((s) => s.pastaDados)
   useEffect(() => { void iniciarPasta() }, [])
-  // Pasta das O.S. no OneDrive (12/11): cria a pasta de cada O.S. nova
-  const pastaOSAviso = useStore((s) => s.pastaOSAviso)
-  useEffect(() => { void iniciarPastasOS() }, [])
+  // Pastas das O.S. (24/11): o navegador não cria mais nem pede a pasta; na versão local quem cria é o Claude, na web é o agente
   const osNovas = useStore((s) => s.os.filter((o) => o.nova).length)
   // Só um técnico ativo: não há o que separar, então o seletor some e tudo fica em "Minhas".
   const equipe = temEquipe(config)
@@ -174,13 +171,6 @@ export function Layout() {
               <div className={clsx('mb-3 rounded-[12px] px-4 py-2.5 text-[13px] flex flex-wrap items-center gap-3', pastaAviso.tipo === 'permissao' ? 'bg-[var(--laranja-soft)] text-[var(--laranja-txt)]' : 'bg-[var(--vermelho-soft)] text-[var(--vermelho)]')}>
                 <span className="flex-1 min-w-[200px]"><b>Pasta do OneDrive.</b> {pastaAviso.texto}</span>
                 {pastaAviso.tipo === 'permissao' && <button className="btn btn-primary btn-sm" onClick={() => void reconectarPasta()}>Reconectar pasta</button>}
-                <NavLink to="/configuracoes?secao=backup" className="btn btn-secondary btn-sm">Configurar</NavLink>
-              </div>
-            )}
-            {pastaOSAviso && (pastaOSAviso.tipo === 'permissao' || pastaOSAviso.tipo === 'erro') && (
-              <div className={clsx('mb-3 rounded-[12px] px-4 py-2.5 text-[13px] flex flex-wrap items-center gap-3', pastaOSAviso.tipo === 'permissao' ? 'bg-[var(--laranja-soft)] text-[var(--laranja-txt)]' : 'bg-[var(--vermelho-soft)] text-[var(--vermelho)]')}>
-                <span className="flex-1 min-w-[200px]"><b>Pastas das O.S.</b> {pastaOSAviso.texto}</span>
-                {pastaOSAviso.tipo === 'permissao' && <button className="btn btn-primary btn-sm" onClick={() => void reconectarPastaOS()}>Reconectar pasta</button>}
                 <NavLink to="/configuracoes?secao=backup" className="btn btn-secondary btn-sm">Configurar</NavLink>
               </div>
             )}
