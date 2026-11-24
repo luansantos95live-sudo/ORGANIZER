@@ -675,8 +675,6 @@ tr.prazo-amarelo:hover, tr.prazo-vermelho:hover, tr.prazo-cinza:hover, tr.prazo-
 .fe-pept .fe-ic { background: var(--rt-soft); color: var(--rt); }
 .fe-gerais .fe-ic { background: var(--azul-soft); color: var(--azul); }
 .fe-rot { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fe-n { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--muted); }
-.fe-item.ativo .fe-n { color: var(--text); }
 .fe-novo { width: 7px; height: 7px; border-radius: 50%; background: var(--brand); flex-shrink: 0; }
 .fe-chave { grid-column: 1 / -1; justify-self: end; display: inline-flex; align-items: center; gap: 8px; padding: 2px 2px 0; font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer; }
 .fe-chave b { color: var(--text); }

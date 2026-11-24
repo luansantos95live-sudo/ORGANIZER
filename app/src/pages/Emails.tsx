@@ -115,7 +115,6 @@ export function EmailsPage() {
                   <span className="fe-ic"><Icone size={14} /></span>
                   <span className="fe-rot">{g.rotulo}</span>
                   {novos > 0 && <span className="fe-novo" aria-label={`${novos} não lidos`} />}
-                  <span className="fe-n">{doGrupo.length}</span>
                 </button>
               )
             })}
