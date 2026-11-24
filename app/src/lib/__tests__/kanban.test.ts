@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { KANBAN_PADRAO, acaoAoSoltar, colunaDaOS, completarColunas, tituloColuna } from '../kanban'
+import { KANBAN_PADRAO, acaoAoSoltar, colunaDaOS, completarColunas, osDaTelaDoDono, tituloColuna } from '../kanban'
 import type { KanbanColuna, OS } from '../../types'
 
 const H = '2026-10-20'
@@ -58,5 +58,18 @@ describe('soltar o cartão numa coluna', () => {
   it('numa coluna de etapa troca a etapa e sai da coluna livre', () => {
     expect(acaoAoSoltar(mk(), col('etapa-em_andamento'), col('etapa-recebida'))).toEqual({ tipo: 'mover', colunaLivre: null, status: 'em_andamento', retomar: false })
     expect(acaoAoSoltar(mk({ colunaLivre: 'livre-1' }), col('etapa-recebida'), livre)).toEqual({ tipo: 'mover', colunaLivre: null, status: undefined, retomar: false })
+  })
+})
+
+describe('osDaTelaDoDono (regra da assinatura, 24/11)', () => {
+  it('o dono vê as dele e as que o RT mandou para assinatura, na mesma ordem', () => {
+    const lista = [
+      mk({ id: 'a', responsavel: 'luan', status: 'em_andamento' }),
+      mk({ id: 'b', responsavel: 'rt', status: 'assinatura_pendente' }),
+      mk({ id: 'c', responsavel: 'rt', status: 'em_andamento' }),
+      mk({ id: 'd', responsavel: 'luan', status: 'assinatura_pendente' }),
+      mk({ id: 'e', responsavel: 'rt', status: 'assinatura_concluida' }),
+    ]
+    expect(osDaTelaDoDono(lista, 'luan').map((o) => o.id)).toEqual(['a', 'b', 'd'])
   })
 })

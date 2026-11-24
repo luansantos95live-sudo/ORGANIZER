@@ -79,3 +79,11 @@ export function acaoAoSoltar(o: OS, destino: KanbanColuna, origem: KanbanColuna 
   const etapa = destino.etapa as Status
   return { tipo: 'mover', colunaLivre: null, status: etapa === o.status ? undefined : etapa, retomar }
 }
+
+/**
+ * Regra da assinatura (24/11): a O.S. que o RT manda para Assinatura Pendente aparece também na tela do dono,
+ * mesmo em "Minhas", porque quem assina é o dono. O contrário não: a O.S. do dono em assinatura não vai para o RT.
+ */
+export function osDaTelaDoDono(todas: OS[], dono: string): OS[] {
+  return todas.filter((o) => o.responsavel === dono || o.status === 'assinatura_pendente')
+}

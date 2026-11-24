@@ -14,7 +14,7 @@ import { intervalo, osNoPeriodo, valorTotal, type Periodo } from '../lib/faturam
 import { PEPT_LIMITE, prazoIndeterminado, POLOS, TIPOLOGIA_ORDEM, brl, codigoOS, dataMedia, farolDe, poloDe, prazoAtual, pausaValida, temCoordenada } from '../lib/os'
 import { naoFinalizada, FASES, PASSOS, PASSO_LABEL, corPrazo, estadoPassos, faseDe, passosDaOS, proximoPasso, type Fase } from '../lib/passos'
 import { podeConcluir } from '../lib/pept'
-import { CORES_COLUNA, KANBAN_PADRAO, acaoAoSoltar, colunaDaOS, corColuna, tituloColuna, tituloPadrao } from '../lib/kanban'
+import { CORES_COLUNA, KANBAN_PADRAO, acaoAoSoltar, colunaDaOS, corColuna, osDaTelaDoDono, tituloColuna, tituloPadrao } from '../lib/kanban'
 import { filtrarEscopo, useStore } from '../store/useStore'
 import type { KanbanColuna, OS, PassoKey, Status, Tipologia } from '../types'
 
@@ -71,7 +71,8 @@ export function OsList() {
     setPagina(0)
   }
 
-  const base = useMemo(() => filtrarEscopo(todas, escopo), [todas, escopo])
+  // regra da assinatura (24/11): em "Minhas" (escopo luan, o dono), entram também as O.S. que o RT mandou para Assinatura Pendente
+  const base = useMemo(() => (escopo === 'luan' ? osDaTelaDoDono(todas, 'luan') : filtrarEscopo(todas, escopo)), [todas, escopo])
   const { ini, fim } = intervalo(periodo, ref, especifico)
 
   // Tudo que passa nos filtros (menos a fase); a fase separa depois, para as abas mostrarem as contagens.
@@ -490,6 +491,8 @@ function prazoKanban(o: OS): { txt: string; cls: string } {
  * passo). Cartões simples, sempre na mesma ordem. Soltar o cartão numa coluna segue `acaoAoSoltar` (lib/kanban).
  */
 function KanbanOS({ lista, colunas, abrir, concluir, soltar }: { lista: OS[]; colunas: KanbanColuna[]; abrir: (o: OS) => void; concluir: (o: OS) => void; soltar: (o: OS, destino: KanbanColuna, origem: KanbanColuna | undefined) => void }) {
+  const escopo = useStore((s) => s.escopo)
+  const config = useStore((s) => s.config)
   const [sobre, setSobre] = useState<string | null>(null)
   // Todas as colunas vão até o rodapé da tela (mesma altura, mesmo vazias); os cartões rolam dentro de cada coluna.
   const caixa = useRef<HTMLDivElement>(null)
@@ -560,6 +563,9 @@ function KanbanOS({ lista, colunas, abrir, concluir, soltar }: { lista: OS[]; co
                       <span className="polo-kanban inline-flex items-center gap-1 h-[17px] px-1.5 rounded-[5px] text-[9.5px] font-semibold uppercase tracking-[.04em]">
                         <MapPin size={9} /><span className="opacity-75">Polo</span><b>{poloDe(o.endereco.cidade)}</b>
                       </span>
+                      {escopo === 'luan' && o.responsavel !== 'luan' && (
+                        <span className="chip chip-rt ml-1 !h-[17px] !px-1.5 !text-[9.5px] font-semibold" title={`O.S. de ${config.responsaveis[o.responsavel].curto}, esperando a sua assinatura`}>RT {config.responsaveis[o.responsavel].curto}</span>
+                      )}
                       <div className="flex items-center gap-1.5 text-[11.5px] text-muted mt-1 min-w-0 leading-tight">
                         <b className="shrink-0 text-[12px] uppercase tracking-[.03em] cidade-kanban">{o.endereco.cidade}</b>
                         <span className="truncate">· {o.endereco.logradouro}, {o.endereco.numero}</span>

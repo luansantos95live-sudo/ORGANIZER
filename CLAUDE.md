@@ -146,6 +146,7 @@ sistema real. Roda no navegador com dados fictícios salvos em `localStorage`. F
   seção "Pasta das O.S. no OneDrive" saiu das Configurações (o Chrome tinha guardado a pasta NOVEMBRO e pedia confirmação toda vez).
   `store/pastasOS.ts` e `lib/pastasOS.ts` ficam só como referência das regras de nome. A "Pasta de dados no OneDrive" (backup/sincronia) continua.
 - **O.S. por período: mês em que foi RECEBIDA (24/11, regra universal do usuário)**: `osNoPeriodo` (lib/faturamento.ts) na lista/Kanban
+- **Regra da assinatura (24/11)**: em "Minhas" (escopo luan, o dono), a tela de O.S. usa `osDaTelaDoDono` (lib/kanban.ts): entram também as O.S. do RT em Assinatura Pendente, com a etiqueta "RT <nome>" no cartão. O contrário não: a O.S. do dono em assinatura não aparece para o RT. Só na tela de O.S. (Financeiro e Início seguem por responsável). Igual no site.
   de O.S. e nas Fichas: a O.S. aparece no mês da `emissao` (antes ia pelo vencimento: recebida 24/11 e vence 09/12 só aparecia em
   dezembro) e segue nos meses seguintes enquanto não for finalizada; finalizada aparece até o mês da conclusão; cancelada só no mês em
   que chegou. O Financeiro continua com a regra dele (`noPeriodoFinanceiro`). Igual no fluxo-frontend.
