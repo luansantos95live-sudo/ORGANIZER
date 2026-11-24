@@ -5,7 +5,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { differenceInCalendarDays, format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { useStore } from '../store/useStore'
-import { iniciarPasta, reconectarPasta } from '../store/pastaSync'
+import { iniciarPasta } from '../store/pastaSync'
 import { Avatar, Dica, Segmented, StatusChip, useFora } from './ui'
 import { Logo, LogoCompleta } from './Logo'
 import { IconeAmostragem, IconeAnotacoes, IconeConfig, IconeTodas, IconeEmails, IconeFichas, IconeFinanceiro, IconeInicio, IconeOS, IconeRotas } from './IconesMenu'
@@ -167,10 +167,10 @@ export function Layout() {
         </header>
         <main className="area flex-1 px-3 md:px-5 py-4 w-full pb-24 md:pb-5">
           <div className="max-w-[2400px] mx-auto">
-            {pastaDados && pastaAviso && (pastaAviso.tipo === 'permissao' || pastaAviso.tipo === 'erro') && (
-              <div className={clsx('mb-3 rounded-[12px] px-4 py-2.5 text-[13px] flex flex-wrap items-center gap-3', pastaAviso.tipo === 'permissao' ? 'bg-[var(--laranja-soft)] text-[var(--laranja-txt)]' : 'bg-[var(--vermelho-soft)] text-[var(--vermelho)]')}>
+            {/* 24/11: a confirmação da pasta não vira mais faixa (é pedida no primeiro clique); só erro de verdade aparece */}
+            {pastaDados && pastaAviso?.tipo === 'erro' && (
+              <div className="mb-3 rounded-[12px] px-4 py-2.5 text-[13px] flex flex-wrap items-center gap-3 bg-[var(--vermelho-soft)] text-[var(--vermelho)]">
                 <span className="flex-1 min-w-[200px]"><b>Pasta do OneDrive.</b> {pastaAviso.texto}</span>
-                {pastaAviso.tipo === 'permissao' && <button className="btn btn-primary btn-sm" onClick={() => void reconectarPasta()}>Reconectar pasta</button>}
                 <NavLink to="/configuracoes?secao=backup" className="btn btn-secondary btn-sm">Configurar</NavLink>
               </div>
             )}

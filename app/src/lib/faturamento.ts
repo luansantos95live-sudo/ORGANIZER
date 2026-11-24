@@ -347,3 +347,18 @@ export function diasDaSemana(ref: Date) {
   const ini = startOfWeek(ref, { weekStartsOn: 1 })
   return Array.from({ length: 7 }, (_, i) => addDays(ini, i))
 }
+
+/**
+ * Regra universal das O.S. por período (24/11, pedido do usuário): a O.S. aparece no mês em que foi RECEBIDA (não no
+ * do vencimento) e, enquanto não for finalizada, continua aparecendo nos meses seguintes. Finalizada,
+ * aparece do mês em que chegou até o mês em que foi concluída. Cancelada, só no período em que chegou.
+ * Ex.: recebida 24/11 e vence 09/12 → aparece em novembro; em dezembro só se não for finalizada em novembro.
+ */
+export function osNoPeriodo(o: OS, ini: Date, fim: Date, hoje = new Date()) {
+  const recebida = parseISO(o.emissao ?? '')
+  if (Number.isNaN(recebida.getTime())) return noPeriodoComPendencias(o, ini, fim, true, hoje) // sem data de recebimento: regra antiga
+  if (recebida > fim) return false
+  if (o.status === 'cancelada') return recebida >= ini
+  if (estaFinalizada(o)) return parseISO(o.concluidaEm ?? o.emissao) >= ini
+  return true // ainda aberta: segue nos meses seguintes
+}

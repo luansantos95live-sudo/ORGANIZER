@@ -145,6 +145,12 @@ sistema real. Roda no navegador com dados fictícios salvos em `localStorage`. F
   **Depois (24/11), desligada de vez no navegador**: o Layout não chama mais `iniciarPastasOS` nem mostra a faixa "Pastas das O.S.", e a
   seção "Pasta das O.S. no OneDrive" saiu das Configurações (o Chrome tinha guardado a pasta NOVEMBRO e pedia confirmação toda vez).
   `store/pastasOS.ts` e `lib/pastasOS.ts` ficam só como referência das regras de nome. A "Pasta de dados no OneDrive" (backup/sincronia) continua.
+- **O.S. por período: mês em que foi RECEBIDA (24/11, regra universal do usuário)**: `osNoPeriodo` (lib/faturamento.ts) na lista/Kanban
+  de O.S. e nas Fichas: a O.S. aparece no mês da `emissao` (antes ia pelo vencimento: recebida 24/11 e vence 09/12 só aparecia em
+  dezembro) e segue nos meses seguintes enquanto não for finalizada; finalizada aparece até o mês da conclusão; cancelada só no mês em
+  que chegou. O Financeiro continua com a regra dele (`noPeriodoFinanceiro`). Igual no fluxo-frontend.
+- **Pasta do OneDrive sem faixa (24/11)**: a confirmação da pasta de dados não mostra mais a faixa laranja; `iniciarPasta` pede a
+  permissão no primeiro clique em qualquer lugar (o Chrome exige um clique). Só erro de verdade aparece em faixa vermelha.
 - **E-mails em abas (24/11)**: Todos · **O.S. recebidas** · **O.S. finalizadas** · **PEPT resolvidas** · **Notificações gerais**
   (`GRUPOS_EMAIL`/`grupoEmail` em lib/emails.ts; "Conclusão da Ordem de Serviço" sem anexo é o tipo `finalizada`, etiqueta `.chip-fin`;
   cancelamento, prazo e aviso vão para Notificações gerais), cada uma com o total e um ponto verde se houver não lido; **Não lidos** filtra

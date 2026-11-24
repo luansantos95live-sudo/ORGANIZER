@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { dataReferencia, entraNoFaturamento, intervalo, noIntervalo, noPeriodoComPendencias, painelEquipe, painelGeral, painelMinhas, paradaSemNota, projecaoPorRitmo, repasseDaOS, repasseDe, resumir, situacaoDe, textoPronto, ticksBonitos, valorTotal } from '../faturamento'
-import { emAbertoAte, noPeriodoFinanceiro } from '../faturamento'
+import { emAbertoAte, noPeriodoFinanceiro, osNoPeriodo } from '../faturamento'
 import type { OS, Status } from '../../types'
 
 const mk = (status: Status, servico: number, desloc: number, extra: Partial<OS> = {}) =>
@@ -272,5 +272,34 @@ describe('potencial do mês conta todas as O.S. em aberto (12/11)', () => {
   it('finalizada conta pela conclusão', () => {
     const f = { ...aberta, status: 'concluida', concluidaEm: '2026-10-30' } as typeof aberta
     expect(noPeriodoFinanceiro(f, ini, fim, hoje)).toBe(false)
+  })
+})
+
+describe('O.S. no mês em que foi recebida (24/11, regra universal)', () => {
+  const HOJE_NOV = new Date(2026, 10, 24, 12)
+  const nov = intervalo('mes', new Date(2026, 10, 10))
+  const dez = intervalo('mes', new Date(2026, 11, 10))
+  const out = intervalo('mes', new Date(2026, 9, 10))
+  it('recebida 24/11 e vence 09/12: aparece em novembro, não em outubro', () => {
+    const o = mk('recebida', 1, 0, { emissao: '2026-11-24', prazo: '2026-12-09' })
+    expect(osNoPeriodo(o, nov.ini, nov.fim, HOJE_NOV)).toBe(true)
+    expect(osNoPeriodo(o, out.ini, out.fim, HOJE_NOV)).toBe(false)
+  })
+  it('em dezembro só aparece se não foi finalizada em novembro', () => {
+    const HOJE_DEZ = new Date(2026, 11, 5, 12)
+    const aberta = mk('em_andamento', 1, 0, { emissao: '2026-11-24', prazo: '2026-12-09' })
+    const fimNov = mk('concluida', 1, 0, { emissao: '2026-11-24', concluidaEm: '2026-11-28' })
+    const fimDez = mk('concluida', 1, 0, { emissao: '2026-11-24', concluidaEm: '2026-12-02' })
+    expect(osNoPeriodo(aberta, dez.ini, dez.fim, HOJE_DEZ)).toBe(true)
+    expect(osNoPeriodo(fimNov, dez.ini, dez.fim, HOJE_DEZ)).toBe(false)
+    expect(osNoPeriodo(fimNov, nov.ini, nov.fim, HOJE_DEZ)).toBe(true)
+    expect(osNoPeriodo(fimDez, dez.ini, dez.fim, HOJE_DEZ)).toBe(true)
+  })
+  it('aberta segue nos meses seguintes; cancelada só no mês em que chegou', () => {
+    const aberta = mk('recebida', 1, 0, { emissao: '2026-11-24', prazo: '2026-12-09' })
+    expect(osNoPeriodo(aberta, dez.ini, dez.fim, HOJE_NOV)).toBe(true)
+    const canc = mk('cancelada', 1, 0, { emissao: '2026-10-20' })
+    expect(osNoPeriodo(canc, out.ini, out.fim, HOJE_NOV)).toBe(true)
+    expect(osNoPeriodo(canc, nov.ini, nov.fim, HOJE_NOV)).toBe(false)
   })
 })

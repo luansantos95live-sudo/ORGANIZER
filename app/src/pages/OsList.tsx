@@ -10,7 +10,7 @@ import { PausarOS } from '../components/PausarOS'
 import { AcaoPept } from '../components/PeptJanelas'
 import { FarolChip, FiltroPeriodo, Modal, MultiSelect, StatusChip, TipologiaChip, useFora } from '../components/ui'
 import { DetalheOS } from './OsDetail'
-import { intervalo, noPeriodoComPendencias, valorTotal, type Periodo } from '../lib/faturamento'
+import { intervalo, osNoPeriodo, valorTotal, type Periodo } from '../lib/faturamento'
 import { PEPT_LIMITE, prazoIndeterminado, POLOS, TIPOLOGIA_ORDEM, brl, codigoOS, dataMedia, farolDe, poloDe, prazoAtual, pausaValida, temCoordenada } from '../lib/os'
 import { naoFinalizada, FASES, PASSOS, PASSO_LABEL, corPrazo, estadoPassos, faseDe, passosDaOS, proximoPasso, type Fase } from '../lib/passos'
 import { podeConcluir } from '../lib/pept'
@@ -54,7 +54,7 @@ export function OsList() {
   }, [faseUrl, statusUrl, periodoUrl])
   const [ref, setRef] = useState(() => startOfMonth(new Date()))
   const [especifico, setEspecifico] = useState({ ini: '', fim: '' })
-  const pendencias = true // O.S. de meses anteriores ainda não finalizadas sempre aparecem
+  // período (24/11): a O.S. aparece no mês em que foi recebida e segue nos seguintes enquanto não for finalizada (osNoPeriodo)
   const [pagina, setPagina] = useState(0)
   const [cols, setCols] = useState<Col[]>(VISIVEIS)
   const [novaOpen, setNovaOpen] = useState(false)
@@ -81,11 +81,11 @@ export function OsList() {
       .filter((o) => !tipologias.length || tipologias.includes(o.tipologia))
       .filter((o) => !polos.length || polos.includes(poloDe(o.endereco.cidade)))
       .filter((o) => !origem || o.origem === origem)
-      .filter((o) => (dia ? prazoAtual(o) === dia || o.vistoria?.data === dia : faseDe(o) === 'pept' || noPeriodoComPendencias(o, ini, fim, pendencias)))
+      .filter((o) => (dia ? prazoAtual(o) === dia || o.vistoria?.data === dia : faseDe(o) === 'pept' || osNoPeriodo(o, ini, fim)))
       // (as em PEPT sempre aparecem: a pausa empurra o prazo e elas não podem sumir da tela)
       .filter((o) => !t || [o.referencia, codigoOS(o), o.proponente, o.contato, config.responsaveis[o.responsavel].nome, o.endereco.logradouro, o.endereco.bairro, o.endereco.cidade].join(' ').toLowerCase().includes(t))
       .sort((a, b) => prazoAtual(a).localeCompare(prazoAtual(b)))
-  }, [base, tipologias, polos, origem, dia, ini, fim, pendencias, q, config])
+  }, [base, tipologias, polos, origem, dia, ini, fim, q, config])
   const contagem = useMemo(() => {
     const c = { todas: 0, aberto: 0, andamento: 0, pept: 0, finalizada: 0 } as Record<FiltroFase, number>
     // "Em aberto" conta todas as não finalizadas (16/11); andamento e PEPT continuam com a própria contagem

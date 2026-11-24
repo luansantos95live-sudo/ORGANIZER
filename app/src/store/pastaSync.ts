@@ -85,7 +85,9 @@ export async function iniciarPasta() {
     if (!handle) { if (useStore.getState().pastaDados) useStore.getState().setPasta({ pastaDados: undefined, pastaAviso: undefined }); return }
     const p = await permissaoDaPasta(handle, false)
     if (p === 'granted') { permitido = true; await sincronizar() }
-    else aviso({ tipo: 'permissao', texto: `O Chrome precisa da sua confirmação para usar a pasta "${handle.name}" do OneDrive.` })
+    // 24/11: sem faixa de aviso. O Chrome só deixa pedir a permissão depois de um clique; então o pedido sai sozinho no
+    // primeiro clique em qualquer lugar do sistema (na janela do Chrome, "Permitir em todas as visitas" evita repetir).
+    else document.addEventListener('pointerdown', () => void reconectarPasta(), { once: true, capture: true })
   } catch (e) {
     aviso({ tipo: 'erro', texto: `Pasta do OneDrive: ${e instanceof Error ? e.message : String(e)}` })
   }
@@ -97,7 +99,7 @@ export async function reconectarPasta() {
   if (!handle) return
   try {
     const p = await permissaoDaPasta(handle, true)
-    if (p !== 'granted') { aviso({ tipo: 'permissao', texto: 'Permissão negada. Clique em Reconectar e escolha "Permitir" na janela do Chrome.' }); return }
+    if (p !== 'granted') { aviso({ tipo: 'permissao', texto: 'Permissão negada. Em Configurações › Backup e dados, clique em Reconectar e escolha "Permitir" na janela do Chrome.' }); return }
     permitido = true
     await sincronizar()
   } catch (e) {
