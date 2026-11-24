@@ -2,13 +2,13 @@ import clsx from 'clsx'
 import { differenceInCalendarDays, format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Play, CheckCheck, Download, ExternalLink, FileText, FolderInput, Mail, MailOpen, RefreshCw, Settings } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { PageHeader } from '../components/ui'
-import { caixaDeEntrada, TIPO_EMAIL, tipoEmail, type Email } from '../lib/emails'
+import { caixaDeEntrada, GRUPOS_EMAIL, grupoEmail, poloDoEmail, porPolo, TIPO_EMAIL, tipoEmail, type Email, type GrupoEmail } from '../lib/emails'
 import { useStore } from '../store/useStore'
 
-const COR_TIPO = { os: 'chip-v', pept: 'chip-rt', cancelamento: 'chip-r', prazo: 'chip-l', aviso: 'farol-pausa' } as const
+const COR_TIPO = { os: 'chip-v', finalizada: 'chip-fin', pept: 'chip-rt', cancelamento: 'chip-r', prazo: 'chip-l', aviso: 'farol-pausa' } as const
 
 const quando = (iso: string) => {
   const d = parseISO(iso), n = differenceInCalendarDays(new Date(), d)
@@ -29,7 +29,9 @@ export function EmailsPage() {
   const ultimoErro = useStore((s) => s.gmailUltimoErro)
   const [sincronizando, setSincronizando] = useState(false)
   const [sp, setSp] = useSearchParams()
-  const [filtro, setFiltro] = useState<'todos' | 'nao_lidos'>('todos')
+  // abas (24/11): Todos, O.S. recebidas, O.S. finalizadas, PEPT resolvidas e Notificações gerais; "Não lidos" filtra dentro da aba
+  const [aba, setAba] = useState<'todos' | GrupoEmail>('todos')
+  const [soNaoLidos, setSoNaoLidos] = useState(false)
   const [aviso, setAviso] = useState<string | null>(null)
   const [avisoImportacao, setAvisoImportacao] = useState<{ ok: boolean; texto: string } | null>(null)
   const arquivoRef = useRef<HTMLInputElement>(null)
@@ -56,7 +58,9 @@ export function EmailsPage() {
   }, [ligado])
   const lista = caixaDeEntrada(todos)
   const naoLidos = lista.filter((e) => !e.lido).length
-  const visiveis = filtro === 'nao_lidos' ? lista.filter((e) => !e.lido) : lista
+  const daAba = (g: 'todos' | GrupoEmail) => (g === 'todos' ? lista : lista.filter((e) => grupoEmail(e) === g))
+  const visiveis = soNaoLidos ? daAba(aba).filter((e) => !e.lido) : daAba(aba)
+  const rotuloAba = GRUPOS_EMAIL.find((g) => g.id === aba)?.rotulo.toLowerCase()
   // Só abre (e marca como lido) o e-mail que você clicar.
   const aberto = lista.find((e) => e.id === sp.get('id'))
 
@@ -96,15 +100,31 @@ export function EmailsPage() {
       )}
       <div className="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-3 items-start">
         <section className="bloco overflow-hidden">
-          <div className="flex gap-1 p-2 border-b border-border">
-            {([['todos', `Todos ${lista.length}`], ['nao_lidos', `Não lidos ${naoLidos}`]] as const).map(([k, l]) => (
-              <button key={k} className={clsx('btn btn-sm !rounded-full', filtro === k ? 'btn-primary' : 'btn-ghost')} onClick={() => setFiltro(k)}>{l}</button>
-            ))}
+          <div className="flex flex-wrap gap-1 p-2 border-b border-border">
+            {[{ id: 'todos' as const, rotulo: 'Todos' }, ...GRUPOS_EMAIL].map((g) => {
+              const doGrupo = daAba(g.id)
+              const novos = doGrupo.filter((e) => !e.lido).length
+              return (
+                <button key={g.id} className={clsx('btn btn-sm !rounded-full', aba === g.id ? 'btn-primary' : 'btn-ghost')}
+                  title={novos ? `${novos} não ${novos === 1 ? 'lido' : 'lidos'}` : undefined} onClick={() => setAba(g.id)}>
+                  {g.rotulo}<span className="tnum opacity-75">{doGrupo.length}</span>
+                  {novos > 0 && <span className={clsx('w-1.5 h-1.5 rounded-full', aba === g.id ? 'bg-white' : 'bg-[var(--brand)]')} />}
+                </button>
+              )
+            })}
+            <button className={clsx('btn btn-sm !rounded-full ml-auto', soNaoLidos ? 'btn-primary' : 'btn-secondary')} aria-pressed={soNaoLidos} onClick={() => setSoNaoLidos((v) => !v)}>
+              Não lidos <span className="tnum opacity-75">{naoLidos}</span>
+            </button>
           </div>
-          {visiveis.length === 0 ? <p className="text-[13px] text-muted text-center py-10">Nenhum e-mail {filtro === 'nao_lidos' ? 'não lido' : 'da Caixa'}.</p> : (
+          {visiveis.length === 0 ? <p className="text-[13px] text-muted text-center py-10">{aba === 'todos' ? `Nenhum e-mail${soNaoLidos ? ' não lido' : ' da Caixa'}.` : `Nada em ${rotuloAba}${soNaoLidos ? ' sem ler' : ''}.`}</p> : (
             <ul className="max-h-[calc(100vh-230px)] overflow-y-auto">
-              {visiveis.map((e) => {
+              {(aba === 'recebidas' ? porPolo(visiveis) : [{ polo: '', emails: visiveis }]).map((g) => (
+                <Fragment key={g.polo || 'todos'}>
+                {/* O.S. recebidas separadas por polo (24/11) */}
+                {g.polo && <li className="polo-cab"><span>Polo {g.polo === 'OUTROS' || g.polo === 'SEM POLO' ? g.polo.toLowerCase() : g.polo}</span><span className="tnum">{g.emails.length}</span></li>}
+                {g.emails.map((e) => {
                 const t = tipoEmail(e)
+                const polo = poloDoEmail(e)
                 return (
                   <li key={e.id}>
                     <button onClick={() => abrir(e)} className={clsx('w-full text-left px-4 py-3 border-b border-border flex gap-3 hover:bg-[rgba(58,184,30,.06)]', aberto?.id === e.id ? 'bg-[var(--brand-soft)]' : e.lido && 'email-lido')}>
@@ -118,6 +138,7 @@ export function EmailsPage() {
                         <span className="flex items-center gap-1.5 mt-1">
                           <span className={clsx('chip !h-[20px] text-[11px]', COR_TIPO[t])}>{TIPO_EMAIL[t]}</span>
                           {e.anexo && <span className="text-[11px] text-muted flex items-center gap-1"><FileText size={11} />.txt</span>}
+                          {polo && aba !== 'recebidas' && <span className="text-[11px] text-muted">· polo {polo}</span>}
                           {e.importadaId && <span className="text-[11px] text-[var(--verde-valor)] font-semibold">importada</span>}
                         </span>
                       </span>
@@ -125,6 +146,8 @@ export function EmailsPage() {
                   </li>
                 )
               })}
+                </Fragment>
+              ))}
             </ul>
           )}
         </section>

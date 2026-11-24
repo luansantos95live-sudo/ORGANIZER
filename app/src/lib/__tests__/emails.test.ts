@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { caixaDeEntrada, ehDaCaixa, emailsExemplo, notificaveis, tipoEmail } from '../emails'
+import { caixaDeEntrada, ehDaCaixa, emailsExemplo, grupoEmail, porPolo, notificaveis, tipoEmail } from '../emails'
 import { emailInterage } from '../emails'
 import { refPeptResolvida, emailPeptResolvida, tipoEmail as tipoEmail2, notificaveis as notificaveis2 } from '../emails'
 import { lerSiopiTxt } from '../siopi'
@@ -49,9 +49,31 @@ describe('e-mails antigos não mexem no sistema (12/11)', () => {
   })
 })
 
-describe('conclusão da O.S. é aviso (12/11)', () => {
+describe('conclusão da O.S. é O.S. finalizada (12/11; aba própria em 24/11)', () => {
   it('não vira "O.S. nova"', () => {
-    expect(tipoEmail({ assunto: 'Conclusão da Ordem de Serviço 7886.3114.001234272/2026.01.01' })).toBe('aviso')
+    expect(tipoEmail({ assunto: 'Conclusão da Ordem de Serviço 7886.3114.001234272/2026.01.01' })).toBe('finalizada')
     expect(tipoEmail({ assunto: 'Convocação de Ordem da Serviço 7886.1831.001260581/2026.01.01', anexo: { nome: 'a.txt', texto: 'x' } })).toBe('os')
+  })
+})
+
+describe('abas da caixa de entrada (24/11)', () => {
+  it('separa O.S. recebidas, finalizadas, PEPT resolvidas e notificações gerais', () => {
+    const anexo = { nome: 'os.txt', texto: '' }
+    expect(grupoEmail({ assunto: 'Ordem de Serviço 123', anexo })).toBe('recebidas')
+    expect(grupoEmail({ assunto: 'Conclusão da Ordem de Serviço 123' })).toBe('finalizadas')
+    expect(grupoEmail({ assunto: 'PEPT da O.S. 123' })).toBe('pept')
+    expect(grupoEmail({ assunto: 'Cancelamento da O.S. 123' })).toBe('gerais')
+    expect(grupoEmail({ assunto: 'Prorrogação de prazo' })).toBe('gerais')
+    expect(grupoEmail({ assunto: 'Aviso: manutenção do sistema' })).toBe('gerais')
+  })
+})
+
+describe('O.S. recebidas por polo (24/11)', () => {
+  it('agrupa pela cidade do .txt; sem anexo fica em SEM POLO, no fim', () => {
+    const comOs = emailsExemplo().filter(e => e.anexo)
+    const semOs = { ...emailsExemplo()[0], id: 'aviso', anexo: undefined }
+    const grupos = porPolo([semOs, ...comOs])
+    expect(grupos.map(g => g.polo)).toEqual(['ARIQUEMES', 'JI-PARANA', 'SEM POLO'])
+    expect(grupos.reduce((n, g) => n + g.emails.length, 0)).toBe(comOs.length + 1)
   })
 })

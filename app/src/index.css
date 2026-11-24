@@ -650,3 +650,9 @@ tr.prazo-amarelo:hover, tr.prazo-vermelho:hover, tr.prazo-cinza:hover, tr.prazo-
 :root[data-theme="dark"] .heroi .emdia-chip-pept { color: #a65a06; }
 :root[data-theme="dark"] .heroi .emdia-anel { border-color: rgba(58, 184, 30, .18); background: radial-gradient(circle, rgba(58, 184, 30, .08), transparent 65%); }
 :root[data-theme="dark"] .heroi .emdia-selo { color: #fff; }
+
+/* E-mails: etiqueta "O.S. finalizada" (24/11), neutra para não confundir com a O.S. nova (verde) */
+.chip-fin { background: color-mix(in oklab, var(--text) 10%, transparent); color: var(--text); }
+
+/* E-mails: cabeçalho do polo na aba O.S. recebidas (24/11) */
+.polo-cab { position: sticky; top: 0; z-index: 1; display: flex; justify-content: space-between; align-items: center; padding: 6px 16px; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); background: var(--surface-2); border-bottom: 1px solid var(--border); }

@@ -1,4 +1,6 @@
 import { subHours, subMinutes } from 'date-fns'
+import { poloDe } from './os'
+import { lerSiopiTxt } from './siopi'
 
 /**
  * E-mails da Caixa: o único vínculo do sistema com a Caixa é a caixa de entrada do Gmail. Só entram os e-mails
@@ -20,8 +22,8 @@ export interface Email {
 /** Remetente da Caixa: endereço que termina em @caixa.gov.br (ou outro domínio @caixa). */
 export const ehDaCaixa = (de: string) => /@caixa(\.[a-z]+)*\s*$/i.test(de.trim())
 
-export type TipoEmail = 'os' | 'pept' | 'cancelamento' | 'prazo' | 'aviso'
-export const TIPO_EMAIL: Record<TipoEmail, string> = { os: 'O.S. nova', pept: 'PEPT resolvida', cancelamento: 'Cancelamento', prazo: 'Prazo', aviso: 'Aviso' }
+export type TipoEmail = 'os' | 'finalizada' | 'pept' | 'cancelamento' | 'prazo' | 'aviso'
+export const TIPO_EMAIL: Record<TipoEmail, string> = { os: 'O.S. nova', finalizada: 'O.S. finalizada', pept: 'PEPT resolvida', cancelamento: 'Cancelamento', prazo: 'Prazo', aviso: 'Aviso' }
 
 /**
  * E-mail da Caixa sobre PEPT: é sempre o aviso de que a pendência foi resolvida (dito pelo usuário em 20/10).
@@ -45,7 +47,8 @@ export function tipoEmail(e: Pick<Email, 'assunto' | 'anexo'> & { corpo?: string
   if (/^aviso/.test(t)) return 'aviso'
   if (/cancel/.test(t)) return 'cancelamento'
   if (/prazo|prorroga/.test(t)) return 'prazo'
-  if (/conclus[aã]o/.test(t) && !e.anexo) return 'aviso' // "Conclusão da Ordem de Serviço" (12/11)
+  // "Conclusão da Ordem de Serviço" sem anexo: a Caixa avisa que a O.S. foi finalizada (24/11: aba própria)
+  if (/conclus[aã]o/.test(t) && !e.anexo) return 'finalizada'
   if (e.anexo || /ordem de servi|o\.s\./.test(t)) return 'os'
   return 'aviso'
 }
@@ -189,3 +192,38 @@ export function emailPeptResolvida(ref: string, cliente: string, cidade: string,
  * Os anteriores ficam na caixa de entrada só para consulta. Sem data de corte, todos mexem.
  */
 export const emailInterage = (e: Pick<Email, 'recebidoEm'>, ativoDesde?: string) => !ativoDesde || e.recebidoEm >= ativoDesde
+
+/** Abas da caixa de entrada (24/11): O.S. recebidas, O.S. finalizadas, PEPT resolvidas e o resto como notificação. */
+export type GrupoEmail = 'recebidas' | 'finalizadas' | 'pept' | 'gerais'
+export const GRUPOS_EMAIL: { id: GrupoEmail; rotulo: string }[] = [
+  { id: 'recebidas', rotulo: 'O.S. recebidas' },
+  { id: 'finalizadas', rotulo: 'O.S. finalizadas' },
+  { id: 'pept', rotulo: 'PEPT resolvidas' },
+  { id: 'gerais', rotulo: 'Notificações gerais' },
+]
+
+/** Em qual aba o e-mail fica: cancelamento, prazo e aviso vão para Notificações gerais. */
+export function grupoEmail(e: Pick<Email, 'assunto' | 'anexo'> & { corpo?: string }): GrupoEmail {
+  const t = tipoEmail(e)
+  return t === 'os' ? 'recebidas' : t === 'finalizada' ? 'finalizadas' : t === 'pept' ? 'pept' : 'gerais'
+}
+
+/** Polo da O.S. do e-mail, pela cidade do .txt anexo (24/11); null quando o e-mail não traz a O.S. */
+export function poloDoEmail(e: Pick<Email, 'anexo'>): string | null {
+  if (!e.anexo) return null
+  const cidade = lerSiopiTxt(e.anexo.texto).endereco.cidade
+  return cidade ? poloDe(cidade) : 'OUTROS'
+}
+
+/** E-mails separados por polo (24/11): polos em ordem alfabética, "OUTROS" e "SEM POLO" no fim; a ordem dos e-mails é mantida. */
+export function porPolo<T extends Pick<Email, 'anexo'>>(lista: T[]): { polo: string; emails: T[] }[] {
+  const grupos = new Map<string, T[]>()
+  for (const e of lista) {
+    const polo = poloDoEmail(e) ?? 'SEM POLO'
+    grupos.set(polo, [...(grupos.get(polo) ?? []), e])
+  }
+  const peso = (p: string) => (p === 'SEM POLO' ? 2 : p === 'OUTROS' ? 1 : 0)
+  return [...grupos.entries()]
+    .sort(([a], [b]) => peso(a) - peso(b) || a.localeCompare(b))
+    .map(([polo, emails]) => ({ polo, emails }))
+}
