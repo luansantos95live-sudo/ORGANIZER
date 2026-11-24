@@ -1,8 +1,8 @@
 import clsx from 'clsx'
 import { differenceInCalendarDays, format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Bell, CircleCheckBig, Inbox, Mails, Play, CheckCheck, Download, ExternalLink, FileText, FolderInput, Mail, MailOpen, RefreshCw, Settings, TimerReset } from 'lucide-react'
-import { Fragment, useEffect, useRef, useState } from 'react'
+import { Bell, CircleCheckBig, Inbox, Mails, Play, CheckCheck, Download, ExternalLink, FileText, Mail, MailOpen, RefreshCw, TimerReset } from 'lucide-react'
+import { Fragment, useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { PageHeader } from '../components/ui'
 import { caixaDeEntrada, GRUPOS_EMAIL, grupoEmail, poloDoEmail, porPolo, TIPO_EMAIL, tipoEmail, type Email, type GrupoEmail } from '../lib/emails'
@@ -25,7 +25,6 @@ export function EmailsPage() {
   const marcarLido = useStore((s) => s.marcarEmailLido)
   const marcarTodos = useStore((s) => s.marcarTodosEmailsLidos)
   const importar = useStore((s) => s.importarDoEmail)
-  const importarEmails = useStore((s) => s.importarEmails)
   const gmail = useStore((s) => s.config.gmail)
   const sincronizarGmail = useStore((s) => s.sincronizarGmail)
   const ultimaSinc = useStore((s) => s.gmailUltimaSinc)
@@ -37,12 +36,6 @@ export function EmailsPage() {
   const [soNaoLidos, setSoNaoLidos] = useState(false)
   const [aviso, setAviso] = useState<string | null>(null)
   const [avisoImportacao, setAvisoImportacao] = useState<{ ok: boolean; texto: string } | null>(null)
-  const arquivoRef = useRef<HTMLInputElement>(null)
-  // Importar e-mails (10/11): o arquivo emails.json que o Claude monta a partir do Gmail (pasta "Caixa de entrada")
-  const aoEscolherArquivo = async (f: File | undefined) => {
-    if (f) setAvisoImportacao(importarEmails(await f.text()))
-    if (arquivoRef.current) arquivoRef.current.value = ''
-  }
   // Ligação com o Gmail (10/11): com o script configurado, busca ao abrir e a cada 5 minutos enquanto a tela estiver aberta
   const ligado = !!gmail.url.trim()
   const sincronizar = async (mostrar = true) => {
@@ -78,13 +71,11 @@ export function EmailsPage() {
     <>
       <PageHeader title="E-mails da Caixa" subtitle={<>Só os e-mails de endereços <b>@caixa</b> que chegam no seu Gmail.{naoLidos ? <> <b className="text-[var(--text)]">{naoLidos} não {naoLidos === 1 ? 'lido' : 'lidos'}</b>.</> : ''}</>}
         actions={<>
-          {ligado
-            ? <button className="btn btn-primary" disabled={sincronizando} onClick={() => sincronizar(true)} title="Busca agora os e-mails novos da Caixa no seu Gmail (o sistema também busca sozinho a cada 5 minutos)"><RefreshCw size={15} className={clsx(sincronizando && 'animate-spin')} /> {sincronizando ? 'Buscando…' : 'Buscar no Gmail'}</button>
-            : <Link to="/config?secao=gmail" className="btn btn-secondary" title="Ligue o sistema ao seu Gmail para os e-mails da Caixa entrarem sozinhos"><Settings size={15} /> Ligar ao Gmail</Link>}
-          <label className={clsx('btn cursor-pointer', ligado ? 'btn-secondary' : 'btn-primary')} title="Escolha o arquivo emails.json da pasta 'Caixa de entrada' (o Claude monta esse arquivo a partir do seu Gmail). Só entram os e-mails que ainda não estão aqui.">
-            <FolderInput size={15} /> Importar e-mails
-            <input ref={arquivoRef} type="file" accept=".json,application/json" className="sr-only" onChange={(e) => aoEscolherArquivo(e.target.files?.[0])} />
-          </label>
+          {ligado && <button className="btn btn-primary" disabled={sincronizando} onClick={() => sincronizar(true)} title="Busca agora os e-mails novos da Caixa no seu Gmail (o sistema também busca sozinho a cada 5 minutos)"><RefreshCw size={15} className={clsx(sincronizando && 'animate-spin')} /> {sincronizando ? 'Buscando…' : 'Buscar no Gmail'}</button>}
+          {/* 24/11: no lugar de "Importar e-mails" (e do "Ligar ao Gmail"), o Conectar Gmail, ainda indisponível */}
+          <button type="button" className="btn btn-secondary gmail-breve" disabled aria-disabled="true" title="A conexão com o Gmail chega em breve">
+            <Mail size={15} /> Conectar Gmail <span className="chip-breve">Em breve</span>
+          </button>
           <button className="btn btn-secondary" disabled={!naoLidos} onClick={marcarTodos}><CheckCheck size={15} /> Marcar todos como lidos</button>
         </>} />
 

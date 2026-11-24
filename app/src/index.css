@@ -675,6 +675,9 @@ tr.prazo-amarelo:hover, tr.prazo-vermelho:hover, tr.prazo-cinza:hover, tr.prazo-
 .fe-pept .fe-ic { background: var(--rt-soft); color: var(--rt); }
 .fe-gerais .fe-ic { background: var(--azul-soft); color: var(--azul); }
 .fe-rot { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Botão "Conectar Gmail" indisponível (24/11): apagado, sem clique, com a etiqueta "Em breve" */
+.gmail-breve:disabled { opacity: 1; cursor: not-allowed; color: var(--muted); }
+.chip-breve { margin-left: 2px; padding: 1px 7px; border-radius: 999px; font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; background: var(--laranja-soft); color: var(--laranja-txt); }
 .fe-novo { width: 7px; height: 7px; border-radius: 50%; background: var(--brand); flex-shrink: 0; }
 .fe-chave { grid-column: 1 / -1; justify-self: end; display: inline-flex; align-items: center; gap: 8px; padding: 2px 2px 0; font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer; }
 .fe-chave b { color: var(--text); }
