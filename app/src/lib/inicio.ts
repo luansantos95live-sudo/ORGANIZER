@@ -1,7 +1,7 @@
 import { addDays, differenceInCalendarDays, format, parseISO } from 'date-fns'
 import type { OS, TipoPept, Tipologia } from '../types'
 import { PEPT_LIMITE, STATUS_ABERTOS, TIPOLOGIAS_SEM_VISTORIA, farolDe, normCidade, prazoAtual } from './os'
-import { peptAberta } from './pept'
+import { diaQueAPeptVence, peptAberta, peptVenceu } from './pept'
 import { toHHMM, toMin } from './rota'
 
 // ---------------------------------------------------------------- próximo passo de cada O.S. aberta
@@ -212,12 +212,14 @@ export function alertas(lista: OS[], hoje = new Date()): Alerta[] {
   for (const o of lista) {
     if (!STATUS_ABERTOS.includes(o.status)) continue
     if (o.pausadoEm) {
-      if (!PEPT_LIMITE[o.tipologia]) continue // sem limite (ex.: A413, prazo indeterminado): não há prazo do COT
-      const d = Math.max(0, dias(o.pausadoEm, hoje)), falta = LIMITE_PEPT - d
-      if (falta <= 0) r.push({ nivel: 'critico', os: o, ordem: 1, texto: `PEPT da ${nome(o)} aberta há ${d} dias: passou do prazo do COT (${LIMITE_PEPT} dias).` })
-      else if (falta <= 7) r.push({ nivel: 'atencao', os: o, ordem: 2 + falta / 10, texto: `PEPT da ${nome(o)} aberta há ${d} dias. ${falta === 1 ? 'Falta 1 dia' : `Faltam ${falta} dias`} para o prazo do COT (${LIMITE_PEPT} dias).` })
+      const vence = diaQueAPeptVence(o) // sem limite (ex.: A413, prazo indeterminado): não há prazo do COT
+      if (!vence) continue
+      // PEPT vencida (24/11): no dia do limite a O.S. sai da PEPT sozinha; o aviso vem nos 7 dias antes
+      const falta = dias(format(hoje, 'yyyy-MM-dd'), parseISO(vence))
+      if (falta <= 7) r.push({ nivel: 'atencao', os: o, ordem: 2 + falta / 10, texto: `PEPT da ${nome(o)} ${falta <= 1 ? 'vence amanhã' : `vence em ${falta} dias`} (limite de ${PEPT_LIMITE[o.tipologia]} dias parados): no dia ${format(parseISO(vence), 'dd/MM')} ela sai da PEPT e a O.S. pode ser finalizada negando garantia.` })
       continue
     }
+    if (peptVenceu(o)) r.push({ nivel: 'critico', os: o, ordem: 1, texto: `PEPT da ${nome(o)} venceu (${PEPT_LIMITE[o.tipologia] ?? LIMITE_PEPT} dias parados): saiu da PEPT, o prazo voltou a correr e a O.S. pode ser finalizada negando garantia.` })
     // PEPT resolvida pelo cliente (e-mail da Caixa ou à mão), esperando você conferir: validar e finalizar ou reabrir.
     const analise = peptAberta(o)
     if (analise?.resolvidaEm) r.push({ nivel: 'atencao', os: o, ordem: 1.5, texto: `PEPT da ${nome(o)} resolvida pelo cliente em ${analise.resolvidaEm.split('-').reverse().slice(0, 2).join('/')}${analise.resolucao === 'email' ? ' (e-mail da Caixa)' : ''}: confira e valide ou reabra.` })

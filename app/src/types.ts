@@ -171,7 +171,7 @@ export interface Membro {
 /** PEPT (pendência que pausa o prazo): documental (problema em documento) ou de vistoria (impedimento na vistoria). */
 export type TipoPept = 'documental' | 'vistoria'
 /** Como a PEPT terminou: finalizada, O.S. reaberta (no dia informado), pelo e-mail da Caixa ou porque a O.S. foi concluída. */
-export type ComoResolveu = 'manual' | 'reaberta' | 'email' | 'conclusao'
+export type ComoResolveu = 'manual' | 'reaberta' | 'email' | 'conclusao' | 'vencida' // vencida (24/11): bateu o limite de dias parados e saiu da PEPT sozinha
 export interface Pept {
   id: string
   tipo?: TipoPept // vazio só em PEPT antiga, de antes de existir o tipo

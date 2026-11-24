@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { abrirPept, editarDatasPeptNaOS, encerrarPeptNaOS, etapaAoFinalizarPept, fecharPept, motivoDoHistorico, peptAberta, peptEmAnalise, peptsDaOS, periodosDaPept, prazosDaPept, reabrirPeptNaOS, resolverPeptNaOS, resumoPept, ultimaFinalizada , podeConcluir } from '../pept'
+import { abrirPept, editarDatasPeptNaOS, encerrarPeptNaOS, etapaAoFinalizarPept, fecharPept, motivoDoHistorico, peptAberta, peptEmAnalise, peptsDaOS, periodosDaPept, prazosDaPept, reabrirPeptNaOS, resolverPeptNaOS, resumoPept, ultimaFinalizada , podeConcluir, peptVenceu, vencerPept } from '../pept'
 import type { OS } from '../../types'
 import { prazoAtual } from '../os'
 
@@ -188,5 +188,28 @@ describe('B438 com PEPT aberta no dia do recebimento e resolvida depois (13/11, 
     const r = resolverPeptNaOS(o, '2026-11-13', 'email')!
     expect(r.diasPausado).toBe(15)
     expect(prazoAtual({ ...o, ...r }, new Date(2026, 10, 13))).toBe('2026-11-27')
+  })
+})
+
+describe('PEPT vencida (24/11): B437/B438 com 21 dias parados saem da PEPT', () => {
+  const pausada = mk({ tipologia: 'B438', pausadoEm: '2026-11-01', pepts: [{ id: 'p1', motivo: 'Falta ART', inicio: '2026-11-01' }] })
+  it('antes do limite continua em PEPT', () => {
+    const o = vencerPept(pausada, new Date(2026, 10, 22)) // 20 dias parados
+    expect(o.pausadoEm).toBe('2026-11-01')
+    expect(peptVenceu(o)).toBe(false)
+  })
+  it('com 21 dias parados sai da PEPT: prazo +21, PEPT encerrada como vencida, evento na linha do tempo', () => {
+    const o = vencerPept(pausada, new Date(2026, 10, 24))
+    expect(o.pausadoEm).toBeUndefined()
+    expect(o.diasPausado).toBe(21)
+    expect(o.pepts?.[0]).toMatchObject({ fim: '2026-11-23', resolvidaPor: 'vencida', dias: 21 })
+    expect(o.historico.at(-1)?.texto).toMatch(/^PEPT vencida/)
+    expect(peptVenceu(o)).toBe(true)
+    expect(podeConcluir(o)).toBe(true)
+    expect(peptVenceu({ ...o, status: 'concluida' })).toBe(false)
+    expect(vencerPept(o, new Date(2026, 10, 25))).toBe(o) // já saiu: não muda de novo
+  })
+  it('tipologia sem limite (A413, E401) não vence', () => {
+    for (const t of ['A413', 'E401'] as const) expect(vencerPept({ ...pausada, tipologia: t }, new Date(2026, 11, 30)).pausadoEm).toBe('2026-11-01')
   })
 })

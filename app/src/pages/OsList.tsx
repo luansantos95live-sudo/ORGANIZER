@@ -13,7 +13,7 @@ import { DetalheOS } from './OsDetail'
 import { intervalo, osNoPeriodo, valorTotal, type Periodo } from '../lib/faturamento'
 import { PEPT_LIMITE, prazoIndeterminado, POLOS, TIPOLOGIA_ORDEM, brl, codigoOS, dataMedia, farolDe, poloDe, prazoAtual, pausaValida, temCoordenada } from '../lib/os'
 import { naoFinalizada, FASES, PASSOS, PASSO_LABEL, corPrazo, estadoPassos, faseDe, passosDaOS, proximoPasso, type Fase } from '../lib/passos'
-import { podeConcluir } from '../lib/pept'
+import { peptVenceu, podeConcluir } from '../lib/pept'
 import { CORES_COLUNA, KANBAN_PADRAO, acaoAoSoltar, colunaDaOS, corColuna, osDaTelaDoDono, tituloColuna, tituloPadrao } from '../lib/kanban'
 import { filtrarEscopo, useStore } from '../store/useStore'
 import type { KanbanColuna, OS, PassoKey, Status, Tipologia } from '../types'
@@ -419,7 +419,7 @@ function Lista({ lista, cols, pagina, setPagina, abrir, editar }: { lista: OS[];
               return (
                 <tr key={o.id} onClick={() => abrir(o)} className={clsx('linha-os border-b border-border last:border-b-0 cursor-pointer', corPrazo(o) ? `prazo-${corPrazo(o)}` : 'hover:bg-[rgba(58,184,30,.05)]')}>
                   <td className="p-0 w-1"><span className="block w-1 h-9" style={{ background: f !== 'cancelada' ? COR_FASE[f] : 'var(--fraco)' }} /></td>
-                  {c('os') && <td className={clsx(td, 'font-bold whitespace-nowrap tnum')}>{codigoOS(o)}{o.nova && <span className="chip chip-nova ml-1.5 !h-[18px] !text-[9.5px] !px-1.5 align-middle">NOVA</span>}</td>}
+                  {c('os') && <td className={clsx(td, 'font-bold whitespace-nowrap tnum')}>{codigoOS(o)}{o.nova && <span className="chip chip-nova ml-1.5 !h-[18px] !text-[9.5px] !px-1.5 align-middle">NOVA</span>}{peptVenceu(o) && <span className="chip chip-r ml-1.5 !h-[18px] !text-[9.5px] !px-1.5 align-middle" title="PEPT vencida: saiu da PEPT e pode ser finalizada negando garantia">PEPT VENCIDA</span>}</td>}
                   {c('numero') && <td className={clsx(td, 'tnum whitespace-nowrap text-muted')}>{o.referencia}</td>}
                   {c('tipologia') && <td className={td}><TipologiaChip t={o.tipologia} className="!h-[20px] !text-[10.5px] !px-1.5" /></td>}
                   {c('status') && <td className={td}><StatusChip status={o.status} className="!h-[22px] whitespace-nowrap" /></td>}
@@ -462,6 +462,7 @@ const FAIXA_PRAZO: Record<string, string> = { amarelo: '#eab308', vermelho: '#ef
 function seloKanban(o: OS): { txt: string; cls: string } | null {
   if (o.status === 'cancelada') return null
   if (o.status === 'concluida') return { txt: 'Concluída', cls: 'chip-v' }
+  if (peptVenceu(o)) return { txt: 'PEPT vencida', cls: 'chip-r' } // 24/11: saiu da PEPT no limite; pode finalizar negando garantia
   if (o.pausadoEm) {
     const d = Math.max(0, Math.round((Date.now() - parseISO(o.pausadoEm).getTime()) / 864e5))
     return { txt: `PEPT · ${d}d`, cls: 'bg-[var(--seg)] text-muted' }

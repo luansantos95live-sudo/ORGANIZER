@@ -8,10 +8,11 @@ import { CaixaPrioridade, DadosPrioridade } from '../components/DadosPrioridade'
 import { NovaOS } from '../components/NovaOS'
 import { PausarOS } from '../components/PausarOS'
 import { TipologiaChip } from '../components/ui'
-import { TIPOLOGIAS, cap, codigoOS, dataMedia, enderecoLinha, farolDe, prazoAtual, telefoneWhats, TIPOLOGIAS_SEM_VISTORIA } from '../lib/os'
+import { TIPOLOGIAS, cap, codigoOS, dataMedia, enderecoLinha, farolDe, prazoAtual, prazoIndeterminado, telefoneWhats, TIPOLOGIAS_SEM_VISTORIA } from '../lib/os'
+import { peptVenceu } from '../lib/pept'
 import { diasDaSemana } from '../lib/faturamento'
 import { alertas, emPept, porTipologia } from '../lib/inicio'
-import { naoFinalizada, estadoPassos, passosDaOS, proximoPasso } from '../lib/passos'
+import { estadoPassos, passosDaOS, proximoPasso } from '../lib/passos'
 import type { PassoKey, Tipologia } from '../types'
 import { filtrarEscopo, useStore } from '../store/useStore'
 import type { OS } from '../types'
@@ -56,13 +57,13 @@ export function Painel() {
   const porPrazo = (l: OS[]) => [...l].sort((a, b) => prazoAtual(a).localeCompare(prazoAtual(b)))
   const diasAte = (iso: string) => differenceInCalendarDays(parseISO(iso), hoje)
 
-  // Blocos, na ordem pedida pelo usuário: em aberto (recebidas), em andamento, em PEPT e finalizadas no mês.
-  // Em aberto = toda O.S. não finalizada (recebida, em andamento ou em PEPT), pedido de 16/11
-  const emAberto = porPrazo(os.filter(naoFinalizada))
+  // Blocos: recebidas e finalizadas no mês (só o número, 24/11), em andamento, em PEPT e finalizadas no mês.
+  const nomeMes = format(hoje, 'MMMM', { locale: ptBR })
   const emAndamento = porPrazo(ativas.filter((o) => o.status !== 'recebida'))
   const mes = hojeStr.slice(0, 7)
   const finalizadas = os.filter((o) => o.status === 'concluida' && o.concluidaEm?.startsWith(mes)).sort((a, b) => b.concluidaEm!.localeCompare(a.concluidaEm!))
   const passoCurto = (o: OS) => proximoPasso(o, hojeStr).label.replace('Baixar as documentações', 'baixar docs').replace('Analisar documentos', 'analisar docs').toLowerCase()
+  const recebidas = os.filter((o) => o.emissao?.startsWith(mes))
   const pept = emPept(os, hoje)
   const avisos = alertas(os, hoje)
   // A semana: quais O.S. vencem em cada dia (as em PEPT ficam de fora, o prazo está pausado).
@@ -94,12 +95,15 @@ export function Painel() {
         <Prioridade lista={porPrazo(ativas)} hojeStr={hojeStr} mensagem={config.mensagemWhatsApp}
           emDia={{ nome: config.responsaveis.luan.curto, finalizadas: finalizadas.length, mes: format(hoje, 'MMMM', { locale: ptBR }), pept: pept.length }} />
 
-        <Bloco cor="var(--laranja-txt)" fundo="var(--laranja-soft)" Icone={Inbox} rotulo="O.S. em aberto" numero={emAberto.length} para="/os?visao=lista&fase=aberto&periodo=todos"
-          itens={emAberto.slice(0, 3).map((o) => ({ os: o, direita: prazoTxt(o) }))} vazio="Nenhuma O.S. em aberto." />
+        {/* 24/11: "O.S. em aberto" virou dois cartões só com o número, recebidas e finalizadas no mês */}
+        <div className="grid grid-cols-2 gap-4">
+          <Contador cor="var(--laranja-txt)" fundo="var(--laranja-soft)" Icone={Inbox} rotulo="O.S. recebidas" sub={`em ${nomeMes}`} numero={recebidas.length} para="/os?visao=lista" />
+          <Contador cor="var(--verde-valor)" fundo="var(--brand-soft)" Icone={CircleCheck} rotulo="O.S. finalizadas" sub={`em ${nomeMes}`} numero={finalizadas.length} para="/os?visao=lista&fase=finalizada" />
+        </div>
         <Bloco cor="var(--azul)" fundo="var(--azul-soft)" Icone={FileText} rotulo="O.S. em andamento" numero={emAndamento.length} para="/os?visao=lista&fase=andamento&periodo=todos"
           itens={emAndamento.slice(0, 3).map((o) => ({ os: o, direita: passoCurto(o) }))} vazio="Nenhuma O.S. em andamento." />
         <Bloco cor="var(--rt)" fundo="var(--rt-soft)" Icone={PauseCircle} rotulo="O.S. em PEPT" numero={pept.length} para="/os?visao=lista&fase=pept&periodo=todos"
-          itens={pept.slice(0, 3).map((p) => ({ os: p.os, direita: `${p.dias} ${p.dias === 1 ? 'dia' : 'dias'}` }))} vazio="Nenhuma O.S. com prazo pausado." />
+          itens={pept.slice(0, 3).map((p) => ({ os: p.os, direita: prazoIndeterminado(p.os) ? 'sem prazo' : prazoTxt(p.os) }))} vazio="Nenhuma O.S. com prazo pausado." />
         <Bloco cor="var(--verde-valor)" fundo="var(--brand-soft)" Icone={CircleCheck} rotulo="Finalizadas no mês" numero={finalizadas.length} para="/os?visao=lista&fase=finalizada"
           itens={[]} conteudo={<PizzaTipologia lista={os} mes={mes} />} vazio="Nenhuma finalizada neste mês." />
 
@@ -116,8 +120,13 @@ export function Painel() {
               return (
                 <Link key={d.toISOString()} to={`/os?dia=${format(d, 'yyyy-MM-dd')}`} title={format(d, "EEEE, d 'de' MMMM", { locale: ptBR })}
                   className={clsx('rounded-xl px-2 py-2 min-h-[132px] h-full flex flex-col gap-1 border transition hover:border-[var(--brand)]',
-                    eHoje ? 'border-[var(--brand)] bg-[var(--brand-soft)]' : 'border-border bg-[var(--surface-2)]', passou && 'opacity-60')}>
-                  <span className={clsx('text-[12px] font-semibold', eHoje && 'text-[var(--verde-valor)]')}>{nomeDoDia(d)}</span>
+                    eHoje ? 'border-2 border-[var(--brand)] bg-[var(--brand-soft)] shadow-[0_6px_18px_-10px_rgba(58,184,30,.7)]' : 'border-border bg-[var(--surface-2)]', passou && 'opacity-60')}>
+                  {/* 24/11: nome do dia em destaque (maior e em negrito) com a data; hoje ganha a etiqueta HOJE */}
+                  <span className="flex flex-wrap items-center gap-1">
+                    <span className={clsx('text-[14.5px] font-extrabold leading-tight tracking-[-0.01em]', eHoje ? 'text-[var(--verde-valor)]' : 'text-[var(--text)]')}>{nomeDoDia(d)}</span>
+                    <span className="tnum text-[11px] font-semibold text-muted">{format(d, 'dd/MM')}</span>
+                    {eHoje && <span className="rounded-full bg-[var(--brand)] px-1.5 py-px text-[9.5px] font-bold tracking-[.06em] text-white">HOJE</span>}
+                  </span>
                   <span className="text-[24px] font-bold tnum leading-none" style={{ color: vencem.length ? (passou ? 'var(--vermelho)' : 'var(--laranja-txt)') : 'var(--fraco)' }}>{vencem.length}</span>
                   <span className="text-[10.5px] text-muted">{vencem.length === 1 ? 'vence' : 'vencem'}</span>
                   {vencem.slice(0, 2).map((o) => <span key={o.id} className="text-[11px] font-semibold truncate leading-tight" title={o.proponente}>{codigoOS(o)} · {o.proponente.split(' ')[0]}</span>)}
@@ -225,6 +234,8 @@ function Prioridade({ lista, hojeStr, mensagem, emDia }: { lista: OS[]; hojeStr:
       </div>
       <div>
         <span className={'inline-block px-3 py-1 rounded-full text-[13px] font-bold ' + corPrazo}>{textoPrazo(o)}</span>
+        {/* 24/11: PEPT bateu o limite de dias parados e saiu sozinha; dá para finalizar negando garantia */}
+        {peptVenceu(o) && <span className="ml-2 inline-block px-3 py-1 rounded-full text-[13px] font-bold bg-[#dc2626] text-white" title="A PEPT chegou ao limite de dias parados: a O.S. saiu da PEPT e pode ser finalizada negando garantia">PEPT vencida · pode finalizar</span>}
         <Link to={`/os/${o.id}`} className="block text-[30px] font-bold tracking-[-0.02em] leading-tight mt-3 hover:underline">{o.proponente}</Link>
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px]">
           <span className="opacity-75">{codigoOS(o)}</span>
@@ -276,6 +287,22 @@ function Prioridade({ lista, hojeStr, mensagem, emDia }: { lista: OS[]; hojeStr:
         )}
       </div>
     </article>
+  )
+}
+
+/** Cartão só com o número, grande (pedido de 24/11): "O.S. recebidas" e "O.S. finalizadas" lado a lado, no lugar do antigo "O.S. em aberto". */
+function Contador({ cor, fundo, Icone, rotulo, sub, numero, para }: { cor: string; fundo: string; Icone: LucideIcon; rotulo: string; sub: string; numero: number; para: string }) {
+  return (
+    <Link to={para} title="Abrir a lista com estas O.S." className="bloco group p-5 flex flex-col justify-between gap-3 min-w-0 hover:border-[var(--brand)] transition">
+      <span className="flex items-start justify-between gap-2">
+        <span className="min-w-0 leading-tight">
+          <span className="block text-[13px] font-semibold text-muted group-hover:text-[var(--text)]">{rotulo}</span>
+          <span className="block text-[11.5px] text-muted">{sub}</span>
+        </span>
+        <span className="w-9 h-9 shrink-0 rounded-xl flex items-center justify-center" style={{ background: fundo, color: cor }}><Icone size={18} /></span>
+      </span>
+      <span className="block text-[64px] font-bold tracking-[-0.04em] leading-none tnum" style={{ color: numero ? cor : 'var(--fraco)' }}>{numero}</span>
+    </Link>
   )
 }
 

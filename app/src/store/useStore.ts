@@ -10,7 +10,7 @@ import { ETAPA_DO_PASSO, PASSO_LABEL, voltarParaPasso } from '../lib/passos'
 import { novoCodigoRota, vistoriaFeitaPelaRota, vistoriasDasRotasConcluidas } from '../lib/rota'
 import { completarColunas } from '../lib/kanban'
 import { comPostitsPadrao, editarPostit, novoPostit, removerItem, semCoresRepetidas } from '../lib/anotacoes'
-import { ORIGEM_RESOLUCAO, TIPO_PEPT, abrirPept, editarDatasPeptNaOS, editarPeptNaOS, encerrarPeptNaOS, etapaAoFinalizarPept, peptAberta, podeConcluir, reabrirPeptNaOS, resolverPeptNaOS } from '../lib/pept'
+import { ORIGEM_RESOLUCAO, TIPO_PEPT, vencerPept, abrirPept, editarDatasPeptNaOS, editarPeptNaOS, encerrarPeptNaOS, etapaAoFinalizarPept, peptAberta, podeConcluir, reabrirPeptNaOS, resolverPeptNaOS } from '../lib/pept'
 
 export interface Fechamento { extratoTotal?: number; extratoQtd?: number; dataRelatorio?: string; valorNF?: number }
 
@@ -468,7 +468,8 @@ export const useStore = create<State>()(
           // rota confirmada antes de existir a confirmação por cliente: as paradas contam como agendadas e confirmadas
           .map((r) => (r.status === 'confirmada' || r.status === 'concluida' ? { ...r, paradas: r.paradas.map((x) => ({ ...x, avisado: x.avisado ?? true, confirmado: x.confirmado ?? true })) } : r))
         // rotas concluídas antes da regra de 13/11: as O.S. delas ficam com a vistoria feita (saem do planejador)
-        const osFinal = os && rotas ? vistoriasDasRotasConcluidas(os, rotas) : os
+        // PEPT vencida (24/11): B437/B438 com 21 dias parados saem da PEPT ao abrir o sistema
+        const osFinal = (os && rotas ? vistoriasDasRotasConcluidas(os, rotas) : os)?.map((o) => vencerPept(o))
         return { ...current, ...p, ...(osFinal ? { os: osFinal } : {}), ...(rotas ? { rotas } : {}), emails: p.emails ? p.emails.map((e) => (e.id === 'em-5' && /^Aviso: PEPT/.test(e.assunto) ? current.emails.find((x) => x.id === 'em-5') ?? e : e)) : current.emails, config: mesclarConfig(p.config ?? {}) }
       },
     },

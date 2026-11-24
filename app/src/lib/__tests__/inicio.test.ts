@@ -130,7 +130,7 @@ describe('alertas do Início', () => {
     ]
     const r = alertas(lista, HOJE)
     expect(r.map((x) => x.os.id)).toEqual(['v', 'p', 'f', 'q', 'a'])
-    expect(r[1].texto).toBe('PEPT da OS-2 (BIA) aberta há 20 dias. Falta 1 dia para o prazo do COT (21 dias).')
+    expect(r[1].texto).toBe('PEPT da OS-2 (BIA) vence em 2 dias (limite de 21 dias parados): no dia 15/10 ela sai da PEPT e a O.S. pode ser finalizada negando garantia.')
     expect(r[2].texto).toBe('Faltam 2 dias para a OS-4 (DAN) vencer.')
     expect(r[4].texto).toBe('Vistoria amanhã às 09:30: OS-5 (EVA), JARU.')
   })

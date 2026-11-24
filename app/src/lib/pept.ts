@@ -23,7 +23,7 @@ export const TIPO_PEPT: Record<TipoPept, { label: string; descricao: string }> =
 }
 
 /** Como o período da PEPT terminou. */
-export const COMO_RESOLVEU: Record<ComoResolveu, string> = { manual: 'Validada e finalizada', reaberta: 'Reaberta', email: 'E-mail da Caixa', conclusao: 'O.S. concluída' }
+export const COMO_RESOLVEU: Record<ComoResolveu, string> = { manual: 'Validada e finalizada', reaberta: 'Reaberta', email: 'E-mail da Caixa', conclusao: 'O.S. concluída', vencida: 'PEPT vencida (limite de dias)' }
 /** Como a resolução do cliente foi registrada. */
 export const ORIGEM_RESOLUCAO: Record<'email' | 'manual', string> = { email: 'pelo e-mail da Caixa', manual: 'registrada à mão' }
 
@@ -82,6 +82,30 @@ export function encerrarPeptNaOS(o: OS, dia: string, como: ComoResolveu): Partia
   return { ...patch, pepts: lista.map((p) => (p.fim ? p : { ...p, fim: dia, resolvidaPor: como })) }
 }
 /** Encerrar a PEPT numa data (resolve, se preciso, e encerra). */
+/**
+ * PEPT vencida (regra de 24/11): nas tipologias com limite de PEPT (B437/B438: 21 dias), quando os dias parados
+ * chegam ao limite a O.S. sai da PEPT sozinha. A PEPT encerra no dia em que o prazo volta a correr, marcada como
+ * "vencida", e a O.S. pode ser finalizada (negando garantia). As demais tipologias seguem como estavam.
+ */
+export function diaQueAPeptVence(o: Pick<OS, 'pausadoEm' | 'tipologia'>): string | null {
+  const lim = o.pausadoEm ? PEPT_LIMITE[o.tipologia] : undefined
+  if (lim === undefined) return null
+  // diasDePausa(inicio, inicio + lim + 1) = lim: nesse dia os dias parados batem o limite
+  return format(addDays(parseISO(o.pausadoEm!), lim + 1), 'yyyy-MM-dd')
+}
+/** Aplica a regra da PEPT vencida: com o limite batido, devolve a O.S. já fora da PEPT. */
+export function vencerPept(o: OS, hoje = new Date()): OS {
+  const dia = diaQueAPeptVence(o)
+  if (!dia || format(hoje, 'yyyy-MM-dd') < dia) return o
+  return { ...o, ...encerrarPeptNaOS(o, dia, 'vencida'), historico: [...(o.historico ?? []), { data: `${dia}T08:00:00`, texto: `PEPT vencida: ${PEPT_LIMITE[o.tipologia]} dias parados. A O.S. saiu da PEPT, o prazo voltou a correr e ela pode ser finalizada negando garantia.` }] }
+}
+/** A última PEPT da O.S. venceu (selo vermelho "PEPT vencida" até a O.S. ser finalizada ou abrir outra PEPT). */
+export function peptVenceu(o: Pick<OS, 'pepts' | 'status' | 'pausadoEm'>) {
+  if (o.pausadoEm || o.status === 'concluida' || o.status === 'cancelada') return false
+  const l = [...(o.pepts ?? [])].sort((a, b) => a.inicio.localeCompare(b.inicio))
+  return l[l.length - 1]?.resolvidaPor === 'vencida'
+}
+
 export const fecharPept = (o: OS, quando: Date, como: ComoResolveu) => encerrarPeptNaOS(o, format(quando, 'yyyy-MM-dd'), como)
 
 export interface ResumoPept {
