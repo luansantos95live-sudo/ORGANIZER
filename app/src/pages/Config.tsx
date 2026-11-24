@@ -3,6 +3,8 @@ import { Building2, CreditCard, Database, FolderSync, Mail, SlidersHorizontal, U
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { copiar } from '../lib/clipboard'
+import { lerRemetentes } from '../lib/emails'
+import SCRIPT_GMAIL from '../lib/gmail-script.gs?raw'
 import { lerBackup, montarBackup } from '../lib/backup'
 import { suportaPasta } from '../lib/pastaDados'
 import { conectarPasta, desconectarPasta, gravarAgora, reconectarPasta } from '../store/pastaSync'
@@ -200,8 +202,22 @@ function Equipe() {
 
 /**
  * Ligação com o Gmail (10/11): um Google Apps Script publicado na conta do usuário lê os e-mails da Caixa e responde
- * em JSON; o sistema busca ao abrir a aba E-mails e a cada 5 minutos. O código do script está em ferramentas/gmail-script.
+ * em JSON; o sistema busca ao abrir a aba E-mails e a cada 5 minutos. 24/11: passo a passo para o cliente, o script
+ * vem do próprio sistema (Copiar script, lib/gmail-script.gs) e o endereço da Caixa (prioridade) é escolhido aqui.
  */
+/** Um passo numerado da ligação com o Gmail (24/11). */
+function PassoGmail({ n, titulo, children }: { n: number; titulo: string; children: ReactNode }) {
+  return (
+    <section className="rounded-[14px] border border-border px-4 py-3.5 flex gap-3">
+      <span className="w-7 h-7 shrink-0 rounded-full bg-[var(--brand-soft)] text-[var(--verde-valor)] text-[13px] font-bold flex items-center justify-center tnum">{n}</span>
+      <div className="min-w-0 flex-1 flex flex-col gap-2">
+        <h3 className="text-[14px] font-bold leading-tight pt-1">{titulo}</h3>
+        {children}
+      </div>
+    </section>
+  )
+}
+
 function Gmail() {
   const config = useStore((s) => s.config)
   const setConfig = useStore((s) => s.setConfig)
@@ -209,9 +225,15 @@ function Gmail() {
   const ultima = useStore((s) => s.gmailUltimaSinc)
   const [teste, setTeste] = useState<{ ok: boolean; texto: string } | null>(null)
   const [testando, setTestando] = useState(false)
+  const [copiado, setCopiado] = useState(false)
   const g = config.gmail
   const set = (patch: Partial<typeof g>) => setConfig({ gmail: { ...g, ...patch } })
+  // o texto digitado fica como está (com vírgulas); a lista limpa vai para a configuração
+  const [enderecos, setEnderecos] = useState(() => (g.remetentes ?? []).join(', '))
+  const lista = lerRemetentes(enderecos)
   const testar = async () => { setTestando(true); setTeste(await sincronizar()); setTestando(false) }
+  const copiarScript = async () => { const ok = await copiar(SCRIPT_GMAIL); setCopiado(ok); if (ok) setTimeout(() => setCopiado(false), 2500) }
+  const ligado = !!g.url && !!g.token
   // Configuração pelo endereço (10/11): abrir o sistema em #/configuracoes?secao=gmail&url=…&token=… grava e testa sozinho
   // (é como o Claude liga o sistema real ao script sem ninguém digitar). Os parâmetros somem do endereço depois.
   const [sp, setSp] = useSearchParams()
@@ -224,31 +246,62 @@ function Gmail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sp])
   return (
-    <div className="flex flex-col gap-4">
-      <p className="text-[13.5px] leading-relaxed">
-        Os e-mails da Caixa (O.S. nova, PEPT resolvida, cancelamento, prazo) entram sozinhos na aba <b>E-mails</b>, sem precisar importar arquivo.
-        Funciona com um pequeno script publicado na sua conta Google, que só lê o Gmail (não marca, não move, não responde nada).
-      </p>
-      <Grade>
-        <Field label="Endereço do script (termina em /exec)" className="sm:col-span-2 2xl:col-span-3"><input className="input tnum" placeholder="https://script.google.com/macros/s/…/exec" value={g.url} onChange={(e) => set({ url: e.target.value.trim() })} /></Field>
-        <Field label="Senha do script (TOKEN)" className="sm:col-span-2"><input className="input tnum" placeholder="a mesma senha escrita dentro do script" value={g.token} onChange={(e) => set({ token: e.target.value.trim() })} /></Field>
-      </Grade>
-      <Interruptor titulo="Criar a O.S. automaticamente" texto={g.criarOs ? 'Ligado: a O.S. é criada assim que o e-mail de convocação chega, e o sininho avisa.' : 'Desligado: o e-mail aparece na aba E-mails e você clica em Importar O.S. (1 clique).'} ligado={g.criarOs} onClick={() => set({ criarOs: !g.criarOs })} />
+    <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
-        <button className="btn btn-primary" disabled={!g.url || testando} onClick={testar}>{testando ? 'Testando…' : 'Testar e buscar agora'}</button>
-        {ultima && <span className="text-[12.5px] text-muted">Última busca: {new Date(ultima).toLocaleString('pt-BR')}</span>}
+        <p className="text-[13.5px] leading-relaxed flex-1 min-w-[260px]">
+          Ligue o seu Gmail ao Fluxo por um pequeno script do Google, publicado na sua própria conta. Os e-mails da Caixa
+          (O.S. nova, PEPT resolvida, cancelamento, prazo) passam a entrar sozinhos na aba <b>E-mails</b>, a cada 5 minutos.
+          O script só lê: não marca, não move, não apaga e não responde nada.
+        </p>
+        <span className={clsx('chip !h-7', ligado ? 'chip-v' : 'bg-[var(--surface-2)] text-muted')}>{ligado ? 'Script configurado' : 'Não ligado'}</span>
       </div>
-      {teste && <p className={clsx('rounded-lg px-3 py-2 text-[13px] font-semibold', teste.ok ? 'bg-[rgba(58,184,30,.12)] text-[var(--verde-valor)]' : 'bg-[var(--laranja-soft)] text-[var(--laranja-txt)]')}>{teste.texto}</p>}
-      <details className="rounded-[12px] border border-dashed border-border px-4 py-3 text-[13px] leading-relaxed">
-        <summary className="cursor-pointer font-semibold">Como publicar o script (uma vez só)</summary>
-        <ol className="list-decimal pl-5 mt-2 flex flex-col gap-1">
-          <li>Abra <b>script.google.com</b> na sua conta Google e crie um projeto novo.</li>
-          <li>Cole o conteúdo do arquivo <b>ferramentas/gmail-script/Code.gs</b> e troque o <b>TOKEN</b> por uma senha longa.</li>
-          <li><b>Implantar › Nova implantação</b> › tipo <b>App da Web</b> › executar como <b>Eu</b> › acesso <b>Qualquer pessoa</b>.</li>
-          <li>Autorize quando o Google pedir (leitura do Gmail) e copie o endereço que termina em <b>/exec</b>.</li>
-          <li>Cole o endereço e a senha aqui e clique em <b>Testar e buscar agora</b>.</li>
+
+      <PassoGmail n={1} titulo="Endereço da Caixa (prioridade)">
+        <p className="text-[12.5px] text-muted leading-relaxed">
+          O sistema só traz os e-mails desses remetentes. Use o domínio <b>caixa.gov.br</b> (todos os e-mails da Caixa) ou o
+          endereço exato de quem manda as suas O.S. (ex.: a GIHAB ou a agência). Mais de um: separe por vírgula.
+        </p>
+        <input className="input" placeholder="caixa.gov.br" value={enderecos}
+          onChange={(e) => { setEnderecos(e.target.value); set({ remetentes: lerRemetentes(e.target.value) }) }} />
+        <div className="flex flex-wrap items-center gap-1.5 text-[12px]">
+          {(lista.length ? lista : ['caixa.gov.br']).map((r, i) => (
+            <span key={r} className={clsx('chip !h-6', i === 0 ? 'chip-v' : 'bg-[var(--surface-2)]')}>{i === 0 && <b className="mr-1">Prioridade</b>}{r.includes('@') ? r : `@${r}`}</span>
+          ))}
+          {!lista.length && <span className="text-muted">(padrão)</span>}
+        </div>
+      </PassoGmail>
+
+      <PassoGmail n={2} titulo="Copie o script e abra o Google Apps Script">
+        <div className="flex flex-wrap items-center gap-2">
+          <button className="btn btn-primary" onClick={copiarScript}>{copiado ? 'Script copiado' : 'Copiar script'}</button>
+          <a className="btn btn-secondary" href="https://script.google.com/home/projects/create" target="_blank" rel="noreferrer">Abrir o Google Apps Script</a>
+        </div>
+        <p className="text-[12px] text-muted">Entre com a conta Google que <b>recebe</b> os e-mails da Caixa.</p>
+      </PassoGmail>
+
+      <PassoGmail n={3} titulo="No Google: cole, autorize e publique">
+        <ol className="list-decimal pl-5 text-[13px] leading-relaxed flex flex-col gap-1">
+          <li>Apague o que estiver no editor, <b>cole o script</b> e clique em <b>Salvar</b>.</li>
+          <li>Na barra de cima, escolha a função <b>mostrarSenha</b> e clique em <b>Executar</b>. Autorize quando o Google pedir (leitura do Gmail).</li>
+          <li>A senha aparece embaixo, no <b>Registro de execução</b>: copie.</li>
+          <li><b>Implantar › Nova implantação</b> › tipo <b>App da Web</b> › executar como <b>Eu</b> › acesso <b>Qualquer pessoa</b> › <b>Implantar</b>.</li>
+          <li>Copie o endereço que termina em <b>/exec</b>.</li>
         </ol>
-      </details>
+      </PassoGmail>
+
+      <PassoGmail n={4} titulo="Cole aqui e teste">
+        <Grade>
+          <Field label="Endereço do script (termina em /exec)" className="sm:col-span-2 2xl:col-span-3"><input className="input tnum" placeholder="https://script.google.com/macros/s/…/exec" value={g.url} onChange={(e) => set({ url: e.target.value.trim() })} /></Field>
+          <Field label="Senha do script" className="sm:col-span-2"><input className="input tnum" placeholder="a senha do Registro de execução" value={g.token} onChange={(e) => set({ token: e.target.value.trim() })} /></Field>
+        </Grade>
+        <div className="flex flex-wrap items-center gap-2">
+          <button className="btn btn-primary" disabled={!g.url || !g.token || testando} onClick={testar}>{testando ? 'Testando…' : 'Testar e buscar agora'}</button>
+          {ultima && <span className="text-[12.5px] text-muted">Última busca: {new Date(ultima).toLocaleString('pt-BR')}</span>}
+        </div>
+        {teste && <p className={clsx('rounded-lg px-3 py-2 text-[13px] font-semibold', teste.ok ? 'bg-[rgba(58,184,30,.12)] text-[var(--verde-valor)]' : 'bg-[var(--laranja-soft)] text-[var(--laranja-txt)]')}>{teste.texto}</p>}
+      </PassoGmail>
+
+      <Interruptor titulo="Criar a O.S. automaticamente" texto={g.criarOs ? 'Ligado: a O.S. é criada assim que o e-mail de convocação chega, e o sininho avisa.' : 'Desligado: o e-mail aparece na aba E-mails e você clica em Importar O.S. (1 clique).'} ligado={g.criarOs} onClick={() => set({ criarOs: !g.criarOs })} />
     </div>
   )
 }

@@ -131,17 +131,28 @@ export function lerArquivoCaixaDeEntrada(json: string): { emails: Email[]; erro?
 
 /**
  * Ligação com o Gmail pelo Google Apps Script (10/11): o script publicado responde em JSON com os e-mails da Caixa.
- * `desde` (ISO) limita a busca; vai como segundos desde 1970 (`after:` do Gmail). Sem `desde`, o script usa os últimos 30 dias.
+ * `desde` (ISO) limita a busca; vai como segundos desde 1970 (`after:` do Gmail). Sem `desde`, o script usa os últimos 10 dias.
+ * `remetentes` (24/11): os endereços da Caixa escolhidos em Configurações › Gmail; o script só busca os e-mails deles.
  */
-export function urlPonteGmail(url: string, token: string, desde?: string): string {
+export function urlPonteGmail(url: string, token: string, desde?: string, remetentes?: string[]): string {
   const base = url.trim()
   if (!base) return ''
   const p = new URLSearchParams()
   if (token.trim()) p.set('token', token.trim())
   const ms = desde ? Date.parse(desde) : NaN
   if (!isNaN(ms)) p.set('desde', String(Math.floor(ms / 1000)))
+  if (remetentes?.length) p.set('de', remetentes.join(','))
   const q = p.toString()
   return q ? `${base}${base.includes('?') ? '&' : '?'}${q}` : base
+}
+
+/**
+ * Endereços da Caixa digitados em Configurações › Gmail (24/11): "caixa.gov.br, gilie@caixa.gov.br" vira a lista limpa.
+ * Aceita domínio (todos os remetentes dele) ou e-mail completo (só ele). Vazio = o padrão do script (@caixa.gov.br).
+ */
+export function lerRemetentes(v: string): string[] {
+  const l = v.split(/[,;\s]+/).map((x) => x.trim().toLowerCase().replace(/^@/, '')).filter((x) => /^[a-z0-9._%+-]*@?[a-z0-9.-]+\.[a-z]{2,}$/.test(x))
+  return [...new Set(l)]
 }
 
 /** A partir de quando buscar na próxima sincronização: 2 dias antes da última (o id repete, não duplica); sem última, os últimos 10 dias (pedido de 12/11). */

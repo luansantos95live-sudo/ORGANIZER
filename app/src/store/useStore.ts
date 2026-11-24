@@ -134,10 +134,10 @@ export const useStore = create<State>()(
       },
       // Ligação com o Gmail (10/11): busca no Google Apps Script publicado (Configurações › Gmail) e entra no sistema sozinho.
       sincronizarGmail: async (fetchFn = fetch) => {
-        const { url, token, criarOs } = get().config.gmail
+        const { url, token, criarOs, remetentes } = get().config.gmail
         if (!url.trim()) return { ok: false, texto: 'Ligação com o Gmail não configurada (Configurações › Gmail).' }
         try {
-          const resp = await fetchFn(urlPonteGmail(url, token, desdeParaSincronizar(get().gmailUltimaSinc)), { redirect: 'follow' })
+          const resp = await fetchFn(urlPonteGmail(url, token, desdeParaSincronizar(get().gmailUltimaSinc), remetentes), { redirect: 'follow' })
           if (!resp.ok) throw new Error(`o script respondeu ${resp.status}`)
           const r = lerRespostaPonte(await resp.text())
           if (r.erro) throw new Error(r.erro)

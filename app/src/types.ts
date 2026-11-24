@@ -223,5 +223,5 @@ export interface Config {
   contrato: { numero: string; edital: string; processo: string; rrt: string } // contrato de credenciamento com a Caixa
   empresa: { fantasia: string; razao: string; cnpj: string; telefone: string; responsavel: string; municipio: string } // quem emite a nota
   /** Ligação com o Gmail pelo Google Apps Script (10/11): endereço do script publicado, senha (token) e se a O.S. é criada sozinha. */
-  gmail: { url: string; token: string; criarOs: boolean; ativoDesde?: string; polos?: string[] } // ativoDesde: e-mails antes disso só ficam para consulta; polos: de quais polos a O.S. entra sozinha (vazio = todos)
+  gmail: { url: string; token: string; criarOs: boolean; ativoDesde?: string; polos?: string[]; remetentes?: string[] } // ativoDesde: e-mails antes disso só ficam para consulta; polos: de quais polos a O.S. entra sozinha (vazio = todos)
 }

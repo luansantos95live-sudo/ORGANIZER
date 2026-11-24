@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { base64ParaTexto, decodificarCabecalho, emailDoGmail, lerMime, lerRemetente, quotedPrintableParaTexto } from '../mime'
-import { desdeParaSincronizar, lerArquivoCaixaDeEntrada, lerRespostaPonte, mesclarEmails, tipoEmail, urlPonteGmail } from '../emails'
+import { desdeParaSincronizar, lerArquivoCaixaDeEntrada, lerRespostaPonte, mesclarEmails, tipoEmail, urlPonteGmail, lerRemetentes } from '../emails'
 import { lerSiopiTxt } from '../siopi'
 
 // Dados fictícios no formato do e-mail de convocação da Caixa (multipart, .txt como parte TEXT/PLAIN sem base64).
@@ -123,6 +123,10 @@ describe('arquivo da Caixa de entrada (emails.json)', () => {
     expect(urlPonteGmail('', 'x')).toBe('')
     expect(urlPonteGmail('https://script.google.com/macros/s/ABC/exec', 'segredo', '2026-11-01T00:00:00.000Z')).toBe('https://script.google.com/macros/s/ABC/exec?token=segredo&desde=1793491200')
     expect(urlPonteGmail('https://x/exec?a=1', '')).toBe('https://x/exec?a=1')
+    // 24/11: os endereços da Caixa escolhidos vão junto (o script só busca os e-mails deles)
+    expect(urlPonteGmail('https://x/exec', 's', undefined, ['caixa.gov.br', 'gilie@caixa.gov.br'])).toBe('https://x/exec?token=s&de=caixa.gov.br%2Cgilie%40caixa.gov.br')
+    expect(lerRemetentes(' @Caixa.gov.br; gilie@caixa.gov.br, lixo ,caixa.gov.br')).toEqual(['caixa.gov.br', 'gilie@caixa.gov.br'])
+    expect(lerRemetentes('')).toEqual([])
     // sem última sincronização busca 10 dias; com ela, 2 dias antes (o id repete, não duplica)
     expect(desdeParaSincronizar(undefined, new Date('2026-11-10T12:00:00Z'))).toBe('2026-10-31T12:00:00.000Z')
     expect(desdeParaSincronizar('2026-11-10T12:00:00Z')).toBe('2026-11-08T12:00:00.000Z')
