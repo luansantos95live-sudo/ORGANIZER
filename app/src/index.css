@@ -50,10 +50,15 @@
   --viz-me: var(--brand);
   --viz-rt: var(--rt);
   --viz-track: var(--seg);
+  /* séries por pessoa no gráfico de onda (validadas para daltonismo e contraste, 24/11): dono, RT */
+  --serie-1: #2e9a17;
+  --serie-2: #7a62c9;
   /* tipologias */
 }
 
 :root[data-theme="dark"] {
+  --serie-1: #2f9e18;
+  --serie-2: #9085e9;
   /* Modo escuro do FLUXO ARQ: fundo quase preto esverdeado, cartÃµes #1a221c com borda #2b362d */
   --bg: #121813;
   --surface: #1a221c;

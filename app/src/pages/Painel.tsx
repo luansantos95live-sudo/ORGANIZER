@@ -1,7 +1,7 @@
 import clsx from 'clsx'
 import { differenceInCalendarDays, format, isSameDay, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { AlertTriangle, CalendarPlus, Check, Circle, CircleCheck, Inbox, PieChart, ChevronLeft, ChevronRight, FileText, MessageCircle, PauseCircle, Phone, Plus, type LucideIcon } from 'lucide-react'
+import { AlertTriangle, CalendarPlus, Check, Circle, CircleCheck, Inbox, ChevronLeft, ChevronRight, FileText, MessageCircle, PauseCircle, Phone, Plus, type LucideIcon } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { CaixaPrioridade, DadosPrioridade } from '../components/DadosPrioridade'
@@ -11,7 +11,8 @@ import { TipologiaChip } from '../components/ui'
 import { TIPOLOGIAS, cap, codigoOS, dataMedia, enderecoLinha, farolDe, prazoAtual, prazoIndeterminado, telefoneWhats, TIPOLOGIAS_SEM_VISTORIA } from '../lib/os'
 import { peptVenceu } from '../lib/pept'
 import { diasDaSemana } from '../lib/faturamento'
-import { alertas, emPept, porTipologia } from '../lib/inicio'
+import { alertas, emPept, porTipologia, recebidasPorMes, ultimosMeses } from '../lib/inicio'
+import { OndaRecebidas, type SerieOnda } from '../components/OndaRecebidas'
 import { estadoPassos, passosDaOS, proximoPasso } from '../lib/passos'
 import type { PassoKey, Tipologia } from '../types'
 import { filtrarEscopo, useStore } from '../store/useStore'
@@ -62,7 +63,10 @@ export function Painel() {
   const emAndamento = porPrazo(ativas.filter((o) => o.status !== 'recebida'))
   const mes = hojeStr.slice(0, 7)
   const finalizadas = os.filter((o) => o.status === 'concluida' && o.concluidaEm?.startsWith(mes)).sort((a, b) => b.concluidaEm!.localeCompare(a.concluidaEm!))
-  const passoCurto = (o: OS) => proximoPasso(o, hojeStr).label.replace('Baixar as documentações', 'baixar docs').replace('Analisar documentos', 'analisar docs').toLowerCase()
+  // Recebidas mês a mês (24/11): dono (verde) e RT (roxo); a cor acompanha a pessoa, o filtro só escolhe quem aparece.
+  const meses = ultimosMeses(hoje, 6)
+  const seriesOnda: SerieOnda[] = (['luan', 'rt'] as const).map((id, i) => ({ id, nome: config.responsaveis[id].curto, cor: `var(--serie-${i + 1})`, valores: recebidasPorMes(todas, meses, id) }))
+    .filter((s) => escopo === 'todas' || s.id === escopo)
   const recebidas = os.filter((o) => o.emissao?.startsWith(mes))
   const pept = emPept(os, hoje)
   const avisos = alertas(os, hoje)
@@ -98,14 +102,13 @@ export function Painel() {
         {/* 24/11: "O.S. em aberto" virou dois cartões só com o número, recebidas e finalizadas no mês */}
         <div className="grid grid-cols-2 gap-4">
           <Contador cor="var(--laranja-txt)" fundo="var(--laranja-soft)" Icone={Inbox} rotulo="O.S. recebidas" sub={`em ${nomeMes}`} numero={recebidas.length} para="/os?visao=lista" />
-          <Contador cor="var(--verde-valor)" fundo="var(--brand-soft)" Icone={CircleCheck} rotulo="O.S. finalizadas" sub={`em ${nomeMes}`} numero={finalizadas.length} para="/os?visao=lista&fase=finalizada" />
+          <Contador cor="var(--azul)" fundo="var(--azul-soft)" Icone={FileText} rotulo="O.S. em andamento" sub="agora" numero={emAndamento.length} para="/os?visao=lista&fase=andamento&periodo=todos" />
         </div>
-        <Bloco cor="var(--azul)" fundo="var(--azul-soft)" Icone={FileText} rotulo="O.S. em andamento" numero={emAndamento.length} para="/os?visao=lista&fase=andamento&periodo=todos"
-          itens={emAndamento.slice(0, 3).map((o) => ({ os: o, direita: passoCurto(o) }))} vazio="Nenhuma O.S. em andamento." />
+        {/* 24/11: no lugar da lista de em andamento, as recebidas mês a mês (dono e RT, conforme o filtro) */}
+        <OndaRecebidas meses={meses} series={seriesOnda} />
         <Bloco cor="var(--rt)" fundo="var(--rt-soft)" Icone={PauseCircle} rotulo="O.S. em PEPT" numero={pept.length} para="/os?visao=lista&fase=pept&periodo=todos"
           itens={pept.slice(0, 3).map((p) => ({ os: p.os, direita: prazoIndeterminado(p.os) ? 'sem prazo' : prazoTxt(p.os) }))} vazio="Nenhuma O.S. com prazo pausado." />
-        {/* 24/11: o número de finalizadas já está no cartão ao lado; aqui fica só a divisão por tipologia */}
-        <Bloco cor="var(--verde-valor)" fundo="var(--brand-soft)" Icone={PieChart} rotulo="O.S. por tipologia" semNumero numero={finalizadas.length} para="/os?visao=lista"
+        <Bloco cor="var(--verde-valor)" fundo="var(--brand-soft)" Icone={CircleCheck} rotulo="Finalizadas no mês" numero={finalizadas.length} para="/os?visao=lista&fase=finalizada"
           itens={[]} conteudo={<PizzaTipologia lista={os} mes={mes} />} vazio="Nenhuma finalizada neste mês." />
 
         {/* a semana: vencimentos de O.S. por dia */}
@@ -292,34 +295,30 @@ function Prioridade({ lista, hojeStr, mensagem, emDia }: { lista: OS[]; hojeStr:
 function Contador({ cor, fundo, Icone, rotulo, sub, numero, para }: { cor: string; fundo: string; Icone: LucideIcon; rotulo: string; sub: string; numero: number; para: string }) {
   return (
     <Link to={para} title="Abrir a lista com estas O.S." className="bloco group p-5 flex flex-col justify-between gap-3 min-w-0 hover:border-[var(--brand)] transition">
-      <span className="flex items-start justify-between gap-2">
-        <span className="min-w-0 leading-tight">
-          <span className="block text-[13px] font-semibold text-muted group-hover:text-[var(--text)]">{rotulo}</span>
-          <span className="block text-[11.5px] text-muted">{sub}</span>
-        </span>
-        <span className="w-9 h-9 shrink-0 rounded-xl flex items-center justify-center" style={{ background: fundo, color: cor }}><Icone size={18} /></span>
+      {/* ícone e nome em cima, com a largura toda; embaixo só o número grande (nada se sobrepõe em tela estreita) */}
+      <span className="min-w-0 leading-tight">
+        <span className="w-8 h-8 mb-2 rounded-lg flex items-center justify-center" style={{ background: fundo, color: cor }}><Icone size={16} /></span>
+        <span className="block text-[13px] font-semibold text-muted group-hover:text-[var(--text)]">{rotulo}</span>
+        <span className="block text-[11.5px] text-muted">{sub}</span>
       </span>
-      <span className="block text-[64px] font-bold tracking-[-0.04em] leading-none tnum" style={{ color: numero ? cor : 'var(--fraco)' }}>{numero}</span>
+      <span className="block text-[clamp(44px,4.4vw,64px)] font-bold tracking-[-0.04em] leading-none tnum" style={{ color: numero ? cor : 'var(--fraco)' }}>{numero}</span>
     </Link>
   )
 }
 
 /** Bloco pequeno: rótulo, número grande, ícone e até 3 O.S. */
-function Bloco({ cor, fundo, Icone, rotulo, numero, para, itens, rodape, vazio, conteudo, semNumero }: {
+function Bloco({ cor, fundo, Icone, rotulo, numero, para, itens, rodape, vazio, conteudo }: {
   cor: string; fundo: string; Icone: LucideIcon; rotulo: string; numero: number; para: string
   itens: { os: OS; direita: string; para?: string }[]; rodape?: ReactNode; vazio: string; conteudo?: ReactNode
-  semNumero?: boolean // sem o número grande: o rótulo vira o título do cartão
 }) {
   const nav = useNavigate()
   return (
     <section className="bloco p-5 flex flex-col gap-3 cursor-pointer hover:border-[var(--brand)] transition" onClick={() => nav(para)} title="Abrir a lista com estas O.S.">
       <Link to={para} className="flex items-start justify-between group" onClick={(e) => e.stopPropagation()}>
-        {semNumero ? <span className="text-[16px] font-bold leading-tight group-hover:text-[var(--verde-valor)]">{rotulo}</span> : (
-          <span>
-            <span className="block text-[13px] font-semibold text-muted group-hover:text-[var(--text)]">{rotulo}</span>
-            <span className="block text-[40px] font-bold tracking-[-0.03em] leading-[1.1] tnum" style={{ color: numero ? cor : 'var(--fraco)' }}>{numero}</span>
-          </span>
-        )}
+        <span>
+          <span className="block text-[13px] font-semibold text-muted group-hover:text-[var(--text)]">{rotulo}</span>
+          <span className="block text-[40px] font-bold tracking-[-0.03em] leading-[1.1] tnum" style={{ color: numero ? cor : 'var(--fraco)' }}>{numero}</span>
+        </span>
         <span className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: fundo, color: cor }}><Icone size={20} /></span>
       </Link>
       {conteudo ?? (itens.length ? (
@@ -351,12 +350,10 @@ function PizzaTipologia({ lista, mes }: { lista: OS[]; mes: string }) {
   const dados = porTipologia(lista, mes)
   const total = dados.reduce((n, d) => n + d.recebidas, 0)
   if (!total) return <p className="text-[12.5px] text-muted">Nenhuma O.S. recebida neste mês.</p>
+  // anel em SVG (24/11): fatias com um respiro entre elas, número grande no meio
+  const R = 40, C = 2 * Math.PI * R, gap = dados.length > 1 ? 2.2 : 0
   let acc = 0
-  const fatias = dados.map(({ tipologia, recebidas }) => {
-    const ini = (acc / total) * 360
-    acc += recebidas
-    return `var(--t-${tipologia}-cor) ${ini}deg ${(acc / total) * 360}deg`
-  })
+  const arcos = dados.map((d) => { const len = (d.recebidas / total) * C; const a = { ...d, dash: Math.max(len - gap, 0.6), offset: -acc }; acc += len; return a })
   // Cabe no cartão: as 3 que mais receberam e o resto somado em "Outras".
   const linhas = dados.slice(0, 3).map((d) => ({ ...d, cor: `var(--t-${d.tipologia}-cor)`, titulo: TIPOLOGIAS[d.tipologia] as string }))
   const resto = dados.slice(3)
@@ -364,21 +361,28 @@ function PizzaTipologia({ lista, mes }: { lista: OS[]; mes: string }) {
   const abertas = dados.reduce((n, d) => n + d.abertas, 0)
   return (
     <div className="flex items-center gap-4 pt-3 border-t border-border">
-      <div className="w-[84px] h-[84px] shrink-0 rounded-full relative" style={{ background: `conic-gradient(${fatias.join(', ')})` }}
-        role="img" aria-label={dados.map((d) => `${d.tipologia}: ${d.recebidas} recebidas`).join(', ')}>
-        <span className="absolute inset-[13px] rounded-full bg-[var(--surface)] flex flex-col items-center justify-center leading-none">
-          <b className="text-[17px] tnum">{total}</b><span className="text-[9.5px] text-muted mt-1">recebidas</span>
+      <div className="relative w-[96px] h-[96px] shrink-0">
+        <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90" role="img" aria-label={dados.map((d) => `${d.tipologia}: ${d.recebidas} recebidas`).join(', ')}>
+          <circle cx="50" cy="50" r={R} fill="none" stroke="var(--seg)" strokeWidth="10" />
+          {arcos.map((a) => (
+            <circle key={a.tipologia} cx="50" cy="50" r={R} fill="none" stroke={`var(--t-${a.tipologia}-cor)`} strokeWidth="10" strokeDasharray={`${a.dash} ${C}`} strokeDashoffset={a.offset}
+              className="transition-[stroke-width] hover:[stroke-width:13]"><title>{`${a.tipologia} · ${a.recebidas} recebidas, ${a.recebidas - a.abertas} finalizadas`}</title></circle>
+          ))}
+        </svg>
+        <span className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center leading-none">
+          <b className="text-[24px] tracking-[-0.03em] tnum">{total}</b><span className="text-[10px] text-muted mt-1">recebidas</span>
         </span>
       </div>
-      <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+      <div className="flex-1 min-w-0 flex flex-col gap-2">
         {linhas.map(({ tipologia, recebidas, abertas: ab, cor, titulo }) => (
-          <div key={tipologia} className="grid grid-cols-[58px_1fr_auto] items-center gap-2.5 text-[12.5px]" title={`${titulo}: ${recebidas} recebidas, ${ab} não finalizadas`}>
-            <span className="flex items-center gap-1.5 font-semibold"><span className="w-2 h-2 rounded-full shrink-0" style={{ background: cor }} />{tipologia}</span>
-            <span className="h-1.5 rounded-full bg-[var(--seg)] overflow-hidden"><span className="block h-full rounded-full" style={{ width: `${((recebidas - ab) / recebidas) * 100}%`, background: cor }} /></span>
-            <span className="tnum whitespace-nowrap flex items-center justify-end gap-1.5"><b className="w-5 text-right">{recebidas}</b><span className={clsx('min-w-[22px] text-center rounded-full px-1.5 text-[11px] font-bold', ab ? 'chip-l' : 'text-[var(--fraco)]')}>{ab}</span></span>
+          <div key={tipologia} className="grid grid-cols-[62px_1fr_auto] items-center gap-2.5 text-[12.5px]" title={`${titulo}: ${recebidas - ab} finalizadas de ${recebidas} recebidas`}>
+            <span className="flex items-center gap-1.5 font-semibold"><span className="w-2.5 h-2.5 rounded-[3px] shrink-0" style={{ background: cor }} />{tipologia}</span>
+            {/* barra = quanto do que chegou já foi finalizado */}
+            <span className="h-[6px] rounded-full bg-[var(--seg)] overflow-hidden"><span className="block h-full rounded-full" style={{ width: `${((recebidas - ab) / recebidas) * 100}%`, background: cor }} /></span>
+            <span className="tnum whitespace-nowrap text-right"><b>{recebidas - ab}</b><span className="text-muted">/{recebidas}</span></span>
           </div>
         ))}
-        <div className="text-[11px] text-muted mt-0.5 truncate" title="Barra cheia = já finalizadas; número laranja = ainda não finalizadas"><b className="text-[var(--laranja-txt)]">{abertas}</b> de {total} ainda não finalizadas</div>
+        <div className="text-[11px] text-muted mt-0.5 truncate" title="Barra e número: finalizadas / recebidas no mês, por tipologia"><b className="text-[var(--laranja-txt)]">{abertas}</b> de {total} ainda não finalizadas</div>
       </div>
     </div>
   )

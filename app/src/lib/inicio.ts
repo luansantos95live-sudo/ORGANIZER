@@ -1,4 +1,4 @@
-import { addDays, differenceInCalendarDays, format, parseISO } from 'date-fns'
+import { addDays, differenceInCalendarDays, format, parseISO, subMonths } from 'date-fns'
 import type { OS, TipoPept, Tipologia } from '../types'
 import { PEPT_LIMITE, STATUS_ABERTOS, TIPOLOGIAS_SEM_VISTORIA, farolDe, normCidade, prazoAtual } from './os'
 import { diaQueAPeptVence, peptAberta, peptVenceu } from './pept'
@@ -245,4 +245,14 @@ export function porTipologia(lista: OS[], mes: string): { tipologia: Tipologia; 
     m.set(o.tipologia, v)
   }
   return [...m.entries()].map(([tipologia, v]) => ({ tipologia, ...v })).sort((a, b) => b.recebidas - a.recebidas || a.tipologia.localeCompare(b.tipologia))
+}
+
+// ---------------------------------------------------------------- recebidas mês a mês (gráfico de onda do Início)
+/** Últimos `n` meses (yyyy-MM), do mais antigo ao atual. */
+export function ultimosMeses(hoje: Date, n = 6): string[] {
+  return Array.from({ length: n }, (_, i) => format(subMonths(hoje, n - 1 - i), 'yyyy-MM'))
+}
+/** Quantas O.S. o responsável recebeu em cada mês (canceladas ficam de fora). */
+export function recebidasPorMes(lista: OS[], meses: string[], resp: string): number[] {
+  return meses.map((m) => lista.filter((o) => o.responsavel === resp && o.status !== 'cancelada' && !!o.emissao?.startsWith(m)).length)
 }
