@@ -6,9 +6,7 @@ import { differenceInCalendarDays, format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { useStore } from '../store/useStore'
 import { iniciarPasta, reconectarPasta } from '../store/pastaSync'
-import { conectarPastaOS, iniciarPastasOS, reconectarPastaOS } from '../store/pastasOS'
-import { precisaPasta } from '../lib/pastasOS'
-import { suportaPasta } from '../lib/pastaDados'
+import { iniciarPastasOS, reconectarPastaOS } from '../store/pastasOS'
 import { Avatar, Dica, Segmented, StatusChip, useFora } from './ui'
 import { Logo, LogoCompleta } from './Logo'
 import { IconeAmostragem, IconeAnotacoes, IconeConfig, IconeTodas, IconeEmails, IconeFichas, IconeFinanceiro, IconeInicio, IconeOS, IconeRotas } from './IconesMenu'
@@ -76,8 +74,6 @@ export function Layout() {
   // Pasta das O.S. no OneDrive (12/11): cria a pasta de cada O.S. nova
   const pastaOSAviso = useStore((s) => s.pastaOSAviso)
   useEffect(() => { void iniciarPastasOS() }, [])
-  // 24/11: sem a pasta ligada, as O.S. novas ficavam sem pasta e nada avisava. Agora aparece a faixa com o botão.
-  const semPastaOS = useStore((s) => (s.pastaOS ? 0 : s.os.filter(precisaPasta).length))
   const osNovas = useStore((s) => s.os.filter((o) => o.nova).length)
   // Só um técnico ativo: não há o que separar, então o seletor some e tudo fica em "Minhas".
   const equipe = temEquipe(config)
@@ -179,12 +175,6 @@ export function Layout() {
                 <span className="flex-1 min-w-[200px]"><b>Pasta do OneDrive.</b> {pastaAviso.texto}</span>
                 {pastaAviso.tipo === 'permissao' && <button className="btn btn-primary btn-sm" onClick={() => void reconectarPasta()}>Reconectar pasta</button>}
                 <NavLink to="/configuracoes?secao=backup" className="btn btn-secondary btn-sm">Configurar</NavLink>
-              </div>
-            )}
-            {semPastaOS > 0 && suportaPasta() && (
-              <div className="mb-3 rounded-[12px] px-4 py-2.5 text-[13px] flex flex-wrap items-center gap-3 bg-[var(--laranja-soft)] text-[var(--laranja-txt)]">
-                <span className="flex-1 min-w-[200px]"><b>Pastas das O.S.</b> {semPastaOS === 1 ? '1 O.S. está' : `${semPastaOS} O.S. estão`} sem pasta no OneDrive. Escolha uma vez a pasta <b>1 - ORDENS DE SERVIÇO</b> e o sistema cria as que faltam sozinho (as que já existem não são mexidas).</span>
-                <button className="btn btn-primary btn-sm" onClick={() => void conectarPastaOS()}>Escolher a pasta das O.S.</button>
               </div>
             )}
             {pastaOSAviso && (pastaOSAviso.tipo === 'permissao' || pastaOSAviso.tipo === 'erro') && (

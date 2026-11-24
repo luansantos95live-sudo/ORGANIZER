@@ -140,9 +140,8 @@ sistema real. Roda no navegador com dados fictícios salvos em `localStorage`. F
   FOTOS VISTORIA, LAUDO/{LAUDO,MODELO DE REGRESSÃO,RAE}. Se já existir "OS-N …" no mês, só anota. Pasta do técnico achada pelo
   prefixo "1 - " (luan) / "2 - " (rt; o RT fica de fora, `TECNICOS_COM_PASTA`). Regras em `lib/pastasOS.ts` (teste), gravação em
   `store/pastasOS.ts` (`iniciarPastasOS` no Layout; faixa laranja "Reconectar pasta" se o Chrome pedir).
-  **24/11**: as O.S. 30 e 31 (e-mail) ficaram sem pasta porque a pasta "1 - ORDENS DE SERVIÇO" **nunca foi ligada** neste Chrome
-  e nada avisava. Agora, sem pasta ligada e com O.S. pendente (`precisaPasta`), aparece no topo a faixa laranja "N O.S. sem pasta
-  no OneDrive" com o botão **Escolher a pasta das O.S.** (`conectarPastaOS`); ao ligar, cria as que faltam (as existentes só são anotadas).
+  **24/11**: a faixa "Escolher a pasta das O.S." foi feita e **desfeita a pedido** ("o agente já serve pra isso"): a versão web
+  cria as pastas pelo agente; nesta versão local, se faltar pasta, cria-se direto no OneDrive (as da OS-30 e OS-31 foram criadas assim).
 - **E-mails em abas (24/11)**: Todos · **O.S. recebidas** · **O.S. finalizadas** · **PEPT resolvidas** · **Notificações gerais**
   (`GRUPOS_EMAIL`/`grupoEmail` em lib/emails.ts; "Conclusão da Ordem de Serviço" sem anexo é o tipo `finalizada`, etiqueta `.chip-fin`;
   cancelamento, prazo e aviso vão para Notificações gerais), cada uma com o total e um ponto verde se houver não lido; **Não lidos** filtra
