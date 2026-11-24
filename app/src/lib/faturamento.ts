@@ -349,6 +349,16 @@ export function diasDaSemana(ref: Date) {
 }
 
 /**
+ * Fichas de Pesquisa (regra de 24/11): a O.S. só entra para fazer a ficha depois de concluída, e conta no período
+ * em que foi concluída (sem data de conclusão, vale a de recebimento).
+ */
+export function fichaNoPeriodo(o: OS, ini: Date, fim: Date) {
+  if (o.status !== 'concluida') return false
+  const d = parseISO(o.concluidaEm ?? o.emissao ?? '')
+  return !Number.isNaN(d.getTime()) && d >= ini && d <= fim
+}
+
+/**
  * Regra universal das O.S. por período (24/11, pedido do usuário): a O.S. aparece no mês em que foi RECEBIDA (não no
  * do vencimento) e, enquanto não for finalizada, continua aparecendo nos meses seguintes. Finalizada,
  * aparece do mês em que chegou até o mês em que foi concluída. Cancelada, só no período em que chegou.

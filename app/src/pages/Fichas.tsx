@@ -4,7 +4,7 @@ import { Building2, Check, MapPin, Search, Tag } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Avatar, Empty, FiltroPeriodo, Filtro, MultiSelect, PageHeader, StatusChip, TipologiaChip } from '../components/ui'
-import { intervalo, osNoPeriodo, type Periodo } from '../lib/faturamento'
+import { fichaNoPeriodo, intervalo, type Periodo } from '../lib/faturamento'
 import { POLOS, TIPOLOGIAS, TIPOLOGIAS_COM_FICHA, codigoOS, poloDe } from '../lib/os'
 import { filtrarEscopo, useStore } from '../store/useStore'
 import type { OS, Responsavel, Tipologia } from '../types'
@@ -36,11 +36,11 @@ export function Fichas() {
   const base = useMemo(() => {
     const t = busca.trim().toLowerCase()
     return filtrarEscopo(todas, escopo)
-      .filter((o) => TIPOLOGIAS_COM_FICHA.includes(o.tipologia) && o.status !== 'cancelada')
+      .filter((o) => TIPOLOGIAS_COM_FICHA.includes(o.tipologia))
       .filter((o) => !tipologias.length || tipologias.includes(o.tipologia))
       .filter((o) => !polos.length || polos.includes(poloDe(o.endereco.cidade)))
       .filter((o) => !cidades.length || cidades.includes(o.endereco.cidade))
-      .filter((o) => osNoPeriodo(o, ini, fim)) // mês em que a O.S. foi recebida (24/11)
+      .filter((o) => fichaNoPeriodo(o, ini, fim)) // 24/11: só concluídas, no mês em que foram concluídas
       .filter((o) => !t || [o.referencia, codigoOS(o), o.proponente].join(' ').toLowerCase().includes(t))
       .sort((a, b) => b.numero - a.numero)
   }, [todas, escopo, tipologias, polos, cidades, ini, fim, busca])

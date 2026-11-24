@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { dataReferencia, entraNoFaturamento, intervalo, noIntervalo, noPeriodoComPendencias, painelEquipe, painelGeral, painelMinhas, paradaSemNota, projecaoPorRitmo, repasseDaOS, repasseDe, resumir, situacaoDe, textoPronto, ticksBonitos, valorTotal } from '../faturamento'
-import { emAbertoAte, noPeriodoFinanceiro, osNoPeriodo } from '../faturamento'
+import { emAbertoAte, fichaNoPeriodo, noPeriodoFinanceiro, osNoPeriodo } from '../faturamento'
 import type { OS, Status } from '../../types'
 
 const mk = (status: Status, servico: number, desloc: number, extra: Partial<OS> = {}) =>
@@ -301,5 +301,21 @@ describe('O.S. no mês em que foi recebida (24/11, regra universal)', () => {
     const canc = mk('cancelada', 1, 0, { emissao: '2026-10-20' })
     expect(osNoPeriodo(canc, out.ini, out.fim, HOJE_NOV)).toBe(true)
     expect(osNoPeriodo(canc, nov.ini, nov.fim, HOJE_NOV)).toBe(false)
+  })
+})
+
+describe('fichaNoPeriodo (24/11): Fichas de Pesquisa só com O.S. concluídas', () => {
+  const nov = { ini: new Date(2026, 10, 1), fim: new Date(2026, 10, 30, 23, 59, 59) }
+  const mk = (extra: Partial<OS>) => ({ status: 'concluida', emissao: '2026-10-20', concluidaEm: '2026-11-05', ...extra }) as OS
+  it('concluída entra no mês em que foi concluída, não no de recebimento', () => {
+    expect(fichaNoPeriodo(mk({}), nov.ini, nov.fim)).toBe(true)
+    expect(fichaNoPeriodo(mk({}), new Date(2026, 9, 1), new Date(2026, 9, 31, 23, 59, 59))).toBe(false)
+  })
+  it('aberta, em andamento, em assinatura ou cancelada não entra', () => {
+    for (const status of ['recebida', 'em_andamento', 'assinatura_pendente', 'assinatura_concluida', 'cancelada'] as const)
+      expect(fichaNoPeriodo(mk({ status, concluidaEm: undefined }), new Date(1900, 0, 1), new Date(2999, 0, 1))).toBe(false)
+  })
+  it('concluída sem data de conclusão usa a de recebimento', () => {
+    expect(fichaNoPeriodo(mk({ concluidaEm: undefined, emissao: '2026-11-10' }), nov.ini, nov.fim)).toBe(true)
   })
 })
