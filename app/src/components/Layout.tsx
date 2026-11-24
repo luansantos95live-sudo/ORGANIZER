@@ -99,7 +99,7 @@ export function Layout() {
         <div className="marca flex items-center gap-3 px-[18px] pt-5 pb-3">
           {/* menu recolhido: só o ícone; aberto: a logo completa */}
           <Logo size={38} className="logo-icone shrink-0 rounded-[9px]" />
-          <LogoCompleta altura={36} className="marca-logo max-w-full" />
+          <LogoCompleta altura={44} className="marca-logo max-w-full" />
         </div>
         <nav className="abas flex-1 overflow-y-auto flex flex-col gap-px px-3 pb-3">
           {GRUPOS.map((g) => (
