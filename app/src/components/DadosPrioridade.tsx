@@ -1,6 +1,6 @@
 import { CalendarDays, Check, Copy, Flag, MapPin, MessageCircle, PauseCircle, Phone, User } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
-import { dataCurta, peptContaPrazo, prazoAtual, refCurta, telefoneWhats } from '../lib/os'
+import { dataCurta, peptContaPrazo, prazoAtual, telefoneWhats } from '../lib/os'
 import type { OS } from '../types'
 
 /** "CAMILA DUARTE" → "Camila Duarte" (mantém de, da, do… em minúsculas). */
@@ -27,7 +27,7 @@ function Linha({ icone, children }: { icone: ReactNode; children: ReactNode }) {
   )
 }
 
-/** Nº da Caixa (curto) que copia o número completo; fica na linha do código da O.S., no topo do cartão. */
+/** Nº da Caixa completo (24/11, antes era curto), clique copia; fica na linha do código da O.S., no topo do cartão. */
 export function CaixaPrioridade({ referencia }: { referencia: string }) {
   const [copiado, setCopiado] = useState(false)
   const copiar = async () => {
@@ -43,7 +43,7 @@ export function CaixaPrioridade({ referencia }: { referencia: string }) {
     <button type="button" onClick={() => void copiar()} title={`${referencia} · clique para copiar`}
       className="tnum inline-flex h-6 items-center gap-1.5 rounded-full bg-white/[.08] px-2.5 text-[12.5px] font-semibold hover:bg-white/15">
       <span className="opacity-60">Caixa</span>
-      {refCurta(referencia)}
+      {referencia}
       {copiado ? <Check size={12} strokeWidth={3} /> : <Copy size={12} className="opacity-60" />}
     </button>
   )
