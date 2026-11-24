@@ -2,8 +2,7 @@ import clsx from 'clsx'
 import { Bell, ClipboardList, Mail, Moon, PanelLeftClose, Search, Settings, Sun, UserRound } from 'lucide-react'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { differenceInCalendarDays, format, parseISO } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
+import { differenceInCalendarDays, parseISO } from 'date-fns'
 import { useStore } from '../store/useStore'
 import { iniciarPasta } from '../store/pastaSync'
 import { Avatar, Dica, Segmented, StatusChip, useFora } from './ui'
@@ -12,7 +11,7 @@ import { IconeAmostragem, IconeAnotacoes, IconeConfig, IconeTodas, IconeEmails, 
 import { PostIt } from './PostIt'
 import { caixaDeEntrada, notificaveis, tipoEmail } from '../lib/emails'
 import type { Escopo, OS } from '../types'
-import { STATUS_META, cap, codigoOS, enderecoLinha, farolDe, temEquipe } from '../lib/os'
+import { STATUS_META, codigoOS, enderecoLinha, farolDe, temEquipe } from '../lib/os'
 
 // Menu igual ao do sistema real, na ordem dele, com os grupos da lateral do FLUXO ARQ.
 const GRUPOS = [
@@ -162,7 +161,6 @@ export function Layout() {
             </button>
             <Notificacoes />
             <MenuUsuario />
-            <span className="hidden xl:inline text-[12.5px] text-[#c9d1c6] ml-1">{cap(format(new Date(), "EEE, d 'de' MMM", { locale: ptBR }))}</span>
           </div>
         </header>
         <main className="area flex-1 px-3 md:px-5 py-4 w-full pb-24 md:pb-5">
