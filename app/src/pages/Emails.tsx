@@ -1,12 +1,15 @@
 import clsx from 'clsx'
 import { differenceInCalendarDays, format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Play, CheckCheck, Download, ExternalLink, FileText, FolderInput, Mail, MailOpen, RefreshCw, Settings } from 'lucide-react'
+import { Bell, CircleCheckBig, Inbox, Mails, Play, CheckCheck, Download, ExternalLink, FileText, FolderInput, Mail, MailOpen, RefreshCw, Settings, TimerReset } from 'lucide-react'
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { PageHeader } from '../components/ui'
 import { caixaDeEntrada, GRUPOS_EMAIL, grupoEmail, poloDoEmail, porPolo, TIPO_EMAIL, tipoEmail, type Email, type GrupoEmail } from '../lib/emails'
 import { useStore } from '../store/useStore'
+
+/** Filtros da caixa de entrada (24/11): ícone e cor de cada aba. */
+const ICONE_ABA = { todos: Mails, recebidas: Inbox, finalizadas: CircleCheckBig, pept: TimerReset, gerais: Bell } as const
 
 const COR_TIPO = { os: 'chip-v', finalizada: 'chip-fin', pept: 'chip-rt', cancelamento: 'chip-r', prazo: 'chip-l', aviso: 'farol-pausa' } as const
 
@@ -100,20 +103,25 @@ export function EmailsPage() {
       )}
       <div className="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-3 items-start">
         <section className="bloco overflow-hidden">
-          <div className="flex flex-wrap gap-1 p-2 border-b border-border">
-            {[{ id: 'todos' as const, rotulo: 'Todos' }, ...GRUPOS_EMAIL].map((g) => {
+          {/* Filtros (24/11, redesenho): Todos numa linha, as 4 abas em grade 2×2 e a chave "Só não lidos" */}
+          <div className="filtro-email">
+            {[{ id: 'todos' as const, rotulo: 'Todos os e-mails' }, ...GRUPOS_EMAIL].map((g) => {
               const doGrupo = daAba(g.id)
               const novos = doGrupo.filter((e) => !e.lido).length
+              const Icone = ICONE_ABA[g.id]
               return (
-                <button key={g.id} className={clsx('btn btn-sm !rounded-full', aba === g.id ? 'btn-primary' : 'btn-ghost')}
+                <button key={g.id} type="button" className={clsx('fe-item', `fe-${g.id}`, aba === g.id && 'ativo')} aria-pressed={aba === g.id}
                   title={novos ? `${novos} não ${novos === 1 ? 'lido' : 'lidos'}` : undefined} onClick={() => setAba(g.id)}>
-                  {g.rotulo}<span className="tnum opacity-75">{doGrupo.length}</span>
-                  {novos > 0 && <span className={clsx('w-1.5 h-1.5 rounded-full', aba === g.id ? 'bg-white' : 'bg-[var(--brand)]')} />}
+                  <span className="fe-ic"><Icone size={14} /></span>
+                  <span className="fe-rot">{g.rotulo}</span>
+                  {novos > 0 && <span className="fe-novo" aria-label={`${novos} não lidos`} />}
+                  <span className="fe-n">{doGrupo.length}</span>
                 </button>
               )
             })}
-            <button className={clsx('btn btn-sm !rounded-full ml-auto', soNaoLidos ? 'btn-primary' : 'btn-secondary')} aria-pressed={soNaoLidos} onClick={() => setSoNaoLidos((v) => !v)}>
-              Não lidos <span className="tnum opacity-75">{naoLidos}</span>
+            <button type="button" className="fe-chave" role="switch" aria-checked={soNaoLidos} onClick={() => setSoNaoLidos((v) => !v)}>
+              <span className={clsx('fe-trilho', soNaoLidos && 'ligado')}><span /></span>
+              Só não lidos <b className="tnum">{naoLidos}</b>
             </button>
           </div>
           {visiveis.length === 0 ? <p className="text-[13px] text-muted text-center py-10">{aba === 'todos' ? `Nenhum e-mail${soNaoLidos ? ' não lido' : ' da Caixa'}.` : `Nada em ${rotuloAba}${soNaoLidos ? ' sem ler' : ''}.`}</p> : (

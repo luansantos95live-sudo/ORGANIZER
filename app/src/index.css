@@ -656,3 +656,26 @@ tr.prazo-amarelo:hover, tr.prazo-vermelho:hover, tr.prazo-cinza:hover, tr.prazo-
 
 /* E-mails: cabeçalho do polo na aba O.S. recebidas (24/11) */
 .polo-cab { position: sticky; top: 0; z-index: 1; display: flex; justify-content: space-between; align-items: center; padding: 6px 16px; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); background: var(--surface-2); border-bottom: 1px solid var(--border); }
+
+/* E-mails: filtros da caixa de entrada (24/11, redesenho) — Todos numa linha, abas em grade 2×2, chave "Só não lidos" */
+.filtro-email { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 10px; border-bottom: 1px solid var(--border); }
+.fe-item { display: flex; align-items: center; gap: 8px; min-width: 0; height: 38px; padding: 0 10px 0 6px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 12.5px; font-weight: 600; text-align: left; cursor: pointer; transition: border-color .15s, background .15s; }
+.fe-item:hover { border-color: color-mix(in oklab, var(--brand) 45%, var(--border)); }
+.fe-item.ativo { border-color: var(--brand); background: var(--brand-soft); box-shadow: inset 0 0 0 1px var(--brand); }
+.fe-todos { grid-column: 1 / -1; }
+.fe-ic { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; flex-shrink: 0; }
+.fe-todos .fe-ic { background: var(--surface-2); color: var(--text); }
+.fe-recebidas .fe-ic { background: var(--brand-soft); color: var(--verde-valor); }
+.fe-finalizadas .fe-ic { background: color-mix(in oklab, var(--text) 10%, transparent); color: var(--text); }
+.fe-pept .fe-ic { background: var(--rt-soft); color: var(--rt); }
+.fe-gerais .fe-ic { background: var(--azul-soft); color: var(--azul); }
+.fe-rot { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fe-n { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--muted); }
+.fe-item.ativo .fe-n { color: var(--text); }
+.fe-novo { width: 7px; height: 7px; border-radius: 50%; background: var(--brand); flex-shrink: 0; }
+.fe-chave { grid-column: 1 / -1; justify-self: end; display: inline-flex; align-items: center; gap: 8px; padding: 2px 2px 0; font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer; }
+.fe-chave b { color: var(--text); }
+.fe-trilho { width: 28px; height: 16px; border-radius: 999px; background: var(--border); position: relative; transition: background .15s; }
+.fe-trilho > span { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: transform .15s; }
+.fe-trilho.ligado { background: var(--brand); }
+.fe-trilho.ligado > span { transform: translateX(12px); }
