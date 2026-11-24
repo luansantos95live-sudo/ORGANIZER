@@ -1,11 +1,11 @@
 import clsx from 'clsx'
 import { differenceInCalendarDays, format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Bell, CircleCheckBig, Inbox, Mails, Play, CheckCheck, Download, ExternalLink, FileText, Mail, MailOpen, RefreshCw, TimerReset } from 'lucide-react'
-import { Fragment, useEffect, useState } from 'react'
+import { Bell, CircleCheckBig, Inbox, Mails, Play, CheckCheck, Download, ExternalLink, FileText, Mail, MailOpen, MapPin, RefreshCw, TimerReset } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { PageHeader } from '../components/ui'
-import { caixaDeEntrada, GRUPOS_EMAIL, grupoEmail, poloDoEmail, porPolo, TIPO_EMAIL, tipoEmail, type Email, type GrupoEmail } from '../lib/emails'
+import { caixaDeEntrada, GRUPOS_EMAIL, grupoEmail, poloDoEmail, TIPO_EMAIL, tipoEmail, type Email, type GrupoEmail } from '../lib/emails'
 import { useStore } from '../store/useStore'
 
 /** Filtros da caixa de entrada (24/11): ícone e cor de cada aba. */
@@ -116,11 +116,8 @@ export function EmailsPage() {
           </div>
           {visiveis.length === 0 ? <p className="text-[13px] text-muted text-center py-10">{aba === 'todos' ? `Nenhum e-mail${soNaoLidos ? ' não lido' : ' da Caixa'}.` : `Nada em ${rotuloAba}${soNaoLidos ? ' sem ler' : ''}.`}</p> : (
             <ul className="max-h-[calc(100vh-230px)] overflow-y-auto">
-              {(aba === 'recebidas' ? porPolo(visiveis) : [{ polo: '', emails: visiveis }]).map((g) => (
-                <Fragment key={g.polo || 'todos'}>
-                {/* O.S. recebidas separadas por polo (24/11) */}
-                {g.polo && <li className="polo-cab"><span>Polo {g.polo === 'OUTROS' || g.polo === 'SEM POLO' ? g.polo.toLowerCase() : g.polo}</span><span className="tnum">{g.emails.length}</span></li>}
-                {g.emails.map((e) => {
+              {/* 24/11: sem a divisão por polo; cada e-mail mostra a etiqueta do polo da O.S. */}
+              {visiveis.map((e) => {
                 const t = tipoEmail(e)
                 const polo = poloDoEmail(e)
                 return (
@@ -136,7 +133,7 @@ export function EmailsPage() {
                         <span className="flex items-center gap-1.5 mt-1">
                           <span className={clsx('chip !h-[20px] text-[11px]', COR_TIPO[t])}>{TIPO_EMAIL[t]}</span>
                           {e.anexo && <span className="text-[11px] text-muted flex items-center gap-1"><FileText size={11} />.txt</span>}
-                          {polo && aba !== 'recebidas' && <span className="text-[11px] text-muted">· polo {polo}</span>}
+                          {polo && <span className="inline-flex !h-[20px] items-center gap-1 rounded-[5px] px-1.5 text-[10px] font-semibold uppercase tracking-[.04em] bg-[var(--azul-soft)] text-[var(--azul)]" title={`Polo ${polo}`}><MapPin size={10} />Polo <b>{polo}</b></span>}
                           {e.importadaId && <span className="text-[11px] text-[var(--verde-valor)] font-semibold">importada</span>}
                         </span>
                       </span>
@@ -144,8 +141,6 @@ export function EmailsPage() {
                   </li>
                 )
               })}
-                </Fragment>
-              ))}
             </ul>
           )}
         </section>
