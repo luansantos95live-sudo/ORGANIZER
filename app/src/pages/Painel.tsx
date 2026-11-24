@@ -1,7 +1,7 @@
 import clsx from 'clsx'
 import { differenceInCalendarDays, format, isSameDay, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { AlertTriangle, CalendarPlus, Check, Circle, CircleCheck, Inbox, ChevronLeft, ChevronRight, FileText, MessageCircle, PauseCircle, Phone, Plus, type LucideIcon } from 'lucide-react'
+import { AlertTriangle, CalendarPlus, Check, Circle, CircleCheck, Inbox, PieChart, ChevronLeft, ChevronRight, FileText, MessageCircle, PauseCircle, Phone, Plus, type LucideIcon } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { CaixaPrioridade, DadosPrioridade } from '../components/DadosPrioridade'
@@ -104,7 +104,8 @@ export function Painel() {
           itens={emAndamento.slice(0, 3).map((o) => ({ os: o, direita: passoCurto(o) }))} vazio="Nenhuma O.S. em andamento." />
         <Bloco cor="var(--rt)" fundo="var(--rt-soft)" Icone={PauseCircle} rotulo="O.S. em PEPT" numero={pept.length} para="/os?visao=lista&fase=pept&periodo=todos"
           itens={pept.slice(0, 3).map((p) => ({ os: p.os, direita: prazoIndeterminado(p.os) ? 'sem prazo' : prazoTxt(p.os) }))} vazio="Nenhuma O.S. com prazo pausado." />
-        <Bloco cor="var(--verde-valor)" fundo="var(--brand-soft)" Icone={CircleCheck} rotulo="Finalizadas no mês" numero={finalizadas.length} para="/os?visao=lista&fase=finalizada"
+        {/* 24/11: o número de finalizadas já está no cartão ao lado; aqui fica só a divisão por tipologia */}
+        <Bloco cor="var(--verde-valor)" fundo="var(--brand-soft)" Icone={PieChart} rotulo="O.S. por tipologia" semNumero numero={finalizadas.length} para="/os?visao=lista"
           itens={[]} conteudo={<PizzaTipologia lista={os} mes={mes} />} vazio="Nenhuma finalizada neste mês." />
 
         {/* a semana: vencimentos de O.S. por dia */}
@@ -121,12 +122,9 @@ export function Painel() {
                 <Link key={d.toISOString()} to={`/os?dia=${format(d, 'yyyy-MM-dd')}`} title={format(d, "EEEE, d 'de' MMMM", { locale: ptBR })}
                   className={clsx('rounded-xl px-2 py-2 min-h-[132px] h-full flex flex-col gap-1 border transition hover:border-[var(--brand)]',
                     eHoje ? 'border-2 border-[var(--brand)] bg-[var(--brand-soft)] shadow-[0_6px_18px_-10px_rgba(58,184,30,.7)]' : 'border-border bg-[var(--surface-2)]', passou && 'opacity-60')}>
-                  {/* 24/11: nome do dia em destaque (maior e em negrito) com a data; hoje ganha a etiqueta HOJE */}
-                  <span className="flex flex-wrap items-center gap-1">
-                    <span className={clsx('text-[14.5px] font-extrabold leading-tight tracking-[-0.01em]', eHoje ? 'text-[var(--verde-valor)]' : 'text-[var(--text)]')}>{nomeDoDia(d)}</span>
-                    <span className="tnum text-[11px] font-semibold text-muted">{format(d, 'dd/MM')}</span>
-                    {eHoje && <span className="rounded-full bg-[var(--brand)] px-1.5 py-px text-[9.5px] font-bold tracking-[.06em] text-white">HOJE</span>}
-                  </span>
+                  {/* 24/11: duas linhas fixas em todo dia: o nome em destaque e, embaixo, a data (hoje: "Hoje · 24/11") */}
+                  <span className={clsx('block truncate text-[14.5px] font-extrabold leading-tight tracking-[-0.01em]', eHoje ? 'text-[var(--verde-valor)]' : 'text-[var(--text)]')}>{nomeDoDia(d)}</span>
+                  <span className={clsx('block truncate tnum -mt-0.5 mb-1 text-[11px] font-semibold', eHoje ? 'text-[var(--verde-valor)]' : 'text-muted')}>{eHoje ? `Hoje · ${format(d, 'dd/MM')}` : format(d, 'dd/MM')}</span>
                   <span className="text-[24px] font-bold tnum leading-none" style={{ color: vencem.length ? (passou ? 'var(--vermelho)' : 'var(--laranja-txt)') : 'var(--fraco)' }}>{vencem.length}</span>
                   <span className="text-[10.5px] text-muted">{vencem.length === 1 ? 'vence' : 'vencem'}</span>
                   {vencem.slice(0, 2).map((o) => <span key={o.id} className="text-[11px] font-semibold truncate leading-tight" title={o.proponente}>{codigoOS(o)} · {o.proponente.split(' ')[0]}</span>)}
@@ -307,18 +305,21 @@ function Contador({ cor, fundo, Icone, rotulo, sub, numero, para }: { cor: strin
 }
 
 /** Bloco pequeno: rótulo, número grande, ícone e até 3 O.S. */
-function Bloco({ cor, fundo, Icone, rotulo, numero, para, itens, rodape, vazio, conteudo }: {
+function Bloco({ cor, fundo, Icone, rotulo, numero, para, itens, rodape, vazio, conteudo, semNumero }: {
   cor: string; fundo: string; Icone: LucideIcon; rotulo: string; numero: number; para: string
   itens: { os: OS; direita: string; para?: string }[]; rodape?: ReactNode; vazio: string; conteudo?: ReactNode
+  semNumero?: boolean // sem o número grande: o rótulo vira o título do cartão
 }) {
   const nav = useNavigate()
   return (
     <section className="bloco p-5 flex flex-col gap-3 cursor-pointer hover:border-[var(--brand)] transition" onClick={() => nav(para)} title="Abrir a lista com estas O.S.">
       <Link to={para} className="flex items-start justify-between group" onClick={(e) => e.stopPropagation()}>
-        <span>
-          <span className="block text-[13px] font-semibold text-muted group-hover:text-[var(--text)]">{rotulo}</span>
-          <span className="block text-[40px] font-bold tracking-[-0.03em] leading-[1.1] tnum" style={{ color: numero ? cor : 'var(--fraco)' }}>{numero}</span>
-        </span>
+        {semNumero ? <span className="text-[16px] font-bold leading-tight group-hover:text-[var(--verde-valor)]">{rotulo}</span> : (
+          <span>
+            <span className="block text-[13px] font-semibold text-muted group-hover:text-[var(--text)]">{rotulo}</span>
+            <span className="block text-[40px] font-bold tracking-[-0.03em] leading-[1.1] tnum" style={{ color: numero ? cor : 'var(--fraco)' }}>{numero}</span>
+          </span>
+        )}
         <span className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: fundo, color: cor }}><Icone size={20} /></span>
       </Link>
       {conteudo ?? (itens.length ? (
